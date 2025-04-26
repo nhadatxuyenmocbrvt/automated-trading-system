@@ -19,10 +19,10 @@
 
 ## Modules đang phát triển
 - [ ] ├── data_collectors/            # Thu thập dữ liệu
-- [ ]   exchange_api/                 # Kết nối API sàn giao dịch
-- [ ]  binance_connector.py           # Kết nối Binance
-- [ ]  bybit_connector.py             # Kết nối ByBit
-- [ ]  generic_connector.py           # Lớp kết nối chung
+- [x]   exchange_api/                 # Kết nối API sàn giao dịch
+- [x]  binance_connector.py           # Kết nối Binance
+- [x]  bybit_connector.py             # Kết nối ByBit
+- [x]  generic_connector.py           # Lớp kết nối chung
 - [ ]  market_data/
 - [ ]  historical_data_collector.py   # Thu thập dữ liệu lịch sử
 - [ ]  realtime_data_stream.py        # Dữ liệu thời gian thực
