@@ -8,7 +8,7 @@
 - [x] project_overview.md
 - [ ] CI/CD workflow (.github/workflows/main.yml)
 
-## Modules Đang phát triển
+## Modules Đã hoàn thành
 - [x] config/system_config.py
 - [x] config/logging_config.py
 - [x] config/security_config.py
