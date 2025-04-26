@@ -1,0 +1,252 @@
+# Automated Trading System
+
+## Tổng quan
+Hệ thống giao dịch tự động sử dụng Reinforcement Learning để tối ưu hóa chiến lược giao dịch trên thị trường tiền điện tử.
+
+## Mô tả
+Dự án này xây dựng một hệ thống giao dịch hoàn chỉnh bao gồm:
+- Thu thập dữ liệu từ các sàn giao dịch
+- Xử lý và tạo đặc trưng từ dữ liệu thị trường
+- Huấn luyện các agent sử dụng Reinforcement Learning
+- Quản lý rủi ro thông minh
+- Backtest và đánh giá chiến lược
+- Dashboard theo dõi và phân tích
+- Triển khai giao dịch thời gian thực
+
+## Cấu trúc dự án
+```
+automated-trading-system/
+│
+├── config/                                # Cấu hình hệ thống & bảo mật
+│   ├── system_config.py                   # Cấu hình chung hệ thống
+│   ├── logging_config.py                  # Cấu hình logging
+│   ├── security_config.py                 # Cấu hình bảo mật
+│   ├── env.py                             # Quản lý biến môi trường
+│   ├── constants.py                       # Hằng số hệ thống
+│   └── utils/                             # Tiện ích chung
+│       ├── encryption.py                  # Mã hóa dữ liệu
+│       └── validators.py                  # Kiểm tra tính hợp lệ
+│
+├── data_collectors/                       # Thu thập dữ liệu
+│   ├── exchange_api/                      # Kết nối API sàn giao dịch
+│   │   ├── binance_connector.py           # Kết nối Binance
+│   │   ├── bybit_connector.py             # Kết nối ByBit
+│   │   └── generic_connector.py           # Lớp kết nối chung
+│   ├── market_data/
+│   │   ├── historical_data_collector.py   # Thu thập dữ liệu lịch sử
+│   │   ├── realtime_data_stream.py        # Dữ liệu thời gian thực
+│   │   └── orderbook_collector.py         # Thu thập dữ liệu sổ lệnh
+│   └── news_collector/
+│       ├── crypto_news_scraper.py         # Thu thập tin tức crypto
+│       └── sentiment_collector.py         # Thu thập dữ liệu tâm lý thị trường
+│
+├── data_processors/                       # Làm sạch & tạo feature
+│   ├── cleaners/
+│   │   ├── data_cleaner.py                # Làm sạch dữ liệu
+│   │   ├── outlier_detector.py            # Phát hiện ngoại lệ
+│   │   └── missing_data_handler.py        # Xử lý dữ liệu thiếu
+│   ├── feature_engineering/
+│   │   ├── technical_indicators.py        # Các chỉ báo kỹ thuật
+│   │   ├── market_features.py             # Đặc trưng thị trường
+│   │   ├── sentiment_features.py          # Đặc trưng từ dữ liệu tâm lý
+│   │   └── feature_selector.py            # Lựa chọn đặc trưng
+│   └── data_pipeline.py                   # Pipeline xử lý dữ liệu
+│
+├── environments/                          # Môi trường huấn luyện
+│   ├── base_environment.py                # Lớp môi trường cơ sở
+│   ├── trading_gym/
+│   │   ├── trading_env.py                 # Môi trường giao dịch chính
+│   │   ├── observation_space.py           # Không gian quan sát
+│   │   └── action_space.py                # Không gian hành động
+│   ├── reward_functions/
+│   │   ├── profit_reward.py               # Phần thưởng theo lợi nhuận
+│   │   ├── risk_adjusted_reward.py        # Phần thưởng điều chỉnh theo rủi ro
+│   │   └── custom_reward.py               # Tùy chỉnh phần thưởng
+│   └── simulators/
+│       ├── market_simulator.py            # Mô phỏng thị trường
+│       └── exchange_simulator.py          # Mô phỏng sàn giao dịch
+│
+├── models/                                # Huấn luyện agent
+│   ├── agents/
+│   │   ├── dqn_agent.py                   # Agent DQN
+│   │   ├── ppo_agent.py                   # Agent PPO
+│   │   ├── a2c_agent.py                   # Agent A2C
+│   │   └── base_agent.py                  # Lớp agent cơ sở
+│   ├── networks/
+│   │   ├── policy_network.py              # Mạng policy
+│   │   ├── value_network.py               # Mạng value
+│   │   └── shared_network.py              # Mạng chia sẻ
+│   ├── training_pipeline/
+│   │   ├── trainer.py                     # Lớp huấn luyện chung
+│   │   ├── experience_buffer.py           # Bộ đệm kinh nghiệm
+│   │   └── hyperparameter_tuner.py        # Điều chỉnh siêu tham số
+│   └── cross_coin_trainer.py              # Huấn luyện đa cặp tiền
+│
+├── risk_management/                       # Quản lý rủi ro
+│   ├── position_sizer.py                  # Định kích thước vị thế
+│   ├── stop_loss.py                       # Quản lý dừng lỗ
+│   ├── take_profit.py                     # Quản lý chốt lời
+│   ├── risk_calculator.py                 # Tính toán mức độ rủi ro
+│   ├── drawdown_manager.py                # Quản lý sụt giảm vốn
+│   ├── risk_profiles/
+│   │   ├── conservative_profile.py        # Hồ sơ rủi ro thận trọng
+│   │   ├── moderate_profile.py            # Hồ sơ rủi ro vừa phải
+│   │   └── aggressive_profile.py          # Hồ sơ rủi ro tích cực
+│   └── portfolio_manager.py               # Quản lý danh mục đầu tư
+│
+├── backtesting/                           # Đánh giá & Backtest
+│   ├── backtester.py                      # Lớp backtest chính
+│   ├── performance_metrics.py             # Đo lường hiệu suất
+│   ├── strategy_tester.py                 # Kiểm tra chiến lược
+│   ├── historical_simulator.py            # Mô phỏng dữ liệu lịch sử
+│   ├── evaluation/
+│   │   ├── performance_evaluator.py       # Đánh giá hiệu suất
+│   │   ├── risk_evaluator.py              # Đánh giá rủi ro
+│   │   └── strategy_evaluator.py          # Đánh giá chiến lược
+│   └── visualization/
+│       ├── backtest_visualizer.py         # Hiển thị kết quả backtest
+│       └── performance_charts.py          # Biểu đồ hiệu suất
+│
+├── deployment/                            # Triển khai thực hiện
+│   ├── exchange_api/
+│   │   ├── order_manager.py               # Quản lý lệnh giao dịch
+│   │   ├── account_manager.py             # Quản lý tài khoản
+│   │   └── position_tracker.py            # Theo dõi vị thế
+│   ├── trade_executor.py                  # Thực thi giao dịch
+│   ├── deployment_manager.py              # Quản lý triển khai
+│   └── api_wrapper.py                     # Bọc API giao dịch
+│
+├── logs/                                  # Theo dõi huấn luyện
+│   ├── logger.py                          # Ghi log chung
+│   ├── metrics/
+│   │   ├── training_metrics.py            # Đo lường huấn luyện
+│   │   ├── trading_metrics.py             # Đo lường giao dịch
+│   │   └── system_metrics.py              # Đo lường hệ thống
+│   └── tensorboard/
+│       ├── tb_logger.py                   # Ghi log TensorBoard
+│       └── custom_metrics.py              # Đo lường tùy chỉnh
+│
+├── streamlit_dashboard/                   # Dashboard & Logs
+│   ├── app.py                             # Ứng dụng Streamlit chính
+│   ├── pages/
+│   │   ├── training_dashboard.py          # Bảng điều khiển huấn luyện
+│   │   ├── trading_dashboard.py           # Bảng điều khiển giao dịch
+│   │   └── system_monitor.py              # Giám sát hệ thống
+│   ├── charts/
+│   │   ├── performance_charts.py          # Biểu đồ hiệu suất
+│   │   ├── risk_visualization.py          # Hiển thị rủi ro
+│   │   └── trade_visualization.py         # Hiển thị giao dịch
+│   └── components/
+│       ├── sidebar.py                     # Thanh bên
+│       ├── metrics_display.py             # Hiển thị số liệu
+│       └── controls.py                    # Điều khiển giao diện
+│
+├── agent_manager/                         # Multi-Agent nâng cao
+│   ├── agent_coordinator.py               # Điều phối nhiều agent
+│   ├── ensemble_agent.py                  # Agent tổng hợp
+│   ├── strategy_queue/
+│   │   ├── strategy_manager.py            # Quản lý chiến lược
+│   │   ├── strategy_selector.py           # Lựa chọn chiến lược
+│   │   └── queue_processor.py             # Xử lý hàng đợi chiến lược
+│   └── self_improvement/
+│       ├── agent_evaluator.py             # Đánh giá agent
+│       ├── adaptation_module.py           # Mô-đun thích nghi
+│       └── meta_learner.py                # Meta learning
+│
+├── real_time_inference/                   # Giao dịch thời gian thực & Giám sát
+│   ├── system_monitor/
+│   │   ├── health_checker.py              # Kiểm tra sức khỏe hệ thống
+│   │   ├── performance_monitor.py         # Giám sát hiệu suất
+│   │   └── alert_system.py                # Hệ thống cảnh báo
+│   ├── notifiers/
+│   │   ├── email_notifier.py              # Thông báo qua email
+│   │   ├── telegram_notifier.py           # Thông báo qua Telegram
+│   │   └── notification_manager.py        # Quản lý thông báo
+│   ├── scheduler/
+│   │   ├── task_scheduler.py              # Lập lịch tác vụ
+│   │   └── cron_jobs.py                   # Công việc định kỳ
+│   ├── auto_restart/
+│   │   ├── error_handler.py               # Xử lý lỗi
+│   │   └── recovery_system.py             # Hệ thống phục hồi
+│   └── inference_engine.py                # Engine suy luận thời gian thực
+│
+├── retraining/                            # Tái huấn luyện agent
+│   ├── performance_tracker.py             # Theo dõi hiệu suất
+│   ├── retraining_pipeline.py             # Pipeline tái huấn luyện
+│   ├── model_updater.py                   # Cập nhật mô hình
+│   ├── experience_manager.py              # Quản lý kinh nghiệm
+│   └── comparison_evaluator.py            # Đánh giá so sánh
+│
+├── automation/                            # Tự động cải tiến
+│   ├── metrics/
+│   │   ├── performance_metrics.py         # Đo lường hiệu suất
+│   │   ├── efficiency_metrics.py          # Đo lường hiệu quả
+│   │   └── evaluation_metrics.py          # Đo lường đánh giá
+│   ├── performance_tracker.py             # Theo dõi hiệu suất
+│   ├── strategy_queue/
+│   │   ├── queue_manager.py               # Quản lý hàng đợi
+│   │   └── priority_system.py             # Hệ thống ưu tiên
+│   └── model_updater.py                   # Cập nhật mô hình tự động
+│
+└── main.py                                # Điểm khởi chạy chính hệ thống
+```
+
+## Công nghệ sử dụng
+
+- **Python 3.10+**: Ngôn ngữ lập trình chính
+- **TensorFlow/PyTorch**: Framework deep learning
+- **Gym**: Thư viện cho môi trường RL
+- **Pandas/NumPy**: Xử lý dữ liệu
+- **Streamlit**: Xây dựng dashboard
+- **CCXT**: Kết nối API sàn giao dịch
+- **SQLAlchemy**: Lưu trữ dữ liệu
+
+## Cài đặt
+
+```bash
+# Clone repository
+git clone https://github.com/username/automated-trading-system.git
+cd automated-trading-system
+
+# Tạo môi trường ảo (khuyến nghị)
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+
+# Cài đặt dependencies
+pip install -r requirements.txt
+
+# Chạy hệ thống
+python main.py
+
+# Chạy dashboard Streamlit
+cd streamlit_dashboard
+streamlit run app.py
+```
+
+## Lộ trình phát triển
+Dự án được phát triển theo các giai đoạn:
+
+- Giai đoạn 1: Nền tảng & Cấu hình (4 tuần)
+- Giai đoạn 2: Thu thập dữ liệu (6 tuần)
+- Giai đoạn 3: Xử lý dữ liệu (4 tuần)
+- Giai đoạn 4: Môi trường huấn luyện (6 tuần)
+- Giai đoạn 5: Huấn luyện agent & Quản lý rủi ro (8 tuần)
+- Giai đoạn 6: Backtest & Đánh giá (6 tuần)
+- Giai đoạn 7: Theo dõi & Triển khai (8 tuần)
+- Giai đoạn 8: Tính năng nâng cao (12 tuần)
+- Giai đoạn 9: Hoàn thiện & Tối ưu hóa (4 tuần)
+
+Chi tiết lộ trình được theo dõi trong file [project_overview.md](project_overview.md).
+
+## Đóng góp
+Đóng góp cho dự án luôn được hoan nghênh. Xin vui lòng:
+
+1. Fork repository
+2. Tạo branch mới (`git checkout -b feature/amazing-feature`)
+3. Commit thay đổi (`git commit -m 'Add some amazing feature'`)
+4. Push lên branch (`git push origin feature/amazing-feature`)
+5. Tạo Pull Request
+
+## Giấy phép
+Distributed under the MIT License. See `LICENSE` for more information.
