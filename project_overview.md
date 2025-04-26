@@ -23,12 +23,13 @@
 - [x]  binance_connector.py           # Kết nối Binance
 - [x]  bybit_connector.py             # Kết nối ByBit
 - [x]  generic_connector.py           # Lớp kết nối chung
+- [x]  market_data/
+- [x]  historical_data_collector.py   # Thu thập dữ liệu lịch sử
+- [x]  realtime_data_stream.py        # Dữ liệu thời gian thực
+- [x]  orderbook_collector.py         # Thu thập dữ liệu sổ lệnh
 
 ## Modules đang phát triển
-- [ ]  market_data/
-- [ ]  historical_data_collector.py   # Thu thập dữ liệu lịch sử
-- [ ]  realtime_data_stream.py        # Dữ liệu thời gian thực
-- [ ]  orderbook_collector.py         # Thu thập dữ liệu sổ lệnh
+
 - [ ] ├── news_collector/
 - [ ]  crypto_news_scraper.py         # Thu thập tin tức crypto
 - [ ]  sentiment_collector.py         # Thu thập dữ liệu tâm lý thị trường
