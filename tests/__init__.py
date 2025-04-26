@@ -1,3 +1,3 @@
 """
-Test package for Automated Trading System.
+Package init for tests.
 """

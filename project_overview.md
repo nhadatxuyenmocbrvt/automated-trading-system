@@ -17,12 +17,14 @@
 - [x] config/utils/encryption.py
 - [x] config/utils/validators.py
 
-## Modules đang phát triển
+## Modules Đã hoàn thàn
 - [ ] ├── data_collectors/            # Thu thập dữ liệu
 - [x]   exchange_api/                 # Kết nối API sàn giao dịch
 - [x]  binance_connector.py           # Kết nối Binance
 - [x]  bybit_connector.py             # Kết nối ByBit
 - [x]  generic_connector.py           # Lớp kết nối chung
+
+## Modules đang phát triển
 - [ ]  market_data/
 - [ ]  historical_data_collector.py   # Thu thập dữ liệu lịch sử
 - [ ]  realtime_data_stream.py        # Dữ liệu thời gian thực

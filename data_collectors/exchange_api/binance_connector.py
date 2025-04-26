@@ -1,682 +1,526 @@
 """
-Binance Exchange Connector - Triển khai kết nối cụ thể cho sàn giao dịch Binance.
+Kết nối API Binance.
+File này triển khai lớp kết nối với sàn giao dịch Binance,
+hỗ trợ cả Spot và Futures markets.
 """
 
-import os
 import time
-import json
 import hmac
 import hashlib
-import logging
-import asyncio
-import websockets
-from typing import Dict, List, Optional, Union, Any, Tuple
-from datetime import datetime, timedelta
 import urllib.parse
+from typing import Dict, List, Any, Optional, Union, Tuple
+from datetime import datetime
+import ccxt
 
-# Import connector chung
-import sys
-import os
+from data_collectors.exchange_api.generic_connector import ExchangeConnector, APIError
+from config.constants import OrderType, TimeInForce, ErrorCode
+from config.env import get_env
 
-# Thêm thư mục gốc vào sys.path để import module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from data_collectors.exchange_api.generic_connector import GenericExchangeConnector
-from config.logging_config import setup_logger
-from config.security_config import SecretManager
-from config.system_config import SystemConfig
-
-
-class BinanceConnector(GenericExchangeConnector):
+class BinanceConnector(ExchangeConnector):
     """
-    Connector cho sàn giao dịch Binance, triển khai các phương thức cụ thể
-    theo API của Binance.
+    Lớp kết nối với sàn giao dịch Binance.
+    Hỗ trợ Binance Spot và Binance Futures (USDM & COINM).
     """
     
-    # Các URL endpoint của Binance
-    SPOT_API_URL = 'https://api.binance.com'
-    SPOT_API_TESTNET_URL = 'https://testnet.binance.vision'
-    FUTURES_API_URL = 'https://fapi.binance.com'
-    FUTURES_API_TESTNET_URL = 'https://testnet.binancefuture.com'
-    
-    # Các URL websocket
-    SPOT_WS_URL = 'wss://stream.binance.com:9443/ws'
-    SPOT_WS_TESTNET_URL = 'wss://testnet.binance.vision/ws'
-    FUTURES_WS_URL = 'wss://fstream.binance.com/ws'
-    FUTURES_WS_TESTNET_URL = 'wss://stream.binancefuture.com/ws'
-    
-    def __init__(
-        self, 
-        api_key: str = None, 
-        api_secret: str = None,
-        sandbox: bool = True,
-        rate_limit: bool = True,
-        futures: bool = True,
-        config: SystemConfig = None,
-        secret_manager: SecretManager = None
-    ):
+    def __init__(self, api_key: str = '', api_secret: str = '', 
+                 is_futures: bool = False, testnet: bool = False, 
+                 use_proxy: bool = False):
         """
-        Khởi tạo connector Binance.
+        Khởi tạo kết nối Binance.
         
         Args:
-            api_key (str, optional): Khóa API. Mặc định lấy từ biến môi trường.
-            api_secret (str, optional): Mật khẩu API. Mặc định lấy từ biến môi trường.
-            sandbox (bool, optional): Sử dụng testnet. Mặc định là True.
-            rate_limit (bool, optional): Kích hoạt giới hạn tốc độ gọi API. Mặc định là True.
-            futures (bool, optional): Sử dụng tài khoản futures. Mặc định là True.
-            config (SystemConfig, optional): Cấu hình hệ thống. Mặc định là None.
-            secret_manager (SecretManager, optional): Trình quản lý bí mật. Mặc định là None.
+            api_key: API key Binance
+            api_secret: API secret Binance
+            is_futures: True để sử dụng Binance Futures thay vì Spot
+            testnet: True để sử dụng testnet
+            use_proxy: True để sử dụng proxy nếu đã cấu hình
         """
-        # Cấu hình bổ sung cho Binance
-        self.futures = futures
-        self.logger = setup_logger("binance_connector")
+        self.is_futures = is_futures
         
-        # Gọi constructor của lớp cha
-        super().__init__(
-            exchange_id='binance',
-            api_key=api_key,
-            api_secret=api_secret,
-            sandbox=sandbox,
-            rate_limit=rate_limit,
-            config=config,
-            secret_manager=secret_manager
-        )
+        # Xác định ID sàn giao dịch dựa vào loại thị trường
+        exchange_id = "binance"
+        if is_futures:
+            exchange_id = "binanceusdm"  # ID cho thị trường USDⓈ-M Futures
         
-        # Thiết lập các options đặc biệt cho Binance
-        if futures:
-            self.exchange.options['defaultType'] = 'future'
-            self.async_exchange.options['defaultType'] = 'future'
-            self.logger.info("Đã thiết lập chế độ futures cho Binance")
-        else:
-            self.exchange.options['defaultType'] = 'spot'
-            self.async_exchange.options['defaultType'] = 'spot'
-            self.logger.info("Đã thiết lập chế độ spot cho Binance")
+        super().__init__(exchange_id, api_key, api_secret, testnet, use_proxy)
         
-        # Lưu các websocket connection
-        self.ws_connections = {}
+        # Cache cho funding rate và giới hạn giao dịch
+        self._funding_rate_cache = {}
+        self._trading_limits_cache = {}
         
-        # Lưu trữ thời gian cập nhật cuối cùng cho các thông tin
-        self.last_exchange_info_update = 0
-        self.exchange_info = {}
-        self.trading_fees = {}
-        
-        self.logger.info("Đã khởi tạo Binance connector")
+        self.logger.info(f"Đã khởi tạo kết nối Binance {'Futures' if is_futures else 'Spot'}")
     
-    async def initialize(self) -> None:
-        """Khởi tạo connector Binance, tải thông tin thị trường và thiết lập cấu hình cần thiết."""
-        await super().initialize()
-        
-        # Lấy thông tin bổ sung đặc biệt cho Binance
-        await self.get_exchange_info()
-        
-        # Kiểm tra giới hạn API và trạng thái tài khoản nếu có khóa API
-        if self.api_key and self.api_secret:
-            try:
-                # Lấy thông tin phí giao dịch
-                await self.get_trading_fees()
-                
-                # Kiểm tra quyền tài khoản
-                if self.futures:
-                    account_info = await self.async_exchange.fapiPrivateGetAccount()
-                else:
-                    account_info = await self.async_exchange.privateGetAccount()
-                
-                self.logger.info(f"Đã xác thực tài khoản Binance thành công: {account_info.get('accountType', 'unknown')}")
-            except Exception as e:
-                self.logger.warning(f"Không thể lấy thông tin tài khoản Binance: {e}")
-    
-    async def get_exchange_info(self) -> Dict:
+    def _init_ccxt(self) -> ccxt.Exchange:
         """
-        Lấy thông tin chi tiết về sàn giao dịch Binance.
+        Khởi tạo đối tượng ccxt Exchange cho Binance.
         
         Returns:
-            Dict: Thông tin sàn giao dịch
+            Đối tượng ccxt.binance đã được cấu hình
         """
-        # Kiểm tra xem đã lấy thông tin gần đây chưa để tránh gọi API quá nhiều
-        current_time = time.time()
-        if self.exchange_info and (current_time - self.last_exchange_info_update < 3600):  # 1 giờ
-            return self.exchange_info
+        options = {}
         
-        try:
-            if self.futures:
-                # Gọi API cho futures
-                exchange_info = await self.async_exchange.fapiPublicGetExchangeInfo()
-            else:
-                # Gọi API cho spot
-                exchange_info = await self.async_exchange.publicGetExchangeInfo()
-            
-            self.exchange_info = exchange_info
-            self.last_exchange_info_update = current_time
-            
-            # Ghi log một số thông tin hữu ích
-            symbols_count = len(exchange_info.get('symbols', []))
-            self.logger.info(f"Đã lấy thông tin sàn Binance: {symbols_count} cặp giao dịch")
-            
-            return exchange_info
-        except Exception as e:
-            self.logger.error(f"Không thể lấy thông tin sàn Binance: {e}")
-            raise
-    
-    async def get_trading_fees(self, symbol: Optional[str] = None) -> Dict:
-        """
-        Lấy thông tin phí giao dịch của Binance.
+        # Cấu hình cho Futures
+        if self.is_futures:
+            options['defaultType'] = 'future'
         
-        Args:
-            symbol (str, optional): Cặp giao dịch cụ thể. Mặc định là None (tất cả).
-            
-        Returns:
-            Dict: Thông tin phí giao dịch
-        """
-        if not self.api_key or not self.api_secret:
-            raise ValueError("API key và secret cần thiết để lấy thông tin phí giao dịch")
+        # Tạo đối tượng Binance với các tùy chọn
+        params = {
+            'apiKey': self.api_key,
+            'secret': self.api_secret,
+            'timeout': self.timeout,
+            'enableRateLimit': True,
+            'options': options,
+        }
         
-        try:
-            if self.futures:
-                # Cách lấy phí cho futures
-                fees = await self.async_exchange.fapiPrivateGetCommissionRate()
-                if symbol:
-                    self.trading_fees[symbol] = fees
-                else:
-                    # Phí futures áp dụng cho tất cả các cặp
-                    self.trading_fees = {'all': fees}
-            else:
-                # Phí giao dịch spot
-                if symbol:
-                    params = {'symbol': symbol}
-                    fees = await self.async_exchange.privateGetTradeFee(params)
-                else:
-                    fees = await self.async_exchange.privateGetTradeFee()
-                
-                # Chuyển đổi định dạng
-                result = {}
-                for fee_info in fees.get('tradeFee', []):
-                    result[fee_info['symbol']] = {
-                        'maker': float(fee_info['maker']),
-                        'taker': float(fee_info['taker'])
-                    }
-                self.trading_fees = result
-            
-            return self.trading_fees
-        except Exception as e:
-            self.logger.error(f"Không thể lấy thông tin phí giao dịch Binance: {e}")
-            raise
-    
-    async def subscribe_to_websocket(self, symbol: str, channels: List[str]) -> None:
-        """
-        Đăng ký nhận dữ liệu từ websocket Binance.
-        
-        Args:
-            symbol (str): Cặp giao dịch (ví dụ: 'BTC/USDT')
-            channels (List[str]): Các kênh cần đăng ký (ví dụ: ['ticker', 'kline_1m', 'depth'])
-        """
-        # Chuẩn hóa symbol cho Binance (loại bỏ ký hiệu '/' và chuyển thành chữ thường)
-        formatted_symbol = symbol.replace('/', '').lower()
-        
-        # Xác định websocket URL
-        if self.futures:
-            ws_url = self.FUTURES_WS_TESTNET_URL if self.exchange.sandbox else self.FUTURES_WS_URL
-        else:
-            ws_url = self.SPOT_WS_TESTNET_URL if self.exchange.sandbox else self.SPOT_WS_URL
-        
-        # Tạo kênh streams theo định dạng Binance
-        streams = []
-        for channel in channels:
-            if channel == 'ticker':
-                streams.append(f"{formatted_symbol}@ticker")
-            elif channel.startswith('kline_'):
-                interval = channel.split('_')[1]
-                streams.append(f"{formatted_symbol}@kline_{interval}")
-            elif channel == 'depth':
-                streams.append(f"{formatted_symbol}@depth20")
-            elif channel == 'trades':
-                streams.append(f"{formatted_symbol}@trade")
-            else:
-                self.logger.warning(f"Kênh không được hỗ trợ: {channel}")
-        
-        if not streams:
-            self.logger.error("Không có kênh hợp lệ để đăng ký")
-            return
-        
-        # Sử dụng WebSocketManager để quản lý kết nối
-        await self.ws_manager.add_connection(
-            ws_url,
-            [formatted_symbol],
-            streams,
-            self._connect_binance_websocket,
-            self._process_websocket_message_raw
-        )
-    
-    async def subscribe_multiple_symbols(self, symbols: List[str], channels: List[str]) -> None:
-        """
-        Đăng ký nhận dữ liệu từ websocket Binance cho nhiều symbols cùng lúc.
-        
-        Args:
-            symbols (List[str]): Danh sách cặp giao dịch (ví dụ: ['BTC/USDT', 'ETH/USDT'])
-            channels (List[str]): Các kênh cần đăng ký (ví dụ: ['ticker', 'kline_1m'])
-        """
-        if not symbols:
-            self.logger.error("Danh sách symbols trống")
-            return
-        
-        # Phân nhóm symbols để tối ưu hóa kết nối
-        # Binance cho phép gộp nhiều streams trong một kết nối websocket
-        max_symbols_per_connection = self.ws_manager.symbols_per_connection
-        
-        for i in range(0, len(symbols), max_symbols_per_connection):
-            batch_symbols = symbols[i:i+max_symbols_per_connection]
-            
-            # Chuẩn hóa symbols
-            formatted_symbols = [symbol.replace('/', '').lower() for symbol in batch_symbols]
-            
-            # Xác định websocket URL
-            if self.futures:
-                ws_url = self.FUTURES_WS_TESTNET_URL if self.exchange.sandbox else self.FUTURES_WS_URL
-            else:
-                ws_url = self.SPOT_WS_TESTNET_URL if self.exchange.sandbox else self.SPOT_WS_URL
-            
-            # Sử dụng WebSocketManager để quản lý kết nối
-            await self.ws_manager.add_connection(
-                ws_url,
-                formatted_symbols,
-                channels,
-                self._connect_binance_websocket,
-                self._process_websocket_message_raw
-            )
-    
-    async def _connect_binance_websocket(self, existing_ws, symbols: List[str], channels: List[str]):
-        """
-        Kết nối tới websocket Binance và đăng ký các streams.
-        
-        Args:
-            existing_ws: Websocket hiện có (None nếu là kết nối mới)
-            symbols (List[str]): Danh sách symbols đã định dạng
-            channels (List[str]): Loại kênh dữ liệu
-            
-        Returns:
-            websocket: Kết nối websocket đã thiết lập
-        """
-        # Tạo danh sách streams
-        all_streams = []
-        for symbol in symbols:
-            for channel in channels:
-                if channel == 'ticker':
-                    all_streams.append(f"{symbol}@ticker")
-                elif channel.startswith('kline_'):
-                    interval = channel.split('_')[1]
-                    all_streams.append(f"{symbol}@kline_{interval}")
-                elif channel == 'depth':
-                    all_streams.append(f"{symbol}@depth20")
-                elif channel == 'trades':
-                    all_streams.append(f"{symbol}@trade")
-        
-        # Xác định websocket URL
-        if self.futures:
-            ws_url = self.FUTURES_WS_TESTNET_URL if self.exchange.sandbox else self.FUTURES_WS_URL
-        else:
-            ws_url = self.SPOT_WS_TESTNET_URL if self.exchange.sandbox else self.SPOT_WS_URL
-        
-        # Tạo URL kết nối với streams
-        combined_streams_url = f"{ws_url}/stream?streams={'/'.join(all_streams)}"
-        
-        # Nếu đã có kết nối, đóng và tạo lại
-        if existing_ws:
-            try:
-                await existing_ws.close()
-            except:
-                pass
-        
-        # Thiết lập kết nối mới
-        try:
-            websocket = await websockets.connect(
-                combined_streams_url,
-                ping_interval=30,
-                ping_timeout=10,
-                max_size=2**24,  # 16MB max message size
-                close_timeout=10
-            )
-            
-            self.logger.info(f"Đã kết nối websocket Binance cho {len(symbols)} symbols với {len(channels)} kênh")
-            return websocket
-        except Exception as e:
-            self.logger.error(f"Không thể kết nối websocket Binance: {e}")
-            raise
-    
-    async def _process_websocket_message_raw(self, message: str) -> None:
-        """
-        Xử lý dữ liệu raw từ websocket.
-        
-        Args:
-            message (str): Dữ liệu dạng JSON string từ websocket
-        """
-        try:
-            data = json.loads(message)
-            await self._process_websocket_message(data)
-        except json.JSONDecodeError:
-            self.logger.error(f"Không thể phân tích dữ liệu websocket: {message[:100]}...")
-        except Exception as e:
-            self.logger.error(f"Lỗi xử lý dữ liệu websocket: {e}")
-            
-    async def _process_websocket_batch_updates(self, batch_size=100, max_delay=1.0):
-        """
-        Xử lý hàng đợi cập nhật từ websocket theo batch để tối ưu hiệu suất.
-        
-        Args:
-            batch_size (int): Số lượng cập nhật tối đa trong một batch
-            max_delay (float): Thời gian chờ tối đa (giây)
-        """
-        if not hasattr(self, '_update_queue'):
-            self._update_queue = asyncio.Queue()
-            
-        # Lấy nhiều cập nhật cùng lúc
-        updates = []
-        start_time = time.time()
-        
-        try:
-            # Lấy phần tử đầu tiên (có thể chờ)
-            first_update = await self._update_queue.get()
-            updates.append(first_update)
-            
-            # Lấy thêm các phần tử khác (không chờ)
-            while len(updates) < batch_size and time.time() - start_time < max_delay:
-                try:
-                    update = self._update_queue.get_nowait()
-                    updates.append(update)
-                except asyncio.QueueEmpty:
-                    await asyncio.sleep(0.01)  # Chờ một chút
-        
-        except Exception as e:
-            self.logger.error(f"Lỗi khi xử lý batch updates: {e}")
-            
-        # Xử lý tất cả cập nhật trong batch
-        for update in updates:
-            try:
-                # TODO: Xử lý cập nhật theo loại
-                pass
-            except Exception as e:
-                self.logger.error(f"Lỗi xử lý cập nhật trong batch: {e}")
-            finally:
-                self._update_queue.task_done()
-    
-    async def _process_websocket_message(self, data: Dict) -> None:
-        """
-        Xử lý dữ liệu nhận được từ websocket.
-        
-        Args:
-            data (Dict): Dữ liệu từ websocket
-        """
-        # Trích xuất thông tin từ dữ liệu
-        if 'stream' in data and 'data' in data:
-            stream = data['stream']
-            stream_data = data['data']
-            
-            # Xác định loại dữ liệu
-            if 'ticker' in stream:
-                self.logger.debug(f"Nhận ticker: {stream_data['s']} - Giá: {stream_data['c']}")
-                # Xử lý dữ liệu ticker
-                # TODO: Thêm logic để xử lý dữ liệu ticker (lưu vào cơ sở dữ liệu, phân tích, v.v.)
-                
-            elif 'kline' in stream:
-                kline = stream_data['k']
-                self.logger.debug(f"Nhận kline: {stream_data['s']} - Interval: {kline['i']} - Đóng: {kline['c']}")
-                # Xử lý dữ liệu nến
-                # TODO: Thêm logic để xử lý dữ liệu kline
-                
-            elif 'depth' in stream:
-                # Xử lý dữ liệu sổ lệnh
-                self.logger.debug(f"Nhận depth: {stream_data['s']} - Bids: {len(stream_data['b'])} - Asks: {len(stream_data['a'])}")
-                # TODO: Thêm logic để xử lý dữ liệu depth
-                
-            elif 'trade' in stream:
-                # Xử lý dữ liệu giao dịch
-                self.logger.debug(f"Nhận trade: {stream_data['s']} - Giá: {stream_data['p']} - Khối lượng: {stream_data['q']}")
-                # TODO: Thêm logic để xử lý dữ liệu trade
-                
-            else:
-                self.logger.debug(f"Nhận dữ liệu không xác định: {stream}")
-        else:
-            self.logger.warning(f"Định dạng dữ liệu không đúng: {data}")
-    
-    async def fetch_funding_rate(self, symbol: str) -> Dict:
-        """
-        Lấy tỷ lệ tài trợ hiện tại cho một cặp giao dịch futures.
-        
-        Args:
-            symbol (str): Cặp giao dịch (ví dụ: 'BTC/USDT')
-            
-        Returns:
-            Dict: Thông tin tỷ lệ tài trợ
-        """
-        if not self.futures:
-            raise ValueError("Phương thức này chỉ khả dụng trong chế độ futures")
-        
-        try:
-            # Định dạng lại symbol nếu cần
-            formatted_symbol = symbol.replace('/', '')
-            
-            # Gọi API Binance để lấy tỷ lệ tài trợ
-            params = {'symbol': formatted_symbol}
-            funding_rate = await self.async_exchange.fapiPublicGetFundingRate(params)
-            
-            if isinstance(funding_rate, list) and len(funding_rate) > 0:
-                return {
-                    'symbol': symbol,
-                    'lastFundingRate': float(funding_rate[0]['lastFundingRate']),
-                    'nextFundingTime': funding_rate[0]['nextFundingTime'],
-                    'timestamp': funding_rate[0]['time']
-                }
-            return {}
-        except Exception as e:
-            self.logger.error(f"Không thể lấy tỷ lệ tài trợ cho {symbol}: {e}")
-            raise
-    
-    async def fetch_funding_history(self, symbol: str, limit: int = 100) -> List:
-        """
-        Lấy lịch sử tỷ lệ tài trợ cho một cặp giao dịch futures.
-        
-        Args:
-            symbol (str): Cặp giao dịch (ví dụ: 'BTC/USDT')
-            limit (int, optional): Số lượng bản ghi tối đa. Mặc định là 100.
-            
-        Returns:
-            List: Lịch sử tỷ lệ tài trợ
-        """
-        if not self.futures:
-            raise ValueError("Phương thức này chỉ khả dụng trong chế độ futures")
-        
-        if not self.api_key or not self.api_secret:
-            raise ValueError("API key và secret cần thiết để lấy lịch sử tỷ lệ tài trợ")
-        
-        try:
-            # Định dạng lại symbol nếu cần
-            formatted_symbol = symbol.replace('/', '')
-            
-            # Gọi API Binance để lấy lịch sử tỷ lệ tài trợ
-            params = {
-                'symbol': formatted_symbol,
-                'limit': limit
+        # Thêm proxy nếu có
+        if self.use_proxy and self.proxy:
+            params['proxies'] = {
+                'http': self.proxy,
+                'https': self.proxy
             }
-            funding_history = await self.async_exchange.fapiPrivateGetFundingRate(params)
+        
+        # Sử dụng testnet nếu yêu cầu
+        if self.testnet:
+            if self.is_futures:
+                params['urls'] = {
+                    'api': {
+                        'public': 'https://testnet.binancefuture.com/fapi/v1',
+                        'private': 'https://testnet.binancefuture.com/fapi/v1',
+                    }
+                }
+            else:
+                params['urls'] = {
+                    'api': {
+                        'public': 'https://testnet.binance.vision/api/v3',
+                        'private': 'https://testnet.binance.vision/api/v3',
+                    }
+                }
+        
+        # Khởi tạo đối tượng Binance phù hợp
+        if self.is_futures:
+            exchange = ccxt.binanceusdm(params)
+        else:
+            exchange = ccxt.binance(params)
+        
+        # Tải thông tin thị trường
+        exchange.load_markets()
+        
+        return exchange
+    
+    def _init_mapping(self) -> None:
+        """
+        Khởi tạo ánh xạ giữa các định dạng chuẩn và định dạng Binance.
+        """
+        # Ánh xạ timeframe
+        self._timeframe_map = {
+            '1m': '1m',
+            '3m': '3m',
+            '5m': '5m',
+            '15m': '15m',
+            '30m': '30m',
+            '1h': '1h',
+            '2h': '2h',
+            '4h': '4h',
+            '6h': '6h',
+            '8h': '8h',
+            '12h': '12h',
+            '1d': '1d',
+            '3d': '3d',
+            '1w': '1w',
+            '1M': '1M',
+        }
+        
+        # Ánh xạ order type
+        self._order_type_map = {
+            OrderType.MARKET.value: 'market',
+            OrderType.LIMIT.value: 'limit',
+            OrderType.STOP_LOSS.value: 'stop_loss',
+            OrderType.TAKE_PROFIT.value: 'take_profit',
+            OrderType.STOP_LIMIT.value: 'stop_limit',
+            OrderType.TRAILING_STOP.value: 'trailing_stop',
+        }
+        
+        # Ánh xạ time in force
+        self._time_in_force_map = {
+            TimeInForce.GTC.value: 'GTC',  # Good Till Cancel
+            TimeInForce.IOC.value: 'IOC',  # Immediate Or Cancel
+            TimeInForce.FOK.value: 'FOK',  # Fill Or Kill
+            TimeInForce.GTX.value: 'GTX',  # Good Till Crossing
+        }
+    
+    def fetch_funding_rate(self, symbol: str) -> Dict:
+        """
+        Lấy thông tin tỷ lệ funding (chỉ dành cho Futures).
+        
+        Args:
+            symbol: Symbol cần lấy thông tin funding rate
+            
+        Returns:
+            Thông tin funding rate
+            
+        Raises:
+            APIError: Nếu không phải thị trường futures
+        """
+        if not self.is_futures:
+            raise APIError(
+                error_code=ErrorCode.INVALID_PARAMETER,
+                message="Funding rate chỉ có sẵn cho thị trường futures",
+                exchange=self.exchange_id
+            )
+        
+        try:
+            funding_rate = self._retry_api_call(
+                self.exchange.fetch_funding_rate,
+                symbol
+            )
+            
+            self._funding_rate_cache[symbol] = funding_rate
+            return funding_rate
+        except Exception as e:
+            self._handle_error(e, f"fetch_funding_rate({symbol})")
+    
+    def fetch_funding_history(self, symbol: str, since: Optional[int] = None,
+                             limit: Optional[int] = None) -> List[Dict]:
+        """
+        Lấy lịch sử funding payment (chỉ dành cho Futures).
+        
+        Args:
+            symbol: Symbol cần lấy lịch sử funding
+            since: Thời gian bắt đầu tính từ millisecond epoch
+            limit: Số lượng kết quả tối đa
+            
+        Returns:
+            Lịch sử funding payment
+            
+        Raises:
+            APIError: Nếu không phải thị trường futures
+        """
+        if not self.is_futures:
+            raise APIError(
+                error_code=ErrorCode.INVALID_PARAMETER,
+                message="Funding history chỉ có sẵn cho thị trường futures",
+                exchange=self.exchange_id
+            )
+        
+        try:
+            funding_history = self._retry_api_call(
+                self.exchange.fetch_funding_history,
+                symbol, since, limit
+            )
+            
+            self.logger.info(f"Đã lấy {len(funding_history)} funding payments cho {symbol}")
             return funding_history
         except Exception as e:
-            self.logger.error(f"Không thể lấy lịch sử tỷ lệ tài trợ cho {symbol}: {e}")
-            raise
+            self._handle_error(e, f"fetch_funding_history({symbol})")
     
-    async def fetch_leverage_brackets(self, symbol: Optional[str] = None) -> Dict:
+    def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
         """
-        Lấy thông tin về các mức đòn bẩy có sẵn.
+        Lấy thông tin vị thế mở (chỉ dành cho Futures).
         
         Args:
-            symbol (str, optional): Cặp giao dịch cụ thể. Mặc định là None (tất cả).
+            symbols: Danh sách symbols cần lấy vị thế
             
         Returns:
-            Dict: Thông tin mức đòn bẩy
+            Danh sách các vị thế đang mở
+            
+        Raises:
+            APIError: Nếu không phải thị trường futures
         """
-        if not self.futures:
-            raise ValueError("Phương thức này chỉ khả dụng trong chế độ futures")
-        
-        if not self.api_key or not self.api_secret:
-            raise ValueError("API key và secret cần thiết để lấy thông tin mức đòn bẩy")
+        if not self.is_futures:
+            raise APIError(
+                error_code=ErrorCode.INVALID_PARAMETER,
+                message="Positions chỉ có sẵn cho thị trường futures",
+                exchange=self.exchange_id
+            )
         
         try:
-            params = {}
-            if symbol:
-                params['symbol'] = symbol.replace('/', '')
+            positions = self._retry_api_call(
+                self.exchange.fetch_positions,
+                symbols
+            )
             
-            leverage_brackets = await self.async_exchange.fapiPrivateGetLeverageBracket(params)
-            return leverage_brackets
+            # Lọc các vị thế có số lượng khác 0
+            active_positions = [p for p in positions if float(p['contracts']) > 0]
+            
+            self.logger.info(f"Đã lấy {len(active_positions)} vị thế đang mở")
+            return active_positions
         except Exception as e:
-            self.logger.error(f"Không thể lấy thông tin mức đòn bẩy: {e}")
-            raise
+            self._handle_error(e, "fetch_positions")
     
-    async def set_leverage(self, symbol: str, leverage: int) -> Dict:
+    def fetch_position(self, symbol: str) -> Dict:
         """
-        Thiết lập đòn bẩy cho một cặp giao dịch futures.
+        Lấy thông tin vị thế cho một symbol cụ thể (chỉ dành cho Futures).
         
         Args:
-            symbol (str): Cặp giao dịch
-            leverage (int): Mức đòn bẩy (1-125)
+            symbol: Symbol cần lấy thông tin vị thế
             
         Returns:
-            Dict: Kết quả thiết lập
+            Thông tin vị thế
+            
+        Raises:
+            APIError: Nếu không phải thị trường futures
         """
-        if not self.futures:
-            raise ValueError("Phương thức này chỉ khả dụng trong chế độ futures")
-        
-        if not self.api_key or not self.api_secret:
-            raise ValueError("API key và secret cần thiết để thiết lập đòn bẩy")
+        if not self.is_futures:
+            raise APIError(
+                error_code=ErrorCode.INVALID_PARAMETER,
+                message="Positions chỉ có sẵn cho thị trường futures",
+                exchange=self.exchange_id
+            )
         
         try:
-            # Định dạng lại symbol nếu cần
-            formatted_symbol = symbol.replace('/', '')
+            position = self._retry_api_call(
+                self.exchange.fetch_position,
+                symbol
+            )
             
-            params = {
-                'symbol': formatted_symbol,
-                'leverage': leverage
-            }
-            result = await self.async_exchange.fapiPrivatePostLeverage(params)
+            return position
+        except Exception as e:
+            self._handle_error(e, f"fetch_position({symbol})")
+    
+    def set_leverage(self, leverage: int, symbol: str) -> Dict:
+        """
+        Thiết lập đòn bẩy cho một symbol (chỉ dành cho Futures).
+        
+        Args:
+            leverage: Giá trị đòn bẩy (1-125)
+            symbol: Symbol cần thiết lập đòn bẩy
+            
+        Returns:
+            Kết quả từ API
+            
+        Raises:
+            APIError: Nếu không phải thị trường futures
+        """
+        if not self.is_futures:
+            raise APIError(
+                error_code=ErrorCode.INVALID_PARAMETER,
+                message="Leverage chỉ có sẵn cho thị trường futures",
+                exchange=self.exchange_id
+            )
+        
+        try:
+            result = self._retry_api_call(
+                self.exchange.set_leverage,
+                leverage, symbol
+            )
+            
             self.logger.info(f"Đã thiết lập đòn bẩy {leverage}x cho {symbol}")
             return result
         except Exception as e:
-            self.logger.error(f"Không thể thiết lập đòn bẩy cho {symbol}: {e}")
-            raise
+            self._handle_error(e, f"set_leverage({leverage}, {symbol})")
     
-    async def set_margin_type(self, symbol: str, margin_type: str) -> Dict:
+    def set_margin_mode(self, margin_mode: str, symbol: str) -> Dict:
         """
-        Thiết lập loại margin cho một cặp giao dịch futures.
+        Thiết lập chế độ margin (ISOLATED hoặc CROSSED) cho một symbol (chỉ dành cho Futures).
         
         Args:
-            symbol (str): Cặp giao dịch
-            margin_type (str): Loại margin ('ISOLATED' hoặc 'CROSSED')
+            margin_mode: 'ISOLATED' hoặc 'CROSSED'
+            symbol: Symbol cần thiết lập chế độ margin
             
         Returns:
-            Dict: Kết quả thiết lập
+            Kết quả từ API
+            
+        Raises:
+            APIError: Nếu không phải thị trường futures
         """
-        if not self.futures:
-            raise ValueError("Phương thức này chỉ khả dụng trong chế độ futures")
+        if not self.is_futures:
+            raise APIError(
+                error_code=ErrorCode.INVALID_PARAMETER,
+                message="Margin mode chỉ có sẵn cho thị trường futures",
+                exchange=self.exchange_id
+            )
         
-        if not self.api_key or not self.api_secret:
-            raise ValueError("API key và secret cần thiết để thiết lập loại margin")
-        
-        if margin_type not in ['ISOLATED', 'CROSSED']:
-            raise ValueError("margin_type phải là 'ISOLATED' hoặc 'CROSSED'")
+        # Chuyển đổi margin_mode sang định dạng ccxt
+        ccxt_margin_mode = margin_mode.lower()
         
         try:
-            # Định dạng lại symbol nếu cần
-            formatted_symbol = symbol.replace('/', '')
+            result = self._retry_api_call(
+                self.exchange.set_margin_mode,
+                ccxt_margin_mode, symbol
+            )
             
-            params = {
-                'symbol': formatted_symbol,
-                'marginType': margin_type
-            }
-            result = await self.async_exchange.fapiPrivatePostMarginType(params)
-            self.logger.info(f"Đã thiết lập margin type {margin_type} cho {symbol}")
+            self.logger.info(f"Đã thiết lập chế độ margin {margin_mode} cho {symbol}")
             return result
         except Exception as e:
-            self.logger.error(f"Không thể thiết lập margin type cho {symbol}: {e}")
-            raise
+            # Binance sẽ trả về lỗi nếu margin mode đã được thiết lập
+            # Chúng ta sẽ bỏ qua lỗi này
+            if "already" in str(e).lower():
+                self.logger.info(f"Chế độ margin {margin_mode} đã được thiết lập cho {symbol}")
+                return {"info": f"Margin mode {margin_mode} already set for {symbol}"}
+            
+            self._handle_error(e, f"set_margin_mode({margin_mode}, {symbol})")
     
-    async def close_all_connections(self) -> None:
-        """Đóng tất cả các kết nối websocket."""
-        for key, ws in list(self.ws_connections.items()):
-            try:
-                await ws.close()
-                self.logger.info(f"Đã đóng kết nối websocket: {key}")
-            except Exception as e:
-                self.logger.error(f"Lỗi khi đóng kết nối websocket {key}: {e}")
-        
-        self.ws_connections = {}
-        
-        # Đóng kết nối CCXT
-        await super().close()
-    
-    # === PHƯƠNG THỨC TIỆN ÍCH BINANCE ===
-    
-    def symbol_formatter(self, base_currency: str, quote_currency: str) -> str:
+    def fetch_deposit_address(self, code: str, params: Dict = {}) -> Dict:
         """
-        Định dạng cặp giao dịch theo cách Binance yêu cầu.
+        Lấy địa chỉ nạp tiền cho một đồng coin.
         
         Args:
-            base_currency (str): Tiền tệ cơ sở
-            quote_currency (str): Tiền tệ báo giá
+            code: Mã coin (ví dụ: 'BTC', 'ETH', 'USDT')
+            params: Tham số bổ sung cho API
             
         Returns:
-            str: Chuỗi định dạng cặp giao dịch
-        """
-        # Binance sử dụng định dạng với dấu '/'
-        return f"{base_currency.upper()}/{quote_currency.upper()}"
-    
-    async def get_all_symbols(self) -> List[str]:
-        """
-        Lấy tất cả các cặp giao dịch có sẵn.
-        
-        Returns:
-            List[str]: Danh sách các cặp giao dịch
-        """
-        exchange_info = await self.get_exchange_info()
-        symbols = [symbol['symbol'] for symbol in exchange_info.get('symbols', [])]
-        return symbols
-    
-    async def get_server_time(self) -> int:
-        """
-        Lấy thời gian của máy chủ Binance.
-        
-        Returns:
-            int: Thời gian máy chủ (timestamp)
+            Thông tin địa chỉ nạp tiền
         """
         try:
-            if self.futures:
-                time_info = await self.async_exchange.fapiPublicGetTime()
-            else:
-                time_info = await self.async_exchange.publicGetTime()
+            address = self._retry_api_call(
+                self.exchange.fetch_deposit_address,
+                code, params
+            )
             
-            return time_info['serverTime']
+            self.logger.info(f"Đã lấy địa chỉ nạp tiền cho {code}")
+            return address
         except Exception as e:
-            self.logger.error(f"Không thể lấy thời gian máy chủ Binance: {e}")
-            raise
+            self._handle_error(e, f"fetch_deposit_address({code})")
     
-    async def get_latest_market_data(self, symbols: List[str] = None) -> Dict:
+    def fetch_deposits(self, code: Optional[str] = None, since: Optional[int] = None,
+                      limit: Optional[int] = None, params: Dict = {}) -> List[Dict]:
         """
-        Lấy dữ liệu thị trường mới nhất cho nhiều cặp giao dịch.
+        Lấy lịch sử nạp tiền.
         
         Args:
-            symbols (List[str], optional): Danh sách cặp giao dịch. Mặc định là None (tất cả).
+            code: Mã coin (tùy chọn)
+            since: Thời gian bắt đầu tính từ millisecond epoch (tùy chọn)
+            limit: Số lượng kết quả tối đa (tùy chọn)
+            params: Tham số bổ sung cho API
             
         Returns:
-            Dict: Dữ liệu thị trường
+            Lịch sử nạp tiền
         """
         try:
-            # Nếu không có symbols, lấy tất cả
-            if not symbols:
-                all_tickers = await self.async_exchange.fetch_tickers()
-                return all_tickers
+            deposits = self._retry_api_call(
+                self.exchange.fetch_deposits,
+                code, since, limit, params
+            )
             
-            # Lấy ticker cho từng symbol
-            result = {}
-            for symbol in symbols:
-                ticker = await self.fetch_ticker(symbol)
-                result[symbol] = ticker
-            
-            return result
+            self.logger.info(f"Đã lấy {len(deposits)} lịch sử nạp tiền" + 
+                             (f" cho {code}" if code else ""))
+            return deposits
         except Exception as e:
-            self.logger.error(f"Không thể lấy dữ liệu thị trường mới nhất: {e}")
-            raise
+            self._handle_error(e, "fetch_deposits")
+    
+    def fetch_withdrawals(self, code: Optional[str] = None, since: Optional[int] = None,
+                         limit: Optional[int] = None, params: Dict = {}) -> List[Dict]:
+        """
+        Lấy lịch sử rút tiền.
+        
+        Args:
+            code: Mã coin (tùy chọn)
+            since: Thời gian bắt đầu tính từ millisecond epoch (tùy chọn)
+            limit: Số lượng kết quả tối đa (tùy chọn)
+            params: Tham số bổ sung cho API
+            
+        Returns:
+            Lịch sử rút tiền
+        """
+        try:
+            withdrawals = self._retry_api_call(
+                self.exchange.fetch_withdrawals,
+                code, since, limit, params
+            )
+            
+            self.logger.info(f"Đã lấy {len(withdrawals)} lịch sử rút tiền" + 
+                             (f" cho {code}" if code else ""))
+            return withdrawals
+        except Exception as e:
+            self._handle_error(e, "fetch_withdrawals")
+    
+    def fetch_trading_fees(self) -> Dict:
+        """
+        Lấy thông tin phí giao dịch.
+        
+        Returns:
+            Thông tin phí giao dịch
+        """
+        try:
+            fees = self._retry_api_call(self.exchange.fetch_trading_fees)
+            self.logger.info(f"Đã lấy thông tin phí giao dịch")
+            return fees
+        except Exception as e:
+            self._handle_error(e, "fetch_trading_fees")
+    
+    def fetch_klines(self, symbol: str, interval: str, start_time: Optional[int] = None,
+                   end_time: Optional[int] = None, limit: int = 500) -> List[List]:
+        """
+        Phương thức đặc biệt cho Binance để lấy dữ liệu K-lines (candlestick).
+        Hỗ trợ xác định thời gian bắt đầu và kết thúc chính xác.
+        
+        Args:
+            symbol: Symbol cần lấy dữ liệu
+            interval: Khoảng thời gian (1m, 5m, 1h, 1d, ...)
+            start_time: Thời gian bắt đầu tính từ millisecond epoch
+            end_time: Thời gian kết thúc tính từ millisecond epoch
+            limit: Số lượng candles tối đa (max 1000)
+            
+        Returns:
+            Dữ liệu candlestick
+        """
+        params = {}
+        
+        if start_time is not None:
+            params['startTime'] = start_time
+        
+        if end_time is not None:
+            params['endTime'] = end_time
+        
+        params['limit'] = min(limit, 1000)  # Binance giới hạn tối đa 1000 candles
+        
+        try:
+            # Sử dụng phương thức API riêng của Binance
+            klines = self._retry_api_call(
+                self.exchange.fetch_ohlcv,
+                symbol, interval, None, limit, params
+            )
+            
+            self.logger.info(f"Đã lấy {len(klines)} klines {interval} cho {symbol}")
+            return klines
+        except Exception as e:
+            self._handle_error(e, f"fetch_klines({symbol}, {interval})")
+    
+    def fetch_historical_klines(self, symbol: str, interval: str, 
+                               start_time: int, end_time: Optional[int] = None, 
+                               limit: int = 1000) -> List[List]:
+        """
+        Lấy lượng lớn dữ liệu lịch sử K-lines bằng cách gọi nhiều lần API.
+        
+        Args:
+            symbol: Symbol cần lấy dữ liệu
+            interval: Khoảng thời gian (1m, 5m, 1h, 1d, ...)
+            start_time: Thời gian bắt đầu tính từ millisecond epoch
+            end_time: Thời gian kết thúc tính từ millisecond epoch (mặc định là hiện tại)
+            limit: Số lượng candles cho mỗi request
+            
+        Returns:
+            Dữ liệu candlestick
+        """
+        if end_time is None:
+            end_time = int(time.time() * 1000)  # Hiện tại
+            
+        # Binance giới hạn tối đa 1000 candles mỗi request
+        limit = min(limit, 1000)
+        
+        # Danh sách kết quả
+        all_klines = []
+        current_start = start_time
+        
+        self.logger.info(f"Bắt đầu lấy dữ liệu lịch sử cho {symbol} từ {datetime.fromtimestamp(start_time/1000)}")
+        
+        while current_start < end_time:
+            # Lấy dữ liệu
+            klines = self.fetch_klines(
+                symbol, interval, current_start, end_time, limit
+            )
+            
+            if not klines:
+                break
+                
+            all_klines.extend(klines)
+            
+            # Cập nhật thời gian bắt đầu cho request tiếp theo
+            # Thời gian của candle cuối cùng + 1ms
+            current_start = klines[-1][0] + 1
+            
+            # Thêm delay để tránh rate limit
+            time.sleep(0.2)
+        
+        self.logger.info(f"Đã lấy tổng cộng {len(all_klines)} klines cho {symbol}")
+        return all_klines
