@@ -1,6 +1,14 @@
 # Automated Trading System - Tổng quan dự án
 
 ## Modules đã hoàn thành
+- [x] Cấu trúc thư mục cơ bản
+- [x] README.md
+- [x] .gitignore
+- [x] setup_project.py
+- [x] project_overview.md
+- [ ] CI/CD workflow (.github/workflows/main.yml)
+
+## Modules Đang phát triển
 - [ ] config/system_config.py
 - [ ] config/logging_config.py
 - [ ] config/security_config.py
