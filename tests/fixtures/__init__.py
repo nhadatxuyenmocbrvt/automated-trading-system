@@ -1,3 +1,0 @@
-"""
-Fixtures package for tests.
-"""
