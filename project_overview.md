@@ -9,17 +9,27 @@
 - [ ] CI/CD workflow (.github/workflows/main.yml)
 
 ## Modules Đang phát triển
-- [ ] config/system_config.py
-- [ ] config/logging_config.py
-- [ ] config/security_config.py
-- [ ] config/env.py
-- [ ] config/constants.py
-- [ ] config/utils/encryption.py
-- [ ] config/utils/validators.py
+- [x] config/system_config.py
+- [x] config/logging_config.py
+- [x] config/security_config.py
+- [x] config/env.py
+- [x] config/constants.py
+- [x] config/utils/encryption.py
+- [x] config/utils/validators.py
 
 ## Modules đang phát triển
-- [ ] data_collectors/exchange_api/generic_connector.py
-- [ ] data_collectors/exchange_api/binance_connector.py
+- [ ] ├── data_collectors/            # Thu thập dữ liệu
+- [ ]   exchange_api/                 # Kết nối API sàn giao dịch
+- [ ]  binance_connector.py           # Kết nối Binance
+- [ ]  bybit_connector.py             # Kết nối ByBit
+- [ ]  generic_connector.py           # Lớp kết nối chung
+- [ ]  market_data/
+- [ ]  historical_data_collector.py   # Thu thập dữ liệu lịch sử
+- [ ]  realtime_data_stream.py        # Dữ liệu thời gian thực
+- [ ]  orderbook_collector.py         # Thu thập dữ liệu sổ lệnh
+- [ ] ├── news_collector/
+- [ ]  crypto_news_scraper.py         # Thu thập tin tức crypto
+- [ ]  sentiment_collector.py         # Thu thập dữ liệu tâm lý thị trường
 
 ## Lộ trình phát triển chi tiết
 
