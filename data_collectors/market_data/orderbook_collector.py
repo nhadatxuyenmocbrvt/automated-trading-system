@@ -735,17 +735,33 @@ class OrderbookCollector:
             except Exception as e:
                 self.logger.error(f"Lỗi khi gọi snapshot callback: {e}")
     
-    async def initialize_orderbook(self, symbol: str) -> None:
+    async def initialize_orderbook(self, symbol: str) -> bool:
         """
         Khởi tạo sổ lệnh cho một cặp giao dịch.
         
         Args:
             symbol: Cặp giao dịch
+            
+        Returns:
+            True nếu khởi tạo thành công, False nếu không
         """
+        # Kiểm tra symbol hợp lệ trước khi khởi tạo
+        try:
+            if symbol not in self.exchange_connector.markets:
+                # Thử tải lại danh sách thị trường
+                await self.exchange_connector.load_markets(reload=True)
+                if symbol not in self.exchange_connector.markets:
+                    self.logger.error(f"Symbol {symbol} không hợp lệ trên sàn {self.exchange_id}")
+                    return False
+        except Exception as e:
+            self.logger.error(f"Lỗi khi kiểm tra symbol {symbol}: {e}")
+            return False
+            
         async with self.lock:
             if symbol in self.orderbook_managers:
                 # Reset nếu đã tồn tại
                 self.orderbook_managers[symbol].reset()
+                self.logger.debug(f"Reset OrderbookManager hiện có cho {symbol}")
             else:
                 # Tạo mới nếu chưa có
                 self.orderbook_managers[symbol] = OrderbookManager(
@@ -802,9 +818,23 @@ class OrderbookCollector:
             self.logger.warning(f"Không tìm thấy symbol trong thông điệp: {message}")
             return False
         
+        # Kiểm tra symbol hợp lệ
+        try:
+            if symbol not in self.exchange_connector.markets:
+                # Thử tải lại danh sách thị trường
+                await self.exchange_connector.load_markets(reload=True)
+                if symbol not in self.exchange_connector.markets:
+                    self.logger.warning(f"Symbol {symbol} không hợp lệ, bỏ qua cập nhật")
+                    return False
+        except Exception as e:
+            self.logger.error(f"Lỗi khi kiểm tra symbol {symbol}: {e}")
+            return False
+        
         # Kiểm tra xem có manager cho symbol không
         if symbol not in self.orderbook_managers:
-            await self.initialize_orderbook(symbol)
+            success = await self.initialize_orderbook(symbol)
+            if not success:
+                return False
         
         manager = self.orderbook_managers[symbol]
         
@@ -933,15 +963,35 @@ class OrderbookCollector:
             
             self.is_running = True
             
-            # Khởi tạo sổ lệnh cho mỗi symbol
+            # Lọc ra danh sách symbols hợp lệ
+            valid_symbols = []
             for symbol in symbols:
-                await self.initialize_orderbook(symbol)
-                
-                # Tạo task thu thập snapshot
-                task = asyncio.create_task(self._collect_snapshots_task(symbol))
-                self.tasks.append(task)
+                try:
+                    if symbol not in self.exchange_connector.markets:
+                        await self.exchange_connector.load_markets(reload=True)
+                    
+                    if symbol in self.exchange_connector.markets:
+                        valid_symbols.append(symbol)
+                    else:
+                        self.logger.warning(f"Symbol {symbol} không hợp lệ, bỏ qua")
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi kiểm tra symbol {symbol}: {e}")
             
-            self.logger.info(f"Đã bắt đầu OrderbookCollector cho {len(symbols)} symbols")
+            # Khởi tạo sổ lệnh cho mỗi symbol hợp lệ
+            for symbol in valid_symbols:
+                success = await self.initialize_orderbook(symbol)
+                if success:
+                    # Tạo task thu thập snapshot
+                    task = asyncio.create_task(self._collect_snapshots_task(symbol))
+                    self.tasks.append(task)
+                else:
+                    self.logger.warning(f"Không thể khởi tạo sổ lệnh cho {symbol}, bỏ qua")
+            
+            if valid_symbols:
+                self.logger.info(f"Đã bắt đầu OrderbookCollector cho {len(valid_symbols)} symbols")
+            else:
+                self.logger.warning("Không có symbol hợp lệ nào được khởi tạo")
+                self.is_running = False
     
     async def stop(self) -> None:
         """
@@ -1091,7 +1141,9 @@ class OrderbookCollector:
         return snapshots
 
 
-# Factory function
+# Factory function và registry để tránh khởi tạo trùng lặp
+_collector_registry = {}  # {exchange_id: OrderbookCollector}
+
 async def create_orderbook_collector(
     exchange_id: str,
     api_key: Optional[str] = None,
@@ -1102,6 +1154,7 @@ async def create_orderbook_collector(
 ) -> OrderbookCollector:
     """
     Tạo một instance của OrderbookCollector cho sàn giao dịch cụ thể.
+    Nếu đã tồn tại collector cho exchange_id, trả về instance đó thay vì tạo mới.
     
     Args:
         exchange_id: ID của sàn giao dịch
@@ -1114,6 +1167,13 @@ async def create_orderbook_collector(
     Returns:
         Instance của OrderbookCollector
     """
+    global _collector_registry
+    
+    # Kiểm tra xem đã có collector cho exchange_id này chưa
+    registry_key = f"{exchange_id}_{sandbox}_{is_futures}"
+    if registry_key in _collector_registry:
+        return _collector_registry[registry_key]
+    
     # Tạo connector cho sàn giao dịch
     exchange_connector = None
     
@@ -1148,6 +1208,9 @@ async def create_orderbook_collector(
         exchange_connector=exchange_connector,
         snapshot_interval=snapshot_interval
     )
+    
+    # Lưu vào registry
+    _collector_registry[registry_key] = collector
     
     return collector
 
