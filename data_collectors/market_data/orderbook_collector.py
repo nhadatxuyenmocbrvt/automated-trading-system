@@ -19,7 +19,6 @@ import collections
 import threading
 import heapq
 from copy import deepcopy
-import re
 
 # Import các module từ hệ thống
 import sys
@@ -28,14 +27,13 @@ import os
 # Thêm thư mục gốc vào sys.path để import module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from data_collectors.exchange_api.generic_connector import GenericExchangeConnector
+from data_collectors.exchange_api.generic_connector import ExchangeConnector
 from data_collectors.exchange_api.binance_connector import BinanceConnector
 from data_collectors.exchange_api.bybit_connector import BybitConnector
 from config.logging_config import setup_logger
 from config.constants import Timeframe, TIMEFRAME_TO_SECONDS, Exchange, ErrorCode
 from config.env import get_env
 from config.system_config import DATA_DIR, BASE_DIR
-from config.utils.validators import is_valid_trading_pair
 
 class OrderbookSnapshot:
     """
@@ -60,45 +58,14 @@ class OrderbookSnapshot:
             asks: Danh sách lệnh bán [[giá, khối lượng], ...]
             last_update_id: ID cập nhật cuối cùng
         """
-        # Kiểm tra tính hợp lệ của symbol
-        if not symbol or not isinstance(symbol, str):
-            raise ValueError("Symbol không hợp lệ")
-            
         self.symbol = symbol
         self.timestamp = timestamp or int(time.time() * 1000)
         self.bids = bids or []
         self.asks = asks or []
         self.last_update_id = last_update_id
         
-        # Kiểm tra định dạng của bids và asks
-        self._validate_orders()
-        
         # Sắp xếp bids (giảm dần theo giá) và asks (tăng dần theo giá)
         self._sort_orders()
-    
-    def _validate_orders(self) -> None:
-        """Kiểm tra tính hợp lệ của các lệnh."""
-        # Kiểm tra bids
-        for i, bid in enumerate(self.bids):
-            if not isinstance(bid, list) or len(bid) < 2:
-                raise ValueError(f"Định dạng không hợp lệ cho bid tại vị trí {i}: {bid}")
-            
-            # Chuyển đổi giá và khối lượng sang float nếu cần
-            try:
-                self.bids[i] = [float(bid[0]), float(bid[1])]
-            except (ValueError, TypeError):
-                raise ValueError(f"Không thể chuyển đổi giá hoặc khối lượng sang float cho bid: {bid}")
-        
-        # Kiểm tra asks
-        for i, ask in enumerate(self.asks):
-            if not isinstance(ask, list) or len(ask) < 2:
-                raise ValueError(f"Định dạng không hợp lệ cho ask tại vị trí {i}: {ask}")
-            
-            # Chuyển đổi giá và khối lượng sang float nếu cần
-            try:
-                self.asks[i] = [float(ask[0]), float(ask[1])]
-            except (ValueError, TypeError):
-                raise ValueError(f"Không thể chuyển đổi giá hoặc khối lượng sang float cho ask: {ask}")
     
     def _sort_orders(self) -> None:
         """Sắp xếp các lệnh theo giá."""
@@ -159,10 +126,6 @@ class OrderbookSnapshot:
         Returns:
             Dict với khối lượng và giá trị cho bids và asks
         """
-        # Kiểm tra giá trị percentage
-        if percentage <= 0:
-            raise ValueError("Percentage phải là số dương")
-            
         mid_price = self.get_mid_price()
         if mid_price == 0:
             return {
@@ -216,10 +179,6 @@ class OrderbookSnapshot:
         Returns:
             Dict với bids và asks
         """
-        # Kiểm tra tham số levels
-        if levels <= 0:
-            raise ValueError("Levels phải là số dương")
-            
         return {
             'bids': self.bids[:levels],
             'asks': self.asks[:levels]
@@ -256,10 +215,6 @@ class OrderbookSnapshot:
         Returns:
             Instance của OrderbookSnapshot
         """
-        # Kiểm tra các trường bắt buộc
-        if 'symbol' not in data:
-            raise ValueError("Thiếu trường 'symbol' trong dữ liệu")
-            
         return cls(
             symbol=data.get('symbol'),
             timestamp=data.get('timestamp'),
@@ -280,13 +235,6 @@ class OrderbookSnapshot:
         Returns:
             Instance của OrderbookSnapshot
         """
-        # Kiểm tra orderbook
-        if not isinstance(orderbook, dict):
-            raise ValueError("Orderbook phải là một dict")
-            
-        if 'bids' not in orderbook or 'asks' not in orderbook:
-            raise ValueError("Orderbook phải chứa trường 'bids' và 'asks'")
-            
         return cls(
             symbol=symbol,
             timestamp=orderbook.get('timestamp'),
@@ -315,16 +263,6 @@ class OrderbookManager:
             max_depth: Độ sâu tối đa của sổ lệnh
             buffer_size: Kích thước buffer cho các snapshot gần đây
         """
-        # Kiểm tra tham số đầu vào
-        if not symbol or not isinstance(symbol, str):
-            raise ValueError("Symbol không hợp lệ")
-        
-        if max_depth <= 0:
-            raise ValueError("max_depth phải là số dương")
-            
-        if buffer_size <= 0:
-            raise ValueError("buffer_size phải là số dương")
-            
         self.symbol = symbol
         self.max_depth = max_depth
         self.buffer_size = buffer_size
@@ -358,15 +296,6 @@ class OrderbookManager:
         Returns:
             True nếu cập nhật thành công, False nếu không
         """
-        # Kiểm tra snapshot
-        if not isinstance(snapshot, OrderbookSnapshot):
-            self.logger.error(f"Snapshot không hợp lệ: {type(snapshot)}")
-            return False
-            
-        if snapshot.symbol != self.symbol:
-            self.logger.error(f"Symbol không khớp: {snapshot.symbol} != {self.symbol}")
-            return False
-            
         with self.lock:
             # Lưu snapshot hiện tại vào buffer
             self.orderbook_buffer.append(deepcopy(self.current_orderbook))
@@ -391,11 +320,6 @@ class OrderbookManager:
         Returns:
             True nếu cập nhật thành công, False nếu không
         """
-        # Kiểm tra delta
-        if not isinstance(delta, dict):
-            self.logger.error(f"Delta không hợp lệ: {type(delta)}")
-            return False
-            
         with self.lock:
             if not self.is_synced:
                 self.logger.warning(f"Không thể cập nhật delta: sổ lệnh chưa được đồng bộ")
@@ -413,28 +337,14 @@ class OrderbookManager:
             # Cập nhật bids
             bids_to_update = delta.get('bids', delta.get('b', []))
             for bid in bids_to_update:
-                if not isinstance(bid, list) or len(bid) < 2:
-                    self.logger.warning(f"Bỏ qua bid không hợp lệ: {bid}")
-                    continue
-                    
-                try:
-                    price, amount = float(bid[0]), float(bid[1])
-                    self._update_price_level('bids', price, amount)
-                except (ValueError, TypeError) as e:
-                    self.logger.warning(f"Không thể chuyển đổi giá hoặc khối lượng cho bid {bid}: {e}")
+                price, amount = float(bid[0]), float(bid[1])
+                self._update_price_level('bids', price, amount)
             
             # Cập nhật asks
             asks_to_update = delta.get('asks', delta.get('a', []))
             for ask in asks_to_update:
-                if not isinstance(ask, list) or len(ask) < 2:
-                    self.logger.warning(f"Bỏ qua ask không hợp lệ: {ask}")
-                    continue
-                    
-                try:
-                    price, amount = float(ask[0]), float(ask[1])
-                    self._update_price_level('asks', price, amount)
-                except (ValueError, TypeError) as e:
-                    self.logger.warning(f"Không thể chuyển đổi giá hoặc khối lượng cho ask {ask}: {e}")
+                price, amount = float(ask[0]), float(ask[1])
+                self._update_price_level('asks', price, amount)
             
             # Sắp xếp lại sổ lệnh
             self.current_orderbook._sort_orders()
@@ -454,10 +364,6 @@ class OrderbookManager:
             price: Giá
             amount: Khối lượng (0 để xóa)
         """
-        # Kiểm tra side
-        if side not in ['bids', 'asks']:
-            raise ValueError(f"Side không hợp lệ: {side}, phải là 'bids' hoặc 'asks'")
-            
         # Lấy danh sách lệnh
         orders = getattr(self.current_orderbook, side)
         
@@ -509,10 +415,6 @@ class OrderbookManager:
         Returns:
             Danh sách các snapshot
         """
-        # Kiểm tra tham số count
-        if count is not None and count <= 0:
-            raise ValueError("count phải là số dương")
-            
         with self.lock:
             if count is None:
                 return list(self.orderbook_buffer)
@@ -530,13 +432,6 @@ class OrderbookManager:
         Returns:
             Giá trung bình theo khối lượng
         """
-        # Kiểm tra tham số đầu vào
-        if volume <= 0:
-            raise ValueError("volume phải là số dương")
-            
-        if side not in ['bids', 'asks']:
-            raise ValueError(f"side không hợp lệ: {side}, phải là 'bids' hoặc 'asks'")
-            
         with self.lock:
             orders = getattr(self.current_orderbook, side)
             
@@ -576,13 +471,6 @@ class OrderbookManager:
         Returns:
             Giá thực thi ước tính
         """
-        # Kiểm tra tham số đầu vào
-        if volume <= 0:
-            raise ValueError("volume phải là số dương")
-            
-        if side not in ['buy', 'sell']:
-            raise ValueError(f"side không hợp lệ: {side}, phải là 'buy' hoặc 'sell'")
-            
         book_side = 'asks' if side == 'buy' else 'bids'
         return self.get_vwap(volume, book_side)
     
@@ -597,13 +485,6 @@ class OrderbookManager:
         Returns:
             Dict với histogram cho bids và asks
         """
-        # Kiểm tra tham số đầu vào
-        if bins <= 0:
-            raise ValueError("bins phải là số dương")
-            
-        if range_percentage <= 0:
-            raise ValueError("range_percentage phải là số dương")
-            
         with self.lock:
             mid_price = self.current_orderbook.get_mid_price()
             
@@ -705,18 +586,12 @@ class OrderbookManager:
         """
         with self.lock:
             # Tạo DataFrame cho bids
-            if self.current_orderbook.bids:
-                bids_df = pd.DataFrame(self.current_orderbook.bids, columns=['price', 'amount'])
-                bids_df['side'] = 'bid'
-            else:
-                bids_df = pd.DataFrame(columns=['price', 'amount', 'side'])
+            bids_df = pd.DataFrame(self.current_orderbook.bids, columns=['price', 'amount'])
+            bids_df['side'] = 'bid'
             
             # Tạo DataFrame cho asks
-            if self.current_orderbook.asks:
-                asks_df = pd.DataFrame(self.current_orderbook.asks, columns=['price', 'amount'])
-                asks_df['side'] = 'ask'
-            else:
-                asks_df = pd.DataFrame(columns=['price', 'amount', 'side'])
+            asks_df = pd.DataFrame(self.current_orderbook.asks, columns=['price', 'amount'])
+            asks_df['side'] = 'ask'
             
             # Ghép lại
             df = pd.concat([bids_df, asks_df])
@@ -749,12 +624,11 @@ class OrderbookCollector:
     
     def __init__(
         self,
-        exchange_connector: GenericExchangeConnector,
+        exchange_connector: ExchangeConnector,
         data_dir: Path = None,
         snapshot_interval: int = 60,  # Lấy snapshot mỗi 60 giây
         max_depth: int = 100,
-        buffer_size: int = 10,
-        max_file_snapshots: int = 1000  # Số lượng snapshot tối đa trong 1 file
+        buffer_size: int = 10
     ):
         """
         Khởi tạo bộ thu thập sổ lệnh.
@@ -765,24 +639,7 @@ class OrderbookCollector:
             snapshot_interval: Khoảng thời gian giữa các snapshot (giây)
             max_depth: Độ sâu tối đa của sổ lệnh
             buffer_size: Kích thước buffer cho các snapshot gần đây
-            max_file_snapshots: Số lượng snapshot tối đa trong 1 file
         """
-        # Kiểm tra tham số đầu vào
-        if not isinstance(exchange_connector, GenericExchangeConnector):
-            raise ValueError("exchange_connector phải là instance của GenericExchangeConnector")
-            
-        if snapshot_interval <= 0:
-            raise ValueError("snapshot_interval phải là số dương")
-            
-        if max_depth <= 0:
-            raise ValueError("max_depth phải là số dương")
-            
-        if buffer_size <= 0:
-            raise ValueError("buffer_size phải là số dương")
-            
-        if max_file_snapshots <= 0:
-            raise ValueError("max_file_snapshots phải là số dương")
-            
         self.exchange_connector = exchange_connector
         self.exchange_id = exchange_connector.exchange_id
         self.logger = setup_logger(f"orderbook_collector_{self.exchange_id}")
@@ -800,7 +657,6 @@ class OrderbookCollector:
         self.snapshot_interval = snapshot_interval
         self.max_depth = max_depth
         self.buffer_size = buffer_size
-        self.max_file_snapshots = max_file_snapshots
         
         # Quản lý sổ lệnh
         self.orderbook_managers = {}  # {symbol: OrderbookManager}
@@ -812,10 +668,6 @@ class OrderbookCollector:
         # Callbacks
         self._update_callbacks = []
         self._snapshot_callbacks = []
-        
-        # Snapshot buffers và counters cho việc lưu gộp
-        self._snapshot_buffers = {}  # {symbol: [snapshots]}
-        self._snapshot_counters = {}  # {symbol: counter}
         
         # Lock
         self.lock = asyncio.Lock()
@@ -855,31 +707,15 @@ class OrderbookCollector:
         # Tính toán chỉ số
         metrics = manager.calculate_liquidity_metrics()
         
-        # Song song hóa gọi callbacks
-        tasks = []
+        # Gọi các callbacks
         for callback in self._update_callbacks:
             try:
                 if asyncio.iscoroutinefunction(callback):
-                    # Tạo task cho callback bất đồng bộ
-                    task = asyncio.create_task(callback(symbol, metrics))
+                    await callback(symbol, metrics)
                 else:
-                    # Gọi callback đồng bộ ngay lập tức
                     callback(symbol, metrics)
-                    continue
-                    
-                tasks.append(task)
             except Exception as e:
-                self.logger.error(f"Lỗi khi tạo task cho update callback: {e}")
-        
-        # Đợi tất cả các callback bất đồng bộ hoàn thành (nếu có)
-        if tasks:
-            # Sử dụng gather kèm return_exceptions=True để tránh một callback lỗi ảnh hưởng đến các callback khác
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Kiểm tra các lỗi
-            for i, result in enumerate(results):
-                if isinstance(result, Exception):
-                    self.logger.error(f"Callback thứ {i} gặp lỗi: {result}")
+                self.logger.error(f"Lỗi khi gọi update callback: {e}")
     
     async def _notify_snapshot(self, symbol: str, snapshot: OrderbookSnapshot) -> None:
         """
@@ -889,47 +725,23 @@ class OrderbookCollector:
             symbol: Cặp giao dịch
             snapshot: Snapshot mới
         """
-        # Song song hóa gọi callbacks
-        tasks = []
+        # Gọi các callbacks
         for callback in self._snapshot_callbacks:
             try:
                 if asyncio.iscoroutinefunction(callback):
-                    # Tạo task cho callback bất đồng bộ
-                    task = asyncio.create_task(callback(symbol, snapshot))
+                    await callback(symbol, snapshot)
                 else:
-                    # Gọi callback đồng bộ ngay lập tức
                     callback(symbol, snapshot)
-                    continue
-                    
-                tasks.append(task)
             except Exception as e:
-                self.logger.error(f"Lỗi khi tạo task cho snapshot callback: {e}")
-        
-        # Đợi tất cả các callback bất đồng bộ hoàn thành (nếu có)
-        if tasks:
-            # Sử dụng gather kèm return_exceptions=True để tránh một callback lỗi ảnh hưởng đến các callback khác
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Kiểm tra các lỗi
-            for i, result in enumerate(results):
-                if isinstance(result, Exception):
-                    self.logger.error(f"Callback thứ {i} gặp lỗi: {result}")
+                self.logger.error(f"Lỗi khi gọi snapshot callback: {e}")
     
-    async def initialize_orderbook(self, symbol: str) -> bool:
+    async def initialize_orderbook(self, symbol: str) -> None:
         """
         Khởi tạo sổ lệnh cho một cặp giao dịch.
         
         Args:
             symbol: Cặp giao dịch
-            
-        Returns:
-            True nếu khởi tạo thành công, False nếu không
         """
-        # Kiểm tra symbol
-        if not is_valid_trading_pair(symbol):
-            self.logger.error(f"Symbol không hợp lệ: {symbol}")
-            return False
-            
         async with self.lock:
             if symbol in self.orderbook_managers:
                 # Reset nếu đã tồn tại
@@ -941,11 +753,6 @@ class OrderbookCollector:
                     max_depth=self.max_depth,
                     buffer_size=self.buffer_size
                 )
-            
-            # Khởi tạo buffer lưu snapshot
-            if symbol not in self._snapshot_buffers:
-                self._snapshot_buffers[symbol] = []
-                self._snapshot_counters[symbol] = 0
             
             try:
                 # Lấy snapshot ban đầu
@@ -969,14 +776,6 @@ class OrderbookCollector:
                 # Thông báo cập nhật
                 await self._notify_update(symbol)
                 
-                # Thêm vào buffer lưu trữ
-                self._snapshot_buffers[symbol].append(snapshot.to_dict())
-                self._snapshot_counters[symbol] += 1
-                
-                # Kiểm tra xem đã đến ngưỡng lưu file chưa
-                if self._snapshot_counters[symbol] >= self.max_file_snapshots:
-                    await self._save_snapshot_buffer(symbol)
-                
                 self.logger.info(f"Đã khởi tạo sổ lệnh cho {symbol}")
                 return True
             
@@ -994,11 +793,6 @@ class OrderbookCollector:
         Returns:
             True nếu cập nhật thành công, False nếu không
         """
-        # Kiểm tra message
-        if not isinstance(message, dict):
-            self.logger.error(f"Message không hợp lệ: {type(message)}")
-            return False
-            
         # Xác định symbol và kiểm tra định dạng
         if 'type' not in message or message['type'] != 'orderbook':
             return False
@@ -1010,61 +804,42 @@ class OrderbookCollector:
         
         # Kiểm tra xem có manager cho symbol không
         if symbol not in self.orderbook_managers:
-            success = await self.initialize_orderbook(symbol)
-            if not success:
-                return False
+            await self.initialize_orderbook(symbol)
         
         manager = self.orderbook_managers[symbol]
         
         # Xử lý dữ liệu dựa vào định dạng
         if 'bids' in message and 'asks' in message:
             # Đây là một snapshot
-            try:
-                snapshot = OrderbookSnapshot(
-                    symbol=symbol,
-                    timestamp=message.get('timestamp', int(time.time() * 1000)),
-                    bids=message.get('bids', []),
-                    asks=message.get('asks', []),
-                    last_update_id=message.get('nonce')
-                )
-                
-                # Cập nhật sổ lệnh
-                result = manager.update_from_snapshot(snapshot)
-                
-                # Thông báo snapshot
-                if result:
-                    await self._notify_snapshot(symbol, snapshot)
-                    
-                    # Thông báo cập nhật
-                    await self._notify_update(symbol)
-                    
-                    # Thêm vào buffer lưu trữ
-                    async with self.lock:
-                        self._snapshot_buffers[symbol].append(snapshot.to_dict())
-                        self._snapshot_counters[symbol] += 1
-                        
-                        # Kiểm tra xem đã đến ngưỡng lưu file chưa
-                        if self._snapshot_counters[symbol] >= self.max_file_snapshots:
-                            await self._save_snapshot_buffer(symbol)
-                
-                return result
-            except Exception as e:
-                self.logger.error(f"Lỗi khi xử lý snapshot từ websocket: {e}")
-                return False
+            snapshot = OrderbookSnapshot(
+                symbol=symbol,
+                timestamp=message.get('timestamp', int(time.time() * 1000)),
+                bids=message.get('bids', []),
+                asks=message.get('asks', []),
+                last_update_id=message.get('nonce')
+            )
             
-        else:
-            # Đây là một delta (cập nhật gia tăng)
-            try:
-                result = manager.update_from_delta(message)
+            # Cập nhật sổ lệnh
+            result = manager.update_from_snapshot(snapshot)
+            
+            # Thông báo snapshot
+            if result:
+                await self._notify_snapshot(symbol, snapshot)
                 
                 # Thông báo cập nhật
-                if result:
-                    await self._notify_update(symbol)
-                
-                return result
-            except Exception as e:
-                self.logger.error(f"Lỗi khi xử lý delta từ websocket: {e}")
-                return False
+                await self._notify_update(symbol)
+            
+            return result
+        
+        else:
+            # Đây là một delta (cập nhật gia tăng)
+            result = manager.update_from_delta(message)
+            
+            # Thông báo cập nhật
+            if result:
+                await self._notify_update(symbol)
+            
+            return result
     
     async def _collect_snapshots_task(self, symbol: str) -> None:
         """
@@ -1100,14 +875,8 @@ class OrderbookCollector:
                         # Thông báo cập nhật
                         await self._notify_update(symbol)
                         
-                        # Thêm vào buffer lưu trữ
-                        async with self.lock:
-                            self._snapshot_buffers[symbol].append(snapshot.to_dict())
-                            self._snapshot_counters[symbol] += 1
-                            
-                            # Kiểm tra xem đã đến ngưỡng lưu file chưa
-                            if self._snapshot_counters[symbol] >= self.max_file_snapshots:
-                                await self._save_snapshot_buffer(symbol)
+                        # Lưu snapshot
+                        await self._save_snapshot(symbol, snapshot)
                     
                 except Exception as e:
                     self.logger.error(f"Lỗi khi thu thập snapshot cho {symbol}: {e}")
@@ -1117,69 +886,38 @@ class OrderbookCollector:
         
         except asyncio.CancelledError:
             self.logger.info(f"Task thu thập snapshots cho {symbol} đã bị hủy")
-            
-            # Lưu buffer còn lại khi task bị hủy
-            if symbol in self._snapshot_buffers and self._snapshot_buffers[symbol]:
-                await self._save_snapshot_buffer(symbol)
-                
         except Exception as e:
             self.logger.error(f"Lỗi trong task thu thập snapshots cho {symbol}: {e}")
     
-    async def _save_snapshot_buffer(self, symbol: str) -> None:
+    async def _save_snapshot(self, symbol: str, snapshot: OrderbookSnapshot) -> None:
         """
-        Lưu buffer snapshot vào file.
+        Lưu snapshot vào file.
         
         Args:
             symbol: Cặp giao dịch
+            snapshot: Snapshot cần lưu
         """
-        if symbol not in self._snapshot_buffers or not self._snapshot_buffers[symbol]:
-            return
-            
         # Tạo thư mục cho symbol nếu chưa có
         symbol_dir = self.data_dir / symbol.replace('/', '_')
         symbol_dir.mkdir(parents=True, exist_ok=True)
         
-        # Lấy buffer hiện tại và reset
-        buffer = self._snapshot_buffers[symbol]
-        self._snapshot_buffers[symbol] = []
-        self._snapshot_counters[symbol] = 0
-        
-        if not buffer:
-            return
-            
-        # Tạo tên file với thời gian bắt đầu và kết thúc
-        start_time = datetime.fromtimestamp(buffer[0]['timestamp'] / 1000).strftime('%Y%m%d_%H%M%S')
-        end_time = datetime.fromtimestamp(buffer[-1]['timestamp'] / 1000).strftime('%Y%m%d_%H%M%S')
-        filename = f"orderbook_{symbol.replace('/', '_')}_{start_time}_to_{end_time}.parquet"
+        # Tạo tên file
+        timestamp = datetime.fromtimestamp(snapshot.timestamp / 1000).strftime('%Y%m%d_%H%M%S')
+        filename = f"orderbook_{symbol.replace('/', '_')}_{timestamp}.json"
         file_path = symbol_dir / filename
         
         try:
-            # Chuyển đổi thành DataFrame
-            df = pd.DataFrame(buffer)
+            # Chuyển đổi snapshot thành dict
+            data = snapshot.to_dict()
             
-            # Chuẩn hóa cột bids và asks từ json sang string
-            if 'bids' in df.columns:
-                df['bids'] = df['bids'].apply(lambda x: json.dumps(x) if isinstance(x, list) else x)
+            # Ghi vào file
+            with open(file_path, 'w') as f:
+                json.dump(data, f, indent=2)
             
-            if 'asks' in df.columns:
-                df['asks'] = df['asks'].apply(lambda x: json.dumps(x) if isinstance(x, list) else x)
-            
-            # Ghi vào file parquet (nén tốt hơn)
-            df.to_parquet(file_path, index=False, compression='snappy')
-            
-            self.logger.info(f"Đã lưu {len(buffer)} snapshots cho {symbol} vào {file_path}")
+            self.logger.debug(f"Đã lưu snapshot cho {symbol} vào {file_path}")
             
         except Exception as e:
-            self.logger.error(f"Lỗi khi lưu snapshots cho {symbol}: {e}")
-            
-            # Lưu buffer khi có lỗi
-            fallback_file = symbol_dir / f"backup_{filename}.json"
-            try:
-                with open(fallback_file, 'w') as f:
-                    json.dump(buffer, f, indent=2)
-                self.logger.info(f"Đã lưu backup vào {fallback_file}")
-            except Exception as backup_error:
-                self.logger.error(f"Không thể lưu backup: {backup_error}")
+            self.logger.error(f"Lỗi khi lưu snapshot cho {symbol}: {e}")
     
     async def start(self, symbols: List[str]) -> None:
         """
@@ -1188,21 +926,6 @@ class OrderbookCollector:
         Args:
             symbols: Danh sách cặp giao dịch
         """
-        # Kiểm tra danh sách symbols
-        if not symbols:
-            raise ValueError("Danh sách symbols không được rỗng")
-            
-        # Kiểm tra từng symbol
-        valid_symbols = []
-        for symbol in symbols:
-            if is_valid_trading_pair(symbol):
-                valid_symbols.append(symbol)
-            else:
-                self.logger.warning(f"Bỏ qua symbol không hợp lệ: {symbol}")
-        
-        if not valid_symbols:
-            raise ValueError("Không có symbol hợp lệ nào để thu thập")
-            
         async with self.lock:
             if self.is_running:
                 self.logger.warning("OrderbookCollector đã đang chạy")
@@ -1211,15 +934,14 @@ class OrderbookCollector:
             self.is_running = True
             
             # Khởi tạo sổ lệnh cho mỗi symbol
-            for symbol in valid_symbols:
-                success = await self.initialize_orderbook(symbol)
+            for symbol in symbols:
+                await self.initialize_orderbook(symbol)
                 
-                if success:
-                    # Tạo task thu thập snapshot
-                    task = asyncio.create_task(self._collect_snapshots_task(symbol))
-                    self.tasks.append(task)
+                # Tạo task thu thập snapshot
+                task = asyncio.create_task(self._collect_snapshots_task(symbol))
+                self.tasks.append(task)
             
-            self.logger.info(f"Đã bắt đầu OrderbookCollector cho {len(self.tasks)} symbols")
+            self.logger.info(f"Đã bắt đầu OrderbookCollector cho {len(symbols)} symbols")
     
     async def stop(self) -> None:
         """
@@ -1243,11 +965,6 @@ class OrderbookCollector:
             
             self.tasks.clear()
             
-            # Lưu tất cả các buffer
-            for symbol in list(self._snapshot_buffers.keys()):
-                if self._snapshot_buffers[symbol]:
-                    await self._save_snapshot_buffer(symbol)
-            
             self.logger.info("Đã dừng OrderbookCollector")
     
     def get_orderbook(self, symbol: str) -> Optional[OrderbookSnapshot]:
@@ -1260,11 +977,6 @@ class OrderbookCollector:
         Returns:
             Snapshot hiện tại hoặc None nếu không có
         """
-        # Kiểm tra symbol
-        if not is_valid_trading_pair(symbol):
-            self.logger.error(f"Symbol không hợp lệ: {symbol}")
-            return None
-            
         if symbol not in self.orderbook_managers:
             return None
         
@@ -1280,11 +992,6 @@ class OrderbookCollector:
         Returns:
             Dict với các chỉ số hoặc None nếu không có
         """
-        # Kiểm tra symbol
-        if not is_valid_trading_pair(symbol):
-            self.logger.error(f"Symbol không hợp lệ: {symbol}")
-            return None
-            
         if symbol not in self.orderbook_managers:
             return None
         
@@ -1312,11 +1019,6 @@ class OrderbookCollector:
             symbol: Cặp giao dịch (None để reset tất cả)
         """
         if symbol:
-            # Kiểm tra symbol
-            if not is_valid_trading_pair(symbol):
-                self.logger.error(f"Symbol không hợp lệ: {symbol}")
-                return
-                
             if symbol in self.orderbook_managers:
                 self.orderbook_managers[symbol].reset()
         else:
@@ -1340,11 +1042,6 @@ class OrderbookCollector:
         Returns:
             Danh sách các snapshot
         """
-        # Kiểm tra symbol
-        if not is_valid_trading_pair(symbol):
-            self.logger.error(f"Symbol không hợp lệ: {symbol}")
-            return []
-            
         if end_time is None:
             end_time = datetime.now()
         
@@ -1359,82 +1056,32 @@ class OrderbookCollector:
             return []
         
         # Tìm các file trong khoảng thời gian
-        all_files = list(symbol_dir.glob(f"orderbook_{symbol.replace('/', '_')}*.parquet")) + \
-                   list(symbol_dir.glob(f"orderbook_{symbol.replace('/', '_')}*.json"))
+        files = list(symbol_dir.glob(f"orderbook_{symbol.replace('/', '_')}*.json"))
         
-        if not all_files:
+        if not files:
             self.logger.warning(f"Không tìm thấy file snapshot cho {symbol}")
             return []
         
-        # Lọc các file theo thời gian (dựa vào tên file)
-        filtered_files = []
-        for file_path in all_files:
-            # Trích xuất thời gian từ tên file
-            try:
-                # Tìm tất cả các pattern thời gian trong tên file
-                matches = re.findall(r'(\d{8}_\d{6})', file_path.name)
-                if matches:
-                    # Lấy thời gian đầu tiên và cuối cùng
-                    file_start_time = datetime.strptime(matches[0], '%Y%m%d_%H%M%S')
-                    file_end_time = datetime.strptime(matches[-1], '%Y%m%d_%H%M%S') if len(matches) > 1 else file_start_time
-                    
-                    # Kiểm tra xem file có overlap với khoảng thời gian không
-                    if (file_start_time <= end_time and file_end_time >= start_time):
-                        filtered_files.append(file_path)
-            except Exception as e:
-                self.logger.warning(f"Không thể trích xuất thời gian từ tên file {file_path.name}: {e}")
-                # Thêm vào để xem xét nội dung
-                filtered_files.append(file_path)
-        
-        # Lọc các snapshot theo thời gian
+        # Lọc các file theo thời gian
         start_ts = int(start_time.timestamp() * 1000)
         end_ts = int(end_time.timestamp() * 1000)
         
         snapshots = []
         
-        for file_path in filtered_files:
+        for file_path in files:
             try:
-                if file_path.suffix == '.parquet':
-                    # Đọc file parquet
-                    df = pd.read_parquet(file_path)
-                    
-                    # Lọc theo timestamp
-                    if 'timestamp' in df.columns:
-                        df = df[(df['timestamp'] >= start_ts) & (df['timestamp'] <= end_ts)]
-                    
-                    # Chuyển đổi cột bids và asks từ string sang list
-                    if 'bids' in df.columns and df['bids'].dtype == 'object':
-                        df['bids'] = df['bids'].apply(lambda x: json.loads(x) if isinstance(x, str) else x)
-                    
-                    if 'asks' in df.columns and df['asks'].dtype == 'object':
-                        df['asks'] = df['asks'].apply(lambda x: json.loads(x) if isinstance(x, str) else x)
-                    
-                    # Tạo snapshots
-                    for _, row in df.iterrows():
-                        snapshot = OrderbookSnapshot.from_dict(row.to_dict())
-                        snapshots.append(snapshot)
-                        
-                elif file_path.suffix == '.json':
-                    # Đọc file json
-                    with open(file_path, 'r') as f:
-                        data = json.load(f)
-                    
-                    # Xử lý dựa vào cấu trúc
-                    if isinstance(data, list):
-                        # Danh sách các snapshot
-                        for item in data:
-                            if isinstance(item, dict) and 'timestamp' in item:
-                                timestamp = item.get('timestamp', 0)
-                                if start_ts <= timestamp <= end_ts:
-                                    snapshot = OrderbookSnapshot.from_dict(item)
-                                    snapshots.append(snapshot)
-                    elif isinstance(data, dict) and 'timestamp' in data:
-                        # Một snapshot duy nhất
-                        timestamp = data.get('timestamp', 0)
-                        if start_ts <= timestamp <= end_ts:
-                            snapshot = OrderbookSnapshot.from_dict(data)
-                            snapshots.append(snapshot)
+                # Đọc dữ liệu
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
                 
+                # Kiểm tra timestamp
+                timestamp = data.get('timestamp', 0)
+                
+                if start_ts <= timestamp <= end_ts:
+                    # Tạo snapshot
+                    snapshot = OrderbookSnapshot.from_dict(data)
+                    snapshots.append(snapshot)
+            
             except Exception as e:
                 self.logger.error(f"Lỗi khi đọc file {file_path}: {e}")
         
@@ -1451,8 +1098,7 @@ async def create_orderbook_collector(
     api_secret: Optional[str] = None,
     sandbox: bool = True,
     is_futures: bool = False,
-    snapshot_interval: int = 60,
-    max_file_snapshots: int = 1000
+    snapshot_interval: int = 60
 ) -> OrderbookCollector:
     """
     Tạo một instance của OrderbookCollector cho sàn giao dịch cụ thể.
@@ -1464,21 +1110,10 @@ async def create_orderbook_collector(
         sandbox: Sử dụng môi trường testnet
         is_futures: Sử dụng tài khoản futures
         snapshot_interval: Khoảng thời gian giữa các snapshot (giây)
-        max_file_snapshots: Số lượng snapshot tối đa trong 1 file
         
     Returns:
         Instance của OrderbookCollector
     """
-    # Kiểm tra tham số đầu vào
-    if not exchange_id:
-        raise ValueError("exchange_id không được rỗng")
-        
-    if snapshot_interval <= 0:
-        raise ValueError("snapshot_interval phải là số dương")
-        
-    if max_file_snapshots <= 0:
-        raise ValueError("max_file_snapshots phải là số dương")
-        
     # Tạo connector cho sàn giao dịch
     exchange_connector = None
     
@@ -1497,8 +1132,8 @@ async def create_orderbook_collector(
             category='linear' if is_futures else 'spot'
         )
     else:
-        # Sử dụng GenericExchangeConnector cho các sàn khác
-        exchange_connector = GenericExchangeConnector(
+        # Sử dụng ExchangeConnector cho các sàn khác
+        exchange_connector = ExchangeConnector(
             exchange_id=exchange_id,
             api_key=api_key,
             api_secret=api_secret,
@@ -1511,8 +1146,7 @@ async def create_orderbook_collector(
     # Tạo collector
     collector = OrderbookCollector(
         exchange_connector=exchange_connector,
-        snapshot_interval=snapshot_interval,
-        max_file_snapshots=max_file_snapshots
+        snapshot_interval=snapshot_interval
     )
     
     return collector
@@ -1537,16 +1171,6 @@ class MarketLiquidityMonitor:
             alert_threshold: Ngưỡng phần trăm thay đổi để phát cảnh báo
             window_size: Kích thước cửa sổ lịch sử
         """
-        # Kiểm tra tham số đầu vào
-        if not isinstance(orderbook_collector, OrderbookCollector):
-            raise ValueError("orderbook_collector phải là instance của OrderbookCollector")
-            
-        if alert_threshold <= 0:
-            raise ValueError("alert_threshold phải là số dương")
-            
-        if window_size <= 1:
-            raise ValueError("window_size phải lớn hơn 1")
-            
         self.orderbook_collector = orderbook_collector
         self.alert_threshold = alert_threshold
         self.window_size = window_size
@@ -1582,10 +1206,6 @@ class MarketLiquidityMonitor:
             symbol: Cặp giao dịch
             metrics: Chỉ số thanh khoản
         """
-        # Kiểm tra tham số đầu vào
-        if not symbol or not isinstance(metrics, dict):
-            return
-            
         # Tạo history cho symbol nếu chưa có
         if symbol not in self.liquidity_history:
             self.liquidity_history[symbol] = collections.deque(maxlen=self.window_size)
@@ -1615,16 +1235,6 @@ class MarketLiquidityMonitor:
         
         # Tính toán các thay đổi phần trăm
         try:
-            # Kiểm tra các trường bắt buộc
-            required_fields = ['mid_price', 'bid_volume_1pct', 'ask_volume_1pct', 'imbalance', 'spread_percentage']
-            for field in required_fields:
-                if field not in latest or field not in previous:
-                    return
-                    
-            # Tránh chia cho 0
-            if previous['mid_price'] == 0 or previous['spread_percentage'] == 0:
-                return
-                
             price_change_pct = ((latest['mid_price'] - previous['mid_price']) / previous['mid_price']) * 100
             
             bid_vol_change_pct = ((latest['bid_volume_1pct'] - previous['bid_volume_1pct']) / previous['bid_volume_1pct']) * 100 if previous['bid_volume_1pct'] else 0
@@ -1696,31 +1306,15 @@ class MarketLiquidityMonitor:
                     'alerts': alerts
                 }
                 
-                # Song song hóa gọi callbacks
-                tasks = []
+                # Gọi các callbacks
                 for callback in self._alert_callbacks:
                     try:
                         if asyncio.iscoroutinefunction(callback):
-                            # Tạo task cho callback bất đồng bộ
-                            task = asyncio.create_task(callback(symbol, alert_data))
+                            await callback(symbol, alert_data)
                         else:
-                            # Gọi callback đồng bộ ngay lập tức
                             callback(symbol, alert_data)
-                            continue
-                            
-                        tasks.append(task)
                     except Exception as e:
-                        self.logger.error(f"Lỗi khi tạo task cho alert callback: {e}")
-                
-                # Đợi tất cả các callback bất đồng bộ hoàn thành (nếu có)
-                if tasks:
-                    # Sử dụng gather kèm return_exceptions=True để tránh một callback lỗi ảnh hưởng đến các callback khác
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-                    
-                    # Kiểm tra các lỗi
-                    for i, result in enumerate(results):
-                        if isinstance(result, Exception):
-                            self.logger.error(f"Callback thứ {i} gặp lỗi: {result}")
+                        self.logger.error(f"Lỗi khi gọi alert callback: {e}")
                 
                 # Ghi log
                 alert_msg = ", ".join([alert['message'] for alert in alerts])
@@ -1739,14 +1333,6 @@ class MarketLiquidityMonitor:
         Returns:
             Dict với thông tin xu hướng
         """
-        # Kiểm tra symbol
-        if not is_valid_trading_pair(symbol):
-            return {
-                'symbol': symbol,
-                'has_data': False,
-                'message': "Symbol không hợp lệ"
-            }
-            
         if symbol not in self.liquidity_history or len(self.liquidity_history[symbol]) < 2:
             return {
                 'symbol': symbol,
@@ -1760,66 +1346,37 @@ class MarketLiquidityMonitor:
         first_metrics = history[0]
         last_metrics = history[-1]
         
-        # Kiểm tra các trường bắt buộc
-        required_fields = ['timestamp', 'mid_price', 'bid_volume_1pct', 'ask_volume_1pct', 'imbalance', 'spread_percentage']
-        for field in required_fields:
-            if field not in first_metrics or field not in last_metrics:
-                return {
-                    'symbol': symbol,
-                    'has_data': False,
-                    'message': f"Thiếu trường dữ liệu: {field}"
-                }
-        
-        # Tính toán các thay đổi
-        try:
-            price_change_pct = ((last_metrics['mid_price'] - first_metrics['mid_price']) / first_metrics['mid_price']) * 100 if first_metrics['mid_price'] else 0
-            
-            bid_volume_change_pct = ((last_metrics['bid_volume_1pct'] - first_metrics['bid_volume_1pct']) / first_metrics['bid_volume_1pct']) * 100 if first_metrics['bid_volume_1pct'] else 0
-            
-            ask_volume_change_pct = ((last_metrics['ask_volume_1pct'] - first_metrics['ask_volume_1pct']) / first_metrics['ask_volume_1pct']) * 100 if first_metrics['ask_volume_1pct'] else 0
-            
-            imbalance_change = last_metrics['imbalance'] - first_metrics['imbalance']
-            
-            spread_change_pct = ((last_metrics['spread_percentage'] - first_metrics['spread_percentage']) / first_metrics['spread_percentage']) * 100 if first_metrics['spread_percentage'] else 0
-            
-            return {
-                'symbol': symbol,
-                'has_data': True,
-                'period': {
-                    'start_time': datetime.fromtimestamp(first_metrics['timestamp'] / 1000).isoformat(),
-                    'end_time': datetime.fromtimestamp(last_metrics['timestamp'] / 1000).isoformat(),
-                    'samples': len(history)
-                },
-                'price': {
-                    'first': first_metrics['mid_price'],
-                    'last': last_metrics['mid_price'],
-                    'change_pct': price_change_pct
-                },
-                'liquidity': {
-                    'first_bid_volume': first_metrics['bid_volume_1pct'],
-                    'last_bid_volume': last_metrics['bid_volume_1pct'],
-                    'bid_volume_change_pct': bid_volume_change_pct,
-                    
-                    'first_ask_volume': first_metrics['ask_volume_1pct'],
-                    'last_ask_volume': last_metrics['ask_volume_1pct'],
-                    'ask_volume_change_pct': ask_volume_change_pct,
-                    
-                    'first_imbalance': first_metrics['imbalance'],
-                    'last_imbalance': last_metrics['imbalance'],
-                    'imbalance_change': imbalance_change,
-                    
-                    'first_spread': first_metrics['spread_percentage'],
-                    'last_spread': last_metrics['spread_percentage'],
-                    'spread_change_pct': spread_change_pct
-                }
+        return {
+            'symbol': symbol,
+            'has_data': True,
+            'period': {
+                'start_time': datetime.fromtimestamp(first_metrics['timestamp'] / 1000).isoformat(),
+                'end_time': datetime.fromtimestamp(last_metrics['timestamp'] / 1000).isoformat(),
+                'samples': len(history)
+            },
+            'price': {
+                'first': first_metrics['mid_price'],
+                'last': last_metrics['mid_price'],
+                'change_pct': ((last_metrics['mid_price'] - first_metrics['mid_price']) / first_metrics['mid_price']) * 100 if first_metrics['mid_price'] else 0
+            },
+            'liquidity': {
+                'first_bid_volume': first_metrics['bid_volume_1pct'],
+                'last_bid_volume': last_metrics['bid_volume_1pct'],
+                'bid_volume_change_pct': ((last_metrics['bid_volume_1pct'] - first_metrics['bid_volume_1pct']) / first_metrics['bid_volume_1pct']) * 100 if first_metrics['bid_volume_1pct'] else 0,
+                
+                'first_ask_volume': first_metrics['ask_volume_1pct'],
+                'last_ask_volume': last_metrics['ask_volume_1pct'],
+                'ask_volume_change_pct': ((last_metrics['ask_volume_1pct'] - first_metrics['ask_volume_1pct']) / first_metrics['ask_volume_1pct']) * 100 if first_metrics['ask_volume_1pct'] else 0,
+                
+                'first_imbalance': first_metrics['imbalance'],
+                'last_imbalance': last_metrics['imbalance'],
+                'imbalance_change': last_metrics['imbalance'] - first_metrics['imbalance'],
+                
+                'first_spread': first_metrics['spread_percentage'],
+                'last_spread': last_metrics['spread_percentage'],
+                'spread_change_pct': ((last_metrics['spread_percentage'] - first_metrics['spread_percentage']) / first_metrics['spread_percentage']) * 100 if first_metrics['spread_percentage'] else 0
             }
-        except Exception as e:
-            self.logger.error(f"Lỗi khi tính toán xu hướng cho {symbol}: {e}")
-            return {
-                'symbol': symbol,
-                'has_data': False,
-                'message': f"Lỗi khi tính toán xu hướng: {str(e)}"
-            }
+        }
     
     def get_all_trends(self) -> Dict[str, Dict]:
         """
@@ -1845,46 +1402,40 @@ async def main():
     api_key = get_env(f'{exchange_id.upper()}_API_KEY', '')
     api_secret = get_env(f'{exchange_id.upper()}_API_SECRET', '')
     
+    # Tạo collector
+    collector = await create_orderbook_collector(
+        exchange_id=exchange_id,
+        api_key=api_key,
+        api_secret=api_secret,
+        sandbox=True,
+        snapshot_interval=60
+    )
+    
+    # Tạo monitor
+    monitor = MarketLiquidityMonitor(
+        orderbook_collector=collector,
+        alert_threshold=5.0,
+        window_size=10
+    )
+    
+    # Callback để in cảnh báo
+    def print_alert(symbol, alert_data):
+        print(f"\n=== CẢNH BÁO THANH KHOẢN {symbol} ===")
+        for alert in alert_data['alerts']:
+            print(f"- {alert['message']}")
+        print(f"Giá hiện tại: {alert_data['metrics']['price']}")
+        print(f"Mất cân bằng: {alert_data['metrics']['imbalance']:.4f}")
+        print(f"Spread: {alert_data['metrics']['spread']:.4f}%")
+        print("=================================\n")
+    
+    # Đăng ký callback
+    monitor.add_alert_callback(print_alert)
+    
+    # Bắt đầu thu thập dữ liệu
+    symbols = ['BTC/USDT', 'ETH/USDT']
+    await collector.start(symbols)
+    
     try:
-        # Tạo collector
-        collector = await create_orderbook_collector(
-            exchange_id=exchange_id,
-            api_key=api_key,
-            api_secret=api_secret,
-            sandbox=True,
-            snapshot_interval=60,
-            max_file_snapshots=1000
-        )
-        
-        # Tạo monitor
-        monitor = MarketLiquidityMonitor(
-            orderbook_collector=collector,
-            alert_threshold=5.0,
-            window_size=10
-        )
-        
-        # Callback để in cảnh báo
-        async def print_alert(symbol, alert_data):
-            print(f"\n=== CẢNH BÁO THANH KHOẢN {symbol} ===")
-            for alert in alert_data['alerts']:
-                print(f"- {alert['message']}")
-            print(f"Giá hiện tại: {alert_data['metrics']['price']}")
-            print(f"Mất cân bằng: {alert_data['metrics']['imbalance']:.4f}")
-            print(f"Spread: {alert_data['metrics']['spread']:.4f}%")
-            print("=================================\n")
-        
-        # Đăng ký callback
-        monitor.add_alert_callback(print_alert)
-        
-        # Bắt đầu thu thập dữ liệu
-        symbols = ['BTC/USDT', 'ETH/USDT']
-        
-        # Kiểm tra symbols
-        if not symbols:
-            raise ValueError("Danh sách symbols không được rỗng")
-            
-        await collector.start(symbols)
-        
         print(f"Đang theo dõi thanh khoản cho {', '.join(symbols)}...")
         print("Nhấn Ctrl+C để dừng.")
         
@@ -1893,17 +1444,14 @@ async def main():
             
     except KeyboardInterrupt:
         print("\nĐang dừng...")
-    except Exception as e:
-        print(f"Lỗi: {e}")
     finally:
-        # Dừng collector nếu đã khởi tạo
-        if 'collector' in locals():
-            await collector.stop()
-            
-            # Đóng kết nối
-            await collector.exchange_connector.close()
-            
-            print("Đã dừng thu thập dữ liệu")
+        # Dừng collector
+        await collector.stop()
+        
+        # Đóng kết nối
+        await collector.exchange_connector.close()
+        
+        print("Đã dừng thu thập dữ liệu")
 
 if __name__ == "__main__":
     try:

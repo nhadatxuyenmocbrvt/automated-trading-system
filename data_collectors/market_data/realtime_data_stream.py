@@ -19,7 +19,6 @@ import signal
 import queue
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from abc import ABC, abstractmethod
 
 # Import các module từ hệ thống
 import sys
@@ -28,7 +27,7 @@ import os
 # Thêm thư mục gốc vào sys.path để import module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from data_collectors.exchange_api.generic_connector import GenericExchangeConnector
+from data_collectors.exchange_api.generic_connector import ExchangeConnector
 from data_collectors.exchange_api.binance_connector import BinanceConnector
 from data_collectors.exchange_api.bybit_connector import BybitConnector
 from config.logging_config import setup_logger
@@ -37,7 +36,7 @@ from config.env import get_env
 from config.system_config import DATA_DIR, BASE_DIR
 
 
-class DataHandler(ABC):
+class DataHandler:
     """
     Lớp cơ sở để xử lý dữ liệu thời gian thực.
     Các lớp con cần triển khai phương thức process_data.
@@ -53,7 +52,6 @@ class DataHandler(ABC):
         self.name = name
         self.logger = setup_logger(f"data_handler_{name}")
     
-    @abstractmethod
     async def process_data(self, data: Dict) -> None:
         """
         Xử lý dữ liệu nhận được.
@@ -61,7 +59,7 @@ class DataHandler(ABC):
         Args:
             data: Dữ liệu cần xử lý
         """
-        pass
+        raise NotImplementedError("Các lớp con phải triển khai phương thức này")
 
 
 class ConsoleOutputHandler(DataHandler):
@@ -110,31 +108,53 @@ class ConsoleOutputHandler(DataHandler):
                 self.logger.debug(f"Data {data_type} for {symbol}: {json.dumps(data, default=str)[:100]}...")
 
 
-class BufferedStorageHandler(DataHandler, ABC):
+class CSVStorageHandler(DataHandler):
     """
-    Lớp trừu tượng cho các handler lưu trữ dữ liệu với buffering.
-    Xử lý logic buffer và flush dữ liệu chung cho tất cả handler lưu trữ.
+    Handler để lưu trữ dữ liệu vào file CSV.
     """
     
     def __init__(
-        self,
-        name: str = "buffered_storage",
-        flush_interval: int = 60,
-        max_batch_size: int = 1000
+        self, 
+        name: str = "csv_storage",
+        data_dir: Path = None,
+        flush_interval: int = 60,  # Lưu dữ liệu xuống đĩa mỗi 60 giây
+        max_rows_in_memory: int = 10000,  # Lưu dữ liệu xuống đĩa sau khi đạt 10000 bản ghi
+        max_rows_per_file: int = 1000000  # Tối đa 1 triệu bản ghi mỗi file
     ):
         """
-        Khởi tạo buffered storage handler.
+        Khởi tạo handler CSV.
         
         Args:
             name: Tên của handler
+            data_dir: Thư mục lưu trữ dữ liệu
             flush_interval: Khoảng thời gian giữa các lần lưu dữ liệu (giây)
-            max_batch_size: Số lượng record tối đa trong một batch
+            max_rows_in_memory: Số bản ghi tối đa lưu trong bộ nhớ
+            max_rows_per_file: Số bản ghi tối đa trong một file
         """
         super().__init__(name)
-        self.flush_interval = flush_interval
-        self.max_batch_size = max_batch_size
         
-        # Buffer lưu trữ dữ liệu trong bộ nhớ theo loại dữ liệu
+        if data_dir is None:
+            self.data_dir = DATA_DIR / 'realtime'
+        else:
+            self.data_dir = data_dir / 'realtime'
+        
+        # Tạo thư mục lưu trữ nếu chưa tồn tại
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Thư mục cho từng loại dữ liệu
+        self.ticker_dir = self.data_dir / 'ticker'
+        self.kline_dir = self.data_dir / 'kline'
+        self.orderbook_dir = self.data_dir / 'orderbook'
+        self.trade_dir = self.data_dir / 'trade'
+        
+        for dir_path in [self.ticker_dir, self.kline_dir, self.orderbook_dir, self.trade_dir]:
+            dir_path.mkdir(parents=True, exist_ok=True)
+        
+        self.flush_interval = flush_interval
+        self.max_rows_in_memory = max_rows_in_memory
+        self.max_rows_per_file = max_rows_per_file
+        
+        # Buffer lưu trữ dữ liệu trong bộ nhớ
         self.data_buffers = {
             'ticker': {},
             'kline': {},
@@ -148,36 +168,37 @@ class BufferedStorageHandler(DataHandler, ABC):
         # Khởi động task flush định kỳ
         self.flush_task = asyncio.create_task(self._periodic_flush())
         
-        self.logger.info(f"Đã khởi tạo {name} handler")
+        self.logger.info(f"Đã khởi tạo CSV storage handler: {self.data_dir}")
     
     async def process_data(self, data: Dict) -> None:
         """
-        Xử lý và lưu trữ dữ liệu vào buffer.
+        Xử lý và lưu trữ dữ liệu.
         
         Args:
             data: Dữ liệu cần xử lý
         """
         data_type = data.get('type', 'unknown')
+        symbol = data.get('symbol', 'unknown')
         
         if data_type not in self.data_buffers:
             self.logger.warning(f"Loại dữ liệu không được hỗ trợ: {data_type}")
             return
         
-        # Chuẩn hóa dữ liệu tùy thuộc vào loại
-        normalized_data = self._normalize_data(data)
-        
-        # Xác định key cho buffer
-        buffer_key = self._get_buffer_key(data)
+        # Tạo key cho buffer
+        buffer_key = f"{symbol}_{data_type}"
         
         # Tạo buffer nếu chưa tồn tại
         if buffer_key not in self.data_buffers[data_type]:
             self.data_buffers[data_type][buffer_key] = []
         
+        # Chuẩn hóa dữ liệu tùy thuộc vào loại
+        normalized_data = self._normalize_data(data)
+        
         # Thêm dữ liệu vào buffer
         self.data_buffers[data_type][buffer_key].append(normalized_data)
         
         # Kiểm tra xem có cần flush không
-        if len(self.data_buffers[data_type][buffer_key]) >= self.max_batch_size:
+        if len(self.data_buffers[data_type][buffer_key]) >= self.max_rows_in_memory:
             await self._flush_buffer(data_type, buffer_key)
     
     def _normalize_data(self, data: Dict) -> Dict:
@@ -250,29 +271,9 @@ class BufferedStorageHandler(DataHandler, ABC):
         
         return normalized
     
-    def _get_buffer_key(self, data: Dict) -> str:
-        """
-        Tạo key cho buffer dựa vào dữ liệu.
-        
-        Args:
-            data: Dữ liệu cần xử lý
-            
-        Returns:
-            Buffer key
-        """
-        data_type = data.get('type', 'unknown')
-        symbol = data.get('symbol', 'unknown')
-        
-        # Thêm thông tin phụ cho một số loại dữ liệu
-        if data_type == 'kline':
-            interval = data.get('interval', '1m')
-            return f"{symbol}_{interval}"
-        
-        return f"{symbol}_{data_type}"
-    
     async def _periodic_flush(self) -> None:
         """
-        Định kỳ lưu dữ liệu từ buffer xuống storage.
+        Định kỳ lưu dữ liệu từ bộ nhớ xuống đĩa.
         """
         try:
             while True:
@@ -287,7 +288,7 @@ class BufferedStorageHandler(DataHandler, ABC):
     
     async def _flush_all_buffers(self) -> None:
         """
-        Lưu tất cả dữ liệu trong buffer xuống storage.
+        Lưu tất cả dữ liệu trong bộ nhớ xuống đĩa.
         """
         current_time = time.time()
         
@@ -304,7 +305,7 @@ class BufferedStorageHandler(DataHandler, ABC):
     
     async def _flush_buffer(self, data_type: str, buffer_key: str) -> None:
         """
-        Lưu dữ liệu từ buffer xuống storage.
+        Lưu dữ liệu từ buffer xuống đĩa.
         
         Args:
             data_type: Loại dữ liệu
@@ -318,28 +319,46 @@ class BufferedStorageHandler(DataHandler, ABC):
         buffer_data = self.data_buffers[data_type][buffer_key]
         self.data_buffers[data_type][buffer_key] = []  # Reset buffer
         
+        # Xác định thư mục lưu trữ
+        if data_type == 'ticker':
+            dir_path = self.ticker_dir
+        elif data_type == 'kline':
+            dir_path = self.kline_dir
+        elif data_type == 'orderbook':
+            dir_path = self.orderbook_dir
+        elif data_type == 'trade':
+            dir_path = self.trade_dir
+        else:
+            self.logger.warning(f"Loại dữ liệu không được hỗ trợ: {data_type}")
+            return
+        
+        # Tạo tên file
+        symbol = buffer_key.split('_')[0]
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{symbol}_{data_type}_{timestamp}.csv"
+        file_path = dir_path / filename
+        
         try:
-            # Gọi phương thức cụ thể của lớp con để lưu dữ liệu
-            await self._flush_single_batch(data_type, buffer_key, buffer_data)
-            self.logger.debug(f"Đã lưu {len(buffer_data)} bản ghi {data_type} từ {buffer_key}")
+            # Tạo DataFrame từ dữ liệu
+            df = pd.DataFrame(buffer_data)
+            
+            # Kiểm tra file hiện có
+            file_exists = file_path.exists()
+            
+            # Ghi dữ liệu
+            if file_exists:
+                # Thêm vào file hiện có
+                df.to_csv(file_path, mode='a', header=False, index=False)
+            else:
+                # Tạo file mới
+                df.to_csv(file_path, header=True, index=False)
+            
+            self.logger.debug(f"Đã lưu {len(buffer_data)} bản ghi {data_type} vào {file_path}")
             
         except Exception as e:
-            self.logger.error(f"Lỗi khi lưu dữ liệu {data_type} từ {buffer_key}: {e}")
+            self.logger.error(f"Lỗi khi lưu dữ liệu {data_type} xuống đĩa: {e}")
             # Lưu lại dữ liệu vào buffer để thử lại sau
             self.data_buffers[data_type][buffer_key].extend(buffer_data)
-    
-    @abstractmethod
-    async def _flush_single_batch(self, data_type: str, buffer_key: str, batch_data: List[Dict]) -> None:
-        """
-        Lưu một batch dữ liệu xuống storage.
-        Phương thức này cần được triển khai bởi lớp con.
-        
-        Args:
-            data_type: Loại dữ liệu
-            buffer_key: Khóa của buffer
-            batch_data: Dữ liệu cần lưu
-        """
-        pass
     
     async def close(self) -> None:
         """
@@ -355,95 +374,10 @@ class BufferedStorageHandler(DataHandler, ABC):
         
         # Flush tất cả dữ liệu
         await self._flush_all_buffers()
-        self.logger.info(f"Đã đóng {self.name} handler và lưu tất cả dữ liệu")
+        self.logger.info("Đã đóng CSV storage handler và lưu tất cả dữ liệu")
 
 
-class CSVStorageHandler(BufferedStorageHandler):
-    """
-    Handler để lưu trữ dữ liệu vào file CSV.
-    """
-    
-    def __init__(
-        self, 
-        name: str = "csv_storage",
-        data_dir: Path = None,
-        flush_interval: int = 60,
-        max_batch_size: int = 10000,
-        max_rows_per_file: int = 1000000
-    ):
-        """
-        Khởi tạo handler CSV.
-        
-        Args:
-            name: Tên của handler
-            data_dir: Thư mục lưu trữ dữ liệu
-            flush_interval: Khoảng thời gian giữa các lần lưu dữ liệu (giây)
-            max_batch_size: Số bản ghi tối đa trong một batch
-            max_rows_per_file: Số bản ghi tối đa trong một file
-        """
-        super().__init__(name, flush_interval, max_batch_size)
-        
-        # Thiết lập thư mục lưu trữ
-        if data_dir is None:
-            self.data_dir = DATA_DIR / 'realtime'
-        else:
-            self.data_dir = data_dir / 'realtime'
-        
-        # Tạo thư mục lưu trữ nếu chưa tồn tại
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Thư mục cho từng loại dữ liệu
-        self.data_type_dirs = {
-            'ticker': self.data_dir / 'ticker',
-            'kline': self.data_dir / 'kline',
-            'orderbook': self.data_dir / 'orderbook',
-            'trade': self.data_dir / 'trade'
-        }
-        
-        for dir_path in self.data_type_dirs.values():
-            dir_path.mkdir(parents=True, exist_ok=True)
-        
-        self.max_rows_per_file = max_rows_per_file
-        
-        self.logger.info(f"Đã khởi tạo CSV storage handler: {self.data_dir}")
-    
-    async def _flush_single_batch(self, data_type: str, buffer_key: str, batch_data: List[Dict]) -> None:
-        """
-        Lưu một batch dữ liệu vào file CSV.
-        
-        Args:
-            data_type: Loại dữ liệu
-            buffer_key: Khóa của buffer
-            batch_data: Dữ liệu cần lưu
-        """
-        # Lấy directory phù hợp cho loại dữ liệu
-        dir_path = self.data_type_dirs.get(data_type)
-        if not dir_path:
-            self.logger.warning(f"Không tìm thấy thư mục cho loại dữ liệu: {data_type}")
-            return
-        
-        # Tạo tên file
-        parts = buffer_key.split('_')
-        symbol = parts[0]
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"{symbol}_{data_type}_{timestamp}.csv"
-        file_path = dir_path / filename
-        
-        try:
-            # Tạo DataFrame từ dữ liệu
-            df = pd.DataFrame(batch_data)
-            
-            # Ghi dữ liệu
-            df.to_csv(file_path, header=True, index=False)
-            
-            self.logger.debug(f"Đã lưu {len(batch_data)} bản ghi {data_type} vào {file_path}")
-            
-        except Exception as e:
-            self.logger.error(f"Lỗi khi lưu dữ liệu {data_type} xuống file CSV: {e}")
-            raise  # Re-raise exception để handle ở phương thức cha
-
-
-class DatabaseStorageHandler(BufferedStorageHandler):
+class DatabaseStorageHandler(DataHandler):
     """
     Handler để lưu trữ dữ liệu vào cơ sở dữ liệu.
     Đây là lớp trừu tượng, các lớp con cần triển khai phương thức _save_to_database.
@@ -452,38 +386,113 @@ class DatabaseStorageHandler(BufferedStorageHandler):
     def __init__(
         self, 
         name: str = "db_storage",
-        flush_interval: int = 10,
-        max_batch_size: int = 100
+        batch_size: int = 100,
+        flush_interval: int = 10
     ):
         """
         Khởi tạo handler database.
         
         Args:
             name: Tên của handler
+            batch_size: Số bản ghi tối đa trong một batch
             flush_interval: Khoảng thời gian giữa các lần lưu dữ liệu (giây)
-            max_batch_size: Số bản ghi tối đa trong một batch
         """
-        super().__init__(name, flush_interval, max_batch_size)
+        super().__init__(name)
+        self.batch_size = batch_size
+        self.flush_interval = flush_interval
+        
+        # Buffer lưu trữ dữ liệu trong bộ nhớ
+        self.data_buffers = {
+            'ticker': [],
+            'kline': [],
+            'orderbook': [],
+            'trade': []
+        }
+        
+        # Thời gian flush cuối cùng
+        self.last_flush_time = time.time()
+        
+        # Khởi động task flush định kỳ
+        self.flush_task = asyncio.create_task(self._periodic_flush())
+        
         self.logger.info(f"Đã khởi tạo database storage handler")
     
-    async def _flush_single_batch(self, data_type: str, buffer_key: str, batch_data: List[Dict]) -> None:
+    async def process_data(self, data: Dict) -> None:
         """
-        Lưu một batch dữ liệu vào cơ sở dữ liệu.
+        Xử lý và lưu trữ dữ liệu.
+        
+        Args:
+            data: Dữ liệu cần xử lý
+        """
+        data_type = data.get('type', 'unknown')
+        
+        if data_type not in self.data_buffers:
+            self.logger.warning(f"Loại dữ liệu không được hỗ trợ: {data_type}")
+            return
+        
+        # Thêm dữ liệu vào buffer
+        self.data_buffers[data_type].append(data)
+        
+        # Kiểm tra xem có cần flush không
+        if len(self.data_buffers[data_type]) >= self.batch_size:
+            await self._flush_buffer(data_type)
+    
+    async def _periodic_flush(self) -> None:
+        """
+        Định kỳ lưu dữ liệu từ bộ nhớ xuống cơ sở dữ liệu.
+        """
+        try:
+            while True:
+                await asyncio.sleep(self.flush_interval)
+                await self._flush_all_buffers()
+        except asyncio.CancelledError:
+            # Flush tất cả dữ liệu khi task bị hủy
+            await self._flush_all_buffers()
+            self.logger.info("Periodic flush task đã bị hủy, đã lưu tất cả dữ liệu")
+        except Exception as e:
+            self.logger.error(f"Lỗi trong periodic flush task: {e}")
+    
+    async def _flush_all_buffers(self) -> None:
+        """
+        Lưu tất cả dữ liệu trong bộ nhớ xuống cơ sở dữ liệu.
+        """
+        current_time = time.time()
+        
+        # Kiểm tra xem đã đến thời gian flush chưa
+        if current_time - self.last_flush_time < self.flush_interval:
+            return
+        
+        for data_type in self.data_buffers:
+            if self.data_buffers[data_type]:
+                await self._flush_buffer(data_type)
+        
+        self.last_flush_time = current_time
+    
+    async def _flush_buffer(self, data_type: str) -> None:
+        """
+        Lưu dữ liệu từ buffer xuống cơ sở dữ liệu.
         
         Args:
             data_type: Loại dữ liệu
-            buffer_key: Khóa của buffer
-            batch_data: Dữ liệu cần lưu
         """
+        # Kiểm tra xem buffer có dữ liệu không
+        if not self.data_buffers[data_type]:
+            return
+        
+        # Lấy dữ liệu từ buffer
+        buffer_data = self.data_buffers[data_type]
+        self.data_buffers[data_type] = []  # Reset buffer
+        
         try:
-            # Gọi phương thức của lớp con để lưu dữ liệu vào database
-            await self._save_to_database(data_type, batch_data)
-            self.logger.debug(f"Đã lưu {len(batch_data)} bản ghi {data_type} vào cơ sở dữ liệu")
+            # Lưu dữ liệu xuống cơ sở dữ liệu
+            await self._save_to_database(data_type, buffer_data)
+            self.logger.debug(f"Đã lưu {len(buffer_data)} bản ghi {data_type} vào cơ sở dữ liệu")
+            
         except Exception as e:
             self.logger.error(f"Lỗi khi lưu dữ liệu {data_type} xuống cơ sở dữ liệu: {e}")
-            raise  # Re-raise exception để handle ở phương thức cha
+            # Lưu lại dữ liệu vào buffer để thử lại sau
+            self.data_buffers[data_type].extend(buffer_data)
     
-    @abstractmethod
     async def _save_to_database(self, data_type: str, data: List[Dict]) -> None:
         """
         Lưu dữ liệu xuống cơ sở dữ liệu.
@@ -493,237 +502,23 @@ class DatabaseStorageHandler(BufferedStorageHandler):
             data_type: Loại dữ liệu
             data: Dữ liệu cần lưu
         """
-        pass
-
-
-class SQLiteDatabaseHandler(DatabaseStorageHandler):
-    """
-    Handler để lưu trữ dữ liệu vào SQLite.
-    """
-    
-    def __init__(
-        self,
-        db_path: str,
-        name: str = "sqlite_storage",
-        flush_interval: int = 10,
-        max_batch_size: int = 100
-    ):
-        """
-        Khởi tạo SQLite database handler.
-        
-        Args:
-            db_path: Đường dẫn file SQLite
-            name: Tên của handler
-            flush_interval: Khoảng thời gian giữa các lần lưu dữ liệu (giây)
-            max_batch_size: Số bản ghi tối đa trong một batch
-        """
-        super().__init__(name, flush_interval, max_batch_size)
-        self.db_path = db_path
-        
-        # Khởi tạo connection khi cần thiết
-        self.conn = None
-        
-        self.logger.info(f"Đã khởi tạo SQLite database handler: {db_path}")
-    
-    async def _save_to_database(self, data_type: str, data: List[Dict]) -> None:
-        """
-        Lưu dữ liệu xuống SQLite database.
-        
-        Args:
-            data_type: Loại dữ liệu
-            data: Dữ liệu cần lưu
-        """
-        try:
-            # Lazy init database connection
-            import sqlite3
-            if self.conn is None:
-                self.conn = sqlite3.connect(self.db_path)
-                # Tạo các bảng nếu chưa tồn tại
-                self._create_tables()
-            
-            # Lưu dữ liệu vào bảng tương ứng
-            if data_type == 'ticker':
-                self._save_tickers(data)
-            elif data_type == 'kline':
-                self._save_klines(data)
-            elif data_type == 'orderbook':
-                self._save_orderbooks(data)
-            elif data_type == 'trade':
-                self._save_trades(data)
-            
-        except Exception as e:
-            self.logger.error(f"Lỗi khi lưu dữ liệu vào SQLite: {e}")
-            raise
-    
-    def _create_tables(self) -> None:
-        """Tạo các bảng nếu chưa tồn tại."""
-        cursor = self.conn.cursor()
-        
-        # Bảng ticker
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tickers (
-            timestamp INTEGER,
-            symbol TEXT,
-            last REAL,
-            bid REAL,
-            ask REAL,
-            volume REAL,
-            high REAL,
-            low REAL,
-            change REAL,
-            percentage REAL,
-            PRIMARY KEY (timestamp, symbol)
-        )
-        ''')
-        
-        # Bảng kline
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS klines (
-            timestamp INTEGER,
-            symbol TEXT,
-            interval TEXT,
-            open REAL,
-            high REAL,
-            low REAL,
-            close REAL,
-            volume REAL,
-            is_closed INTEGER,
-            PRIMARY KEY (timestamp, symbol, interval)
-        )
-        ''')
-        
-        # Bảng orderbook
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS orderbooks (
-            timestamp INTEGER,
-            symbol TEXT,
-            bids TEXT,
-            asks TEXT,
-            nonce TEXT,
-            PRIMARY KEY (timestamp, symbol)
-        )
-        ''')
-        
-        # Bảng trade
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS trades (
-            id TEXT,
-            timestamp INTEGER,
-            symbol TEXT,
-            price REAL,
-            amount REAL,
-            side TEXT,
-            PRIMARY KEY (id, symbol)
-        )
-        ''')
-        
-        self.conn.commit()
-    
-    def _save_tickers(self, data: List[Dict]) -> None:
-        """Lưu dữ liệu ticker vào database."""
-        cursor = self.conn.cursor()
-        
-        for item in data:
-            cursor.execute(
-                '''
-                INSERT OR REPLACE INTO tickers
-                (timestamp, symbol, last, bid, ask, volume, high, low, change, percentage)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    item.get('timestamp'),
-                    item.get('symbol'),
-                    item.get('last'),
-                    item.get('bid'),
-                    item.get('ask'),
-                    item.get('volume'),
-                    item.get('high'),
-                    item.get('low'),
-                    item.get('change'),
-                    item.get('percentage')
-                )
-            )
-        
-        self.conn.commit()
-    
-    def _save_klines(self, data: List[Dict]) -> None:
-        """Lưu dữ liệu kline vào database."""
-        cursor = self.conn.cursor()
-        
-        for item in data:
-            cursor.execute(
-                '''
-                INSERT OR REPLACE INTO klines
-                (timestamp, symbol, interval, open, high, low, close, volume, is_closed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    item.get('timestamp'),
-                    item.get('symbol'),
-                    item.get('interval'),
-                    item.get('open'),
-                    item.get('high'),
-                    item.get('low'),
-                    item.get('close'),
-                    item.get('volume'),
-                    1 if item.get('is_closed') else 0
-                )
-            )
-        
-        self.conn.commit()
-    
-    def _save_orderbooks(self, data: List[Dict]) -> None:
-        """Lưu dữ liệu orderbook vào database."""
-        cursor = self.conn.cursor()
-        
-        for item in data:
-            cursor.execute(
-                '''
-                INSERT OR REPLACE INTO orderbooks
-                (timestamp, symbol, bids, asks, nonce)
-                VALUES (?, ?, ?, ?, ?)
-                ''',
-                (
-                    item.get('timestamp'),
-                    item.get('symbol'),
-                    item.get('bids'),
-                    item.get('asks'),
-                    item.get('nonce')
-                )
-            )
-        
-        self.conn.commit()
-    
-    def _save_trades(self, data: List[Dict]) -> None:
-        """Lưu dữ liệu trade vào database."""
-        cursor = self.conn.cursor()
-        
-        for item in data:
-            cursor.execute(
-                '''
-                INSERT OR REPLACE INTO trades
-                (id, timestamp, symbol, price, amount, side)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    item.get('id', str(item.get('timestamp'))),
-                    item.get('timestamp'),
-                    item.get('symbol'),
-                    item.get('price'),
-                    item.get('amount'),
-                    item.get('side')
-                )
-            )
-        
-        self.conn.commit()
+        raise NotImplementedError("Các lớp con phải triển khai phương thức này")
     
     async def close(self) -> None:
-        """Đóng kết nối database và resource."""
-        await super().close()
+        """
+        Đóng handler và lưu tất cả dữ liệu còn lại.
+        """
+        # Hủy task flush định kỳ
+        if self.flush_task and not self.flush_task.done():
+            self.flush_task.cancel()
+            try:
+                await self.flush_task
+            except asyncio.CancelledError:
+                pass
         
-        if self.conn:
-            self.conn.close()
-            self.conn = None
+        # Flush tất cả dữ liệu
+        await self._flush_all_buffers()
+        self.logger.info("Đã đóng database storage handler và lưu tất cả dữ liệu")
 
 
 class CustomProcessingHandler(DataHandler):
@@ -778,7 +573,7 @@ class RealtimeDataStream:
     
     def __init__(
         self,
-        exchange_connector: GenericExchangeConnector,
+        exchange_connector: ExchangeConnector,
         data_handlers: Optional[List[DataHandler]] = None,
         websocket_reconnect_interval: int = 30,
         heartbeat_interval: int = 15
@@ -1277,7 +1072,7 @@ class RealtimeDataStream:
         # Chuẩn hóa channels nếu cần
         normalized_channels = self._normalize_channels(channels)
         
-        # Tạo task key
+        # Tạo task đăng ký
         task_key = f"{symbol}_{'_'.join(normalized_channels)}"
         
         # Hủy task cũ nếu có
@@ -1579,8 +1374,8 @@ async def create_realtime_stream(
             category='linear' if is_futures else 'spot'
         )
     else:
-        # Sử dụng GenericExchangeConnector cho các sàn khác
-        exchange_connector = GenericExchangeConnector(
+        # Sử dụng ExchangeConnector cho các sàn khác
+        exchange_connector = ExchangeConnector(
             exchange_id=exchange_id,
             api_key=api_key,
             api_secret=api_secret,
@@ -1617,28 +1412,12 @@ async def main():
     api_key = get_env(f'{exchange_id.upper()}_API_KEY', '')
     api_secret = get_env(f'{exchange_id.upper()}_API_SECRET', '')
     
-    # Tạo các handlers
-    console_handler = ConsoleOutputHandler(name="console", log_level="INFO")
-    csv_handler = CSVStorageHandler(name="csv_storage")
-    sqlite_handler = SQLiteDatabaseHandler(db_path="market_data.db", name="sqlite_storage")
-    
-    # Callback để in giao dịch quan trọng
-    def print_big_trade(data):
-        if data.get('type') == 'trade' and data.get('amount', 0) * data.get('price', 0) > 10000:
-            print(f"⚠️ GIAO DỊCH LỚN: {data.get('symbol')} - {data.get('side')} - {data.get('amount')} @ {data.get('price')} = ${data.get('amount') * data.get('price'):.2f}")
-    
-    custom_handler = CustomProcessingHandler(
-        callback=print_big_trade,
-        name="big_trade_alert"
-    )
-    
-    # Tạo stream với handlers
+    # Tạo stream
     stream = await create_realtime_stream(
         exchange_id=exchange_id,
         api_key=api_key,
         api_secret=api_secret,
-        sandbox=True,
-        data_handlers=[console_handler, csv_handler, sqlite_handler, custom_handler]
+        sandbox=True
     )
     
     # Bắt đầu stream
@@ -1647,7 +1426,7 @@ async def main():
     try:
         # Đăng ký nhận dữ liệu
         symbols = ['BTC/USDT', 'ETH/USDT']
-        channels = ['ticker', 'kline_1m', 'trade']
+        channels = ['ticker', 'kline_1m']
         
         for symbol in symbols:
             await stream.subscribe(symbol, channels)
