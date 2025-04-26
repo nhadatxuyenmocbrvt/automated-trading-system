@@ -2,5 +2,5 @@
 git add .
 git commit -m "Auto commit %date% %time%"
 git push origin main
-echo Auto commit và push thành công!
+echo Auto commit va push thanh cong!
 pause
