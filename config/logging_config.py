@@ -19,9 +19,11 @@ system_config = get_system_config()
 # Đường dẫn file log
 LOG_FILE_PATH = LOG_DIR / f"trading_system_{datetime.now().strftime('%Y%m%d')}.log"
 ERROR_LOG_PATH = LOG_DIR / f"error_{datetime.now().strftime('%Y%m%d')}.log"
+EXCHANGE_LOG_DIR = LOG_DIR / "exchanges"
 
-# Đảm bảo thư mục logs tồn tại
+# Đảm bảo các thư mục logs tồn tại
 LOG_DIR.mkdir(exist_ok=True, parents=True)
+EXCHANGE_LOG_DIR.mkdir(exist_ok=True, parents=True)
 
 # Tên logger cho các module khác nhau
 LOGGER_NAMES = {
@@ -35,6 +37,7 @@ LOGGER_NAMES = {
     "deployment": "trading_system.deployment",
     "api": "trading_system.api",
     "security": "trading_system.security",
+    "exchange": "trading_system.exchange",
 }
 
 # Định dạng log mặc định
@@ -111,7 +114,7 @@ class LoggingConfig:
         Lấy logger theo tên.
         
         Args:
-            name: Tên của logger (được định nghĩa trong LOGGER_NAMES)
+            name: Tên của logger (được định nghĩa trong LOGGER_NAMES hoặc tên tùy chỉnh)
             
         Returns:
             Logger được cấu hình
@@ -122,7 +125,11 @@ class LoggingConfig:
         if name in LOGGER_NAMES:
             logger_name = LOGGER_NAMES[name]
         else:
-            logger_name = f"trading_system.{name}"
+            # Kiểm tra xem có phải exchange connector không
+            if name.endswith("_connector"):
+                logger_name = f"trading_system.exchange.{name}"
+            else:
+                logger_name = f"trading_system.{name}"
         
         logger = logging.getLogger(logger_name)
         logger.setLevel(LOG_LEVEL)
@@ -135,6 +142,18 @@ class LoggingConfig:
         logger.addHandler(self.handlers["console"])
         logger.addHandler(self.handlers["file"])
         logger.addHandler(self.handlers["error_file"])
+        
+        # Nếu là exchange connector, thêm file handler riêng
+        if name.endswith("_connector"):
+            exchange_file_handler = logging.handlers.RotatingFileHandler(
+                EXCHANGE_LOG_DIR / f"{name}.log",
+                maxBytes=5_000_000,  # ~5MB
+                backupCount=5,
+                encoding="utf-8"
+            )
+            exchange_file_handler.setFormatter(self.formatters["detailed"])
+            exchange_file_handler.setLevel(LOG_LEVEL)
+            logger.addHandler(exchange_file_handler)
         
         # Đảm bảo không lan truyền log lên logger cha
         logger.propagate = False
@@ -198,7 +217,8 @@ logging_config = LoggingConfig()
 
 def get_logger(name: str) -> logging.Logger:
     """
-    Hàm helper để lấy logger đã được cấu hình.
+    Hàm helper chính để lấy logger đã được cấu hình.
+    Được sử dụng ở hầu hết các module của hệ thống.
     
     Args:
         name: Tên của logger (định nghĩa trong LOGGER_NAMES hoặc tên tùy chỉnh)
@@ -208,9 +228,28 @@ def get_logger(name: str) -> logging.Logger:
     """
     return logging_config.get_logger(name)
 
+def setup_logger(name: str) -> logging.Logger:
+    """
+    Hàm helper dành riêng cho các exchange connectors.
+    Tạo và cấu hình logger với file log riêng cho mỗi exchange.
+    
+    QUAN TRỌNG: Hàm này được sử dụng trong các file:
+    - data_collectors/exchange_api/generic_connector.py
+    - data_collectors/exchange_api/binance_connector.py
+    - data_collectors/exchange_api/bybit_connector.py
+    
+    Args:
+        name: Tên của logger (thường là "{exchange_id}_connector")
+        
+    Returns:
+        Logger được cấu hình
+    """
+    return get_logger(name)
+
 def setup_component_logger(component_name: str, level: Optional[str] = None) -> logging.Logger:
     """
-    Helper để cài đặt logger cho một thành phần cụ thể.
+    Helper để cài đặt logger cho một thành phần cụ thể với mức log tùy chỉnh.
+    Thường được sử dụng cho các module lớn của hệ thống.
     
     Args:
         component_name: Tên thành phần
