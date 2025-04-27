@@ -27,12 +27,16 @@
 - [x]  historical_data_collector.py   # Thu thập dữ liệu lịch sử
 - [x]  realtime_data_stream.py        # Dữ liệu thời gian thực
 - [x]  orderbook_collector.py         # Thu thập dữ liệu sổ lệnh
+- [x]  data_processors/cleaners/data_cleaner.py
+- [x]  data_processors/cleaners/outlier_detector.py
+- [x]  data_processors/cleaners/missing_data_handler.py
 
 ## Modules đang phát triển
-
-- [ ] ├── news_collector/
-- [ ]  crypto_news_scraper.py         # Thu thập tin tức crypto
-- [ ]  sentiment_collector.py         # Thu thập dữ liệu tâm lý thị trường
+- [ ]  data_processors/feature_engineering/technical_indicators.py
+- [ ]  data_processors/feature_engineering/market_features.py
+- [ ]  data_processors/feature_engineering/sentiment_features.py
+- [ ]  data_processors/feature_engineering/feature_selector.py
+- [ ]  data_processors/data_pipeline.py 
 
 ## Lộ trình phát triển chi tiết
 
