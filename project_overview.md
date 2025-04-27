@@ -9,225 +9,311 @@
 - [ ] CI/CD workflow (.github/workflows/main.yml)
 
 ## Modules Đã hoàn thành
-- [x] config/system_config.py
-- [x] config/logging_config.py
-- [x] config/security_config.py
-- [x] config/env.py
-- [x] config/constants.py
-- [x] config/utils/encryption.py
-- [x] config/utils/validators.py
+#### Config
+- [x] `config/system_config.py`
+- [x] `config/logging_config.py`
+- [x] `config/security_config.py`
+- [x] `config/env.py`
+- [x] `config/constants.py`
+- [x] `config/utils/encryption.py`
+- [x] `config/utils/validators.py`
 
-## Modules Đã hoàn thàn
-- [ ] ├── data_collectors/            # Thu thập dữ liệu
-- [x]   exchange_api/                 # Kết nối API sàn giao dịch
-- [x]  binance_connector.py           # Kết nối Binance
-- [x]  bybit_connector.py             # Kết nối ByBit
-- [x]  generic_connector.py           # Lớp kết nối chung
-- [x]  market_data/
-- [x]  historical_data_collector.py   # Thu thập dữ liệu lịch sử
-- [x]  realtime_data_stream.py        # Dữ liệu thời gian thực
-- [x]  orderbook_collector.py         # Thu thập dữ liệu sổ lệnh
-- [x]  data_processors/cleaners/data_cleaner.py
-- [x]  data_processors/cleaners/outlier_detector.py
-- [x]  data_processors/cleaners/missing_data_handler.py
+#### Data Collectors
+- [x] `data_collectors/exchange_api/generic_connector.py`
+- [x] `data_collectors/exchange_api/binance_connector.py`
+- [x] `data_collectors/exchange_api/bybit_connector.py`
+- [x] `data_collectors/market_data/historical_data_collector.py`
+- [x] `data_collectors/market_data/realtime_data_stream.py`
+- [x] `data_collectors/market_data/orderbook_collector.py`
+
+#### Data Processors - Cleaners
+- [x] `data_processors/cleaners/data_cleaner.py`
+- [x] `data_processors/cleaners/outlier_detector.py`
+- [x] `data_processors/cleaners/missing_data_handler.py`
 
 ## Modules đang phát triển
-- [ ]  data_processors/feature_engineering/technical_indicators.py
-- [ ]  data_processors/feature_engineering/market_features.py
-- [ ]  data_processors/feature_engineering/sentiment_features.py
-- [ ]  data_processors/feature_engineering/feature_selector.py
-- [ ]  data_processors/data_pipeline.py 
+#### Feature Engineering
+- [ ] `data_processors/feature_engineering/technical_indicators/__init__.py`
+- [ ] `data_processors/feature_engineering/technical_indicators/trend_indicators.py`
+- [ ] `data_processors/feature_engineering/technical_indicators/momentum_indicators.py`
+- [ ] `data_processors/feature_engineering/technical_indicators/volume_indicators.py`
+- [ ] `data_processors/feature_engineering/technical_indicators/volatility_indicators.py`
+- [ ] `data_processors/feature_engineering/technical_indicators/support_resistance.py`
+- [ ] `data_processors/feature_engineering/technical_indicators/utils.py`
+- [ ] `data_processors/feature_engineering/market_features/__init__.py`
+- [ ] `data_processors/feature_engineering/market_features/price_features.py`
+- [ ] `data_processors/feature_engineering/market_features/volatility_features.py`
+- [ ] `data_processors/feature_engineering/market_features/volume_features.py`
+- [ ] `data_processors/feature_engineering/market_features/orderbook_features.py`
+- [ ] `data_processors/feature_engineering/market_features/liquidity_features.py`
+- [ ] `data_processors/feature_engineering/market_features/custom_features.py`
+- [ ] `data_processors/feature_engineering/sentiment_features/__init__.py`
+- [ ] `data_processors/feature_engineering/sentiment_features/social_media.py`
+- [ ] `data_processors/feature_engineering/sentiment_features/news_analysis.py`
+- [ ] `data_processors/feature_engineering/sentiment_features/market_sentiment.py`
+- [ ] `data_processors/feature_engineering/sentiment_features/text_processors.py`
+- [ ] `data_processors/feature_engineering/sentiment_features/event_detection.py`
+- [ ] `data_processors/feature_engineering/feature_selector/__init__.py`
+- [ ] `data_processors/feature_engineering/feature_selector/statistical_methods.py`
+- [ ] `data_processors/feature_engineering/feature_selector/importance_methods.py`
+- [ ] `data_processors/feature_engineering/feature_selector/dimensionality_reduction.py`
+- [ ] `data_processors/feature_engineering/feature_selector/wrapper_methods.py`
+- [ ] `data_processors/feature_engineering/feature_selector/feature_selection_pipeline.py`
+- [ ] `data_processors/feature_engineering/__init__.py`
+- [ ] `data_processors/feature_engineering/feature_generator.py`
+- [ ] `data_processors/feature_engineering/utils/__init__.py`
+- [ ] `data_processors/feature_engineering/utils/validation.py`
+- [ ] `data_processors/feature_engineering/utils/preprocessing.py`
+- [ ] `data_processors/feature_engineering/utils/visualization.py`
+- [ ] `data_processors/data_pipeline.py`
 
 ## Lộ trình phát triển chi tiết
 
 ### Giai đoạn 1: Nền tảng & Cấu hình (4 tuần)
 
 #### Sprint 1 - Cấu trúc dự án & Môi trường
-- Thiết lập GitHub repository
-- Cấu trúc thư mục và module cơ bản
-- Xây dựng quy trình CI/CD đơn giản
-- Cài đặt môi trường phát triển
+- [x] Thiết lập GitHub repository
+- [x] Cấu trúc thư mục và module cơ bản
+- [ ] Xây dựng quy trình CI/CD đơn giản
+- [x] Cài đặt môi trường phát triển
 - **Đầu ra**: Repository với cấu trúc đầy đủ, README, và CI/CD workflow
 
 #### Sprint 2 - Hệ thống cấu hình
-- Phát triển `config/system_config.py`
-- Phát triển `config/logging_config.py`
-- Phát triển `config/security_config.py`
-- Xây dựng `config/env.py` và quản lý biến môi trường
-- Xây dựng `config/utils/encryption.py`
+- [x] `config/system_config.py`
+- [x] `config/logging_config.py`
+- [x] `config/security_config.py`
+- [x] `config/env.py` và quản lý biến môi trường
+- [x] `config/constants.py`
+- [x] `config/utils/encryption.py`
+- [x] `config/utils/validators.py`
 - **Đầu ra**: Hệ thống cấu hình hoàn chỉnh, có thể sử dụng xuyên suốt dự án
 
 ### Giai đoạn 2: Thu thập dữ liệu (6 tuần)
 
 #### Sprint 3 - Kết nối API sàn giao dịch
-- Xây dựng `data_collectors/exchange_api/generic_connector.py`
-- Phát triển `data_collectors/exchange_api/binance_connector.py`
-- Phát triển `data_collectors/exchange_api/bybit_connector.py`
-- Viết unit test cho các connector
+- [x] `data_collectors/exchange_api/generic_connector.py`
+- [x] `data_collectors/exchange_api/binance_connector.py`
+- [x] `data_collectors/exchange_api/bybit_connector.py`
+- [x] Viết unit test cho các connector
 - **Đầu ra**: Kết nối ổn định với các sàn giao dịch
 
 #### Sprint 4 - Thu thập dữ liệu thị trường
-- Phát triển `data_collectors/market_data/historical_data_collector.py`
-- Phát triển `data_collectors/market_data/realtime_data_stream.py`
-- Phát triển `data_collectors/market_data/orderbook_collector.py`
+- [x] `data_collectors/market_data/historical_data_collector.py`
+- [x] `data_collectors/market_data/realtime_data_stream.py`
+- [x] `data_collectors/market_data/orderbook_collector.py`
 - **Đầu ra**: Pipeline thu thập dữ liệu thị trường
 
 #### Sprint 5 - Thu thập dữ liệu bổ sung
-- Phát triển `data_collectors/news_collector/crypto_news_scraper.py`
-- Phát triển `data_collectors/news_collector/sentiment_collector.py`
-- Tích hợp lưu trữ dữ liệu
+- [ ] `data_collectors/news_collector/crypto_news_scraper.py`
+- [ ] `data_collectors/news_collector/sentiment_collector.py`
+- [ ] Tích hợp lưu trữ dữ liệu
 - **Đầu ra**: Hệ thống thu thập dữ liệu đa nguồn hoàn chỉnh
 
 ### Giai đoạn 3: Xử lý dữ liệu (4 tuần)
 
 #### Sprint 6 - Làm sạch dữ liệu
-- Phát triển `data_processors/cleaners/data_cleaner.py`
-- Phát triển `data_processors/cleaners/outlier_detector.py`
-- Phát triển `data_processors/cleaners/missing_data_handler.py`
+- [x] `data_processors/cleaners/data_cleaner.py`
+- [x] `data_processors/cleaners/outlier_detector.py`
+- [x] `data_processors/cleaners/missing_data_handler.py`
 - **Đầu ra**: Pipeline tiền xử lý dữ liệu
 
 #### Sprint 7 - Tạo đặc trưng
-- Phát triển `data_processors/feature_engineering/technical_indicators.py`
-- Phát triển `data_processors/feature_engineering/market_features.py`
-- Phát triển `data_processors/feature_engineering/sentiment_features.py`
-- Phát triển `data_processors/feature_engineering/feature_selector.py`
-- Phát triển `data_processors/data_pipeline.py`
+- Phát triển module technical_indicators
+  - [ ] `data_processors/feature_engineering/technical_indicators/__init__.py`
+  - [ ] `data_processors/feature_engineering/technical_indicators/trend_indicators.py`
+  - [ ] `data_processors/feature_engineering/technical_indicators/momentum_indicators.py`
+  - [ ] `data_processors/feature_engineering/technical_indicators/volume_indicators.py`
+  - [ ] `data_processors/feature_engineering/technical_indicators/volatility_indicators.py`
+  - [ ] `data_processors/feature_engineering/technical_indicators/support_resistance.py`
+  - [ ] `data_processors/feature_engineering/technical_indicators/utils.py`
+- Phát triển module market_features
+  - [ ] `data_processors/feature_engineering/market_features/__init__.py`
+  - [ ] `data_processors/feature_engineering/market_features/price_features.py`
+  - [ ] `data_processors/feature_engineering/market_features/volatility_features.py`
+  - [ ] `data_processors/feature_engineering/market_features/volume_features.py`
+  - [ ] `data_processors/feature_engineering/market_features/orderbook_features.py`
+  - [ ] `data_processors/feature_engineering/market_features/liquidity_features.py`
+  - [ ] `data_processors/feature_engineering/market_features/custom_features.py`
+- Phát triển module sentiment_features
+  - [ ] `data_processors/feature_engineering/sentiment_features/__init__.py`
+  - [ ] `data_processors/feature_engineering/sentiment_features/social_media.py`
+  - [ ] `data_processors/feature_engineering/sentiment_features/news_analysis.py`
+  - [ ] `data_processors/feature_engineering/sentiment_features/market_sentiment.py`
+  - [ ] `data_processors/feature_engineering/sentiment_features/text_processors.py`
+  - [ ] `data_processors/feature_engineering/sentiment_features/event_detection.py`
+- Phát triển module feature_selector
+  - [ ] `data_processors/feature_engineering/feature_selector/__init__.py`
+  - [ ] `data_processors/feature_engineering/feature_selector/statistical_methods.py`
+  - [ ] `data_processors/feature_engineering/feature_selector/importance_methods.py`
+  - [ ] `data_processors/feature_engineering/feature_selector/dimensionality_reduction.py`
+  - [ ] `data_processors/feature_engineering/feature_selector/wrapper_methods.py`
+  - [ ] `data_processors/feature_engineering/feature_selector/feature_selection_pipeline.py`
+- Phát triển chung feature_engineering
+  - [ ] `data_processors/feature_engineering/__init__.py`
+  - [ ] `data_processors/feature_engineering/feature_generator.py`
+  - [ ] `data_processors/feature_engineering/utils/__init__.py`
+  - [ ] `data_processors/feature_engineering/utils/validation.py`
+  - [ ] `data_processors/feature_engineering/utils/preprocessing.py`
+  - [ ] `data_processors/feature_engineering/utils/visualization.py`
+- [ ] `data_processors/data_pipeline.py`
 - **Đầu ra**: Pipeline xử lý dữ liệu và tạo đặc trưng hoàn chỉnh
 
 ### Giai đoạn 4: Môi trường huấn luyện (6 tuần)
 
 #### Sprint 8 - Môi trường cơ bản
-- Phát triển `environments/base_environment.py`
-- Phát triển `environments/trading_gym/trading_env.py`
-- Phát triển `environments/trading_gym/observation_space.py`
-- Phát triển `environments/trading_gym/action_space.py`
+- [ ] `environments/base_environment.py`
+- [ ] `environments/trading_gym/trading_env.py`
+- [ ] `environments/trading_gym/observation_space.py`
+- [ ] `environments/trading_gym/action_space.py`
 - **Đầu ra**: Môi trường huấn luyện cơ bản
 
 #### Sprint 9 - Hàm phần thưởng và mô phỏng
-- Phát triển `environments/reward_functions/profit_reward.py`
-- Phát triển `environments/reward_functions/risk_adjusted_reward.py`
-- Phát triển `environments/reward_functions/custom_reward.py`
+- [ ] `environments/reward_functions/profit_reward.py`
+- [ ] `environments/reward_functions/risk_adjusted_reward.py`
+- [ ] `environments/reward_functions/custom_reward.py`
 - **Đầu ra**: Bộ hàm phần thưởng đa dạng
 
 #### Sprint 10 - Mô phỏng thị trường
-- Phát triển `environments/simulators/market_simulator.py`
-- Phát triển `environments/simulators/exchange_simulator.py`
-- Tích hợp với hệ thống dữ liệu
+- [ ] `environments/simulators/market_simulator.py`
+- [ ] `environments/simulators/exchange_simulator.py`
+- [ ] Tích hợp với hệ thống dữ liệu
 - **Đầu ra**: Hệ thống mô phỏng thị trường hoàn chỉnh
 
 ### Giai đoạn 5: Huấn luyện agent & Quản lý rủi ro (8 tuần)
 
 #### Sprint 11 - Xây dựng agent cơ bản
-- Phát triển `models/agents/base_agent.py`
-- Phát triển `models/agents/dqn_agent.py`
-- Phát triển `models/networks/policy_network.py`
-- Phát triển `models/networks/value_network.py`
+- [ ] `models/agents/base_agent.py`
+- [ ] `models/agents/dqn_agent.py`
+- [ ] `models/networks/policy_network.py`
+- [ ] `models/networks/value_network.py`
 - **Đầu ra**: Mô hình agent DQN hoạt động
 
 #### Sprint 12 - Xây dựng agent nâng cao
-- Phát triển `models/agents/ppo_agent.py`
-- Phát triển `models/agents/a2c_agent.py`
-- Phát triển `models/networks/shared_network.py`
+- [ ] `models/agents/ppo_agent.py`
+- [ ] `models/agents/a2c_agent.py`
+- [ ] `models/networks/shared_network.py`
 - **Đầu ra**: Các mô hình agent đa dạng
 
 #### Sprint 13 - Pipeline huấn luyện
-- Phát triển `models/training_pipeline/trainer.py`
-- Phát triển `models/training_pipeline/experience_buffer.py`
-- Phát triển `models/training_pipeline/hyperparameter_tuner.py`
-- Phát triển `models/cross_coin_trainer.py`
+- [ ] `models/training_pipeline/trainer.py`
+- [ ] `models/training_pipeline/experience_buffer.py`
+- [ ] `models/training_pipeline/hyperparameter_tuner.py`
+- [ ] `models/cross_coin_trainer.py`
 - **Đầu ra**: Pipeline huấn luyện hoàn chỉnh
 
 #### Sprint 14 - Quản lý rủi ro
-- Phát triển `risk_management/position_sizer.py`
-- Phát triển `risk_management/stop_loss.py` và `risk_management/take_profit.py`
-- Phát triển `risk_management/risk_calculator.py` và `risk_management/drawdown_manager.py`
-- Phát triển `risk_management/risk_profiles/`
-- Phát triển `risk_management/portfolio_manager.py`
+- [ ] `risk_management/position_sizer.py`
+- [ ] `risk_management/stop_loss.py`
+- [ ] `risk_management/take_profit.py`
+- [ ] `risk_management/risk_calculator.py`
+- [ ] `risk_management/drawdown_manager.py`
+- [ ] `risk_management/risk_profiles/`
+- [ ] `risk_management/portfolio_manager.py`
 - **Đầu ra**: Hệ thống quản lý rủi ro đầy đủ
 
 ### Giai đoạn 6: Backtest & Đánh giá (6 tuần)
 
 #### Sprint 15 - Cơ chế Backtest
-- Phát triển `backtesting/backtester.py`
-- Phát triển `backtesting/performance_metrics.py`
-- Phát triển `backtesting/strategy_tester.py`
-- Phát triển `backtesting/historical_simulator.py`
+- [ ] `backtesting/backtester.py`
+- [ ] `backtesting/performance_metrics.py`
+- [ ] `backtesting/strategy_tester.py`
+- [ ] `backtesting/historical_simulator.py`
 - **Đầu ra**: Hệ thống backtest cơ bản
 
 #### Sprint 16 - Đánh giá và phân tích
-- Phát triển `backtesting/evaluation/performance_evaluator.py`
-- Phát triển `backtesting/evaluation/risk_evaluator.py`
-- Phát triển `backtesting/evaluation/strategy_evaluator.py`
+- [ ] `backtesting/evaluation/performance_evaluator.py`
+- [ ] `backtesting/evaluation/risk_evaluator.py`
+- [ ] `backtesting/evaluation/strategy_evaluator.py`
 - **Đầu ra**: Hệ thống đánh giá chiến lược
 
 #### Sprint 17 - Trực quan hóa kết quả
-- Phát triển `backtesting/visualization/backtest_visualizer.py`
-- Phát triển `backtesting/visualization/performance_charts.py`
+- [ ] `backtesting/visualization/backtest_visualizer.py`
+- [ ] `backtesting/visualization/performance_charts.py`
 - **Đầu ra**: Công cụ trực quan hóa kết quả backtest
 
 ### Giai đoạn 7: Theo dõi & Triển khai (8 tuần)
 
 #### Sprint 18 - Triển khai giao dịch
-- Phát triển `deployment/exchange_api/order_manager.py`
-- Phát triển `deployment/exchange_api/account_manager.py`
-- Phát triển `deployment/exchange_api/position_tracker.py`
-- Phát triển `deployment/trade_executor.py`
+- [ ] `deployment/exchange_api/order_manager.py`
+- [ ] `deployment/exchange_api/account_manager.py`
+- [ ] `deployment/exchange_api/position_tracker.py`
+- [ ] `deployment/trade_executor.py`
 - **Đầu ra**: Hệ thống thực thi giao dịch
 
 #### Sprint 19 - Logging & Metrics
-- Phát triển `logs/logger.py`
-- Phát triển `logs/metrics/training_metrics.py`
-- Phát triển `logs/metrics/trading_metrics.py`
-- Phát triển `logs/metrics/system_metrics.py`
-- Phát triển TensorBoard logging
+- [ ] `logs/logger.py`
+- [ ] `logs/metrics/training_metrics.py`
+- [ ] `logs/metrics/trading_metrics.py`
+- [ ] `logs/metrics/system_metrics.py`
+- [ ] Tích hợp TensorBoard logging
 - **Đầu ra**: Hệ thống theo dõi và ghi log
 
 #### Sprint 20 - Dashboard cơ bản
-- Phát triển `streamlit_dashboard/app.py`
-- Phát triển `streamlit_dashboard/pages/training_dashboard.py`
-- Phát triển `streamlit_dashboard/pages/trading_dashboard.py`
+- [ ] `streamlit_dashboard/app.py`
+- [ ] `streamlit_dashboard/pages/training_dashboard.py`
+- [ ] `streamlit_dashboard/pages/trading_dashboard.py`
 - **Đầu ra**: Dashboard cơ bản với Streamlit
 
 #### Sprint 21 - Dashboard nâng cao
-- Phát triển `streamlit_dashboard/components/`
-- Phát triển `streamlit_dashboard/charts/`
-- Phát triển `streamlit_dashboard/pages/system_monitor.py`
+- [ ] `streamlit_dashboard/components/`
+- [ ] `streamlit_dashboard/charts/`
+- [ ] `streamlit_dashboard/pages/system_monitor.py`
 - **Đầu ra**: Dashboard hoàn chỉnh với đầy đủ tính năng
 
 ### Giai đoạn 8: Tính năng nâng cao (12 tuần)
 
 #### Sprint 22-23 - Multi-Agent System
-- Phát triển `agent_manager/agent_coordinator.py`
-- Phát triển `agent_manager/ensemble_agent.py`
-- Phát triển `agent_manager/strategy_queue/`
-- Phát triển `agent_manager/self_improvement/`
+- [ ] `agent_manager/agent_coordinator.py`
+- [ ] `agent_manager/ensemble_agent.py`
+- [ ] `agent_manager/strategy_queue/strategy_manager.py`
+- [ ] `agent_manager/strategy_queue/strategy_selector.py`
+- [ ] `agent_manager/strategy_queue/queue_processor.py`
+- [ ] `agent_manager/self_improvement/agent_evaluator.py`
+- [ ] `agent_manager/self_improvement/adaptation_module.py`
+- [ ] `agent_manager/self_improvement/meta_learner.py`
 - **Đầu ra**: Hệ thống multi-agent
 
 #### Sprint 24-25 - Tái huấn luyện & Cải tiến tự động
-- Phát triển `retraining/`
-- Phát triển `automation/`
+- [ ] `retraining/performance_tracker.py`
+- [ ] `retraining/retraining_pipeline.py`
+- [ ] `retraining/model_updater.py`
+- [ ] `retraining/experience_manager.py`
+- [ ] `retraining/comparison_evaluator.py`
+- [ ] `automation/metrics/performance_metrics.py`
+- [ ] `automation/metrics/efficiency_metrics.py`
+- [ ] `automation/metrics/evaluation_metrics.py`
+- [ ] `automation/performance_tracker.py`
+- [ ] `automation/strategy_queue/queue_manager.py`
+- [ ] `automation/strategy_queue/priority_system.py`
+- [ ] `automation/model_updater.py`
 - **Đầu ra**: Hệ thống tự động cải tiến
 
 #### Sprint 26-27 - Triển khai thời gian thực
-- Phát triển `real_time_inference/system_monitor/`
-- Phát triển `real_time_inference/notifiers/`
-- Phát triển `real_time_inference/scheduler/`
-- Phát triển `real_time_inference/auto_restart/`
-- Phát triển `real_time_inference/inference_engine.py`
+- [ ] `real_time_inference/system_monitor/health_checker.py`
+- [ ] `real_time_inference/system_monitor/performance_monitor.py`
+- [ ] `real_time_inference/system_monitor/alert_system.py`
+- [ ] `real_time_inference/notifiers/email_notifier.py`
+- [ ] `real_time_inference/notifiers/telegram_notifier.py`
+- [ ] `real_time_inference/notifiers/notification_manager.py`
+- [ ] `real_time_inference/scheduler/task_scheduler.py`
+- [ ] `real_time_inference/scheduler/cron_jobs.py`
+- [ ] `real_time_inference/auto_restart/error_handler.py`
+- [ ] `real_time_inference/auto_restart/recovery_system.py`
+- [ ] `real_time_inference/inference_engine.py`
 - **Đầu ra**: Hệ thống giao dịch thời gian thực hoàn chỉnh
 
 ### Giai đoạn 9: Hoàn thiện & Tối ưu hóa (4 tuần)
 
 #### Sprint 28 - Kiểm thử tích hợp
-- Kiểm thử toàn hệ thống
-- Tối ưu hóa hiệu suất
-- Xử lý lỗi và edge case
+- [ ] Kiểm thử toàn hệ thống
+- [ ] Tối ưu hóa hiệu suất
+- [ ] Xử lý lỗi và edge case
 - **Đầu ra**: Hệ thống ổn định
 
 #### Sprint 29 - Tài liệu & Sản phẩm cuối
-- Hoàn thiện tài liệu kỹ thuật
-- Tạo hướng dẫn sử dụng
-- Chuẩn bị sản phẩm cuối
+- [ ] Hoàn thiện tài liệu kỹ thuật
+- [ ] Tạo hướng dẫn sử dụng
+- [ ] Chuẩn bị sản phẩm cuối
 - **Đầu ra**: Dự án hoàn chỉnh với tài liệu đầy đủ
 
 ## Các mốc quan trọng (Milestones)
