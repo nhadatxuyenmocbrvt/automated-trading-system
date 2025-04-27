@@ -72,6 +72,8 @@ class TestVolumeIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             on_balance_volume(pd.DataFrame())
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_on_balance_volume")
     
     def test_accumulation_distribution_line(self):
         """
@@ -116,6 +118,8 @@ class TestVolumeIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             accumulation_distribution_line(pd.DataFrame())
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_accumulation_distribution_line")
     
     def test_chaikin_money_flow(self):
         """
@@ -164,6 +168,8 @@ class TestVolumeIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             chaikin_money_flow(pd.DataFrame(), window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_chaikin_money_flow")
     
     def test_volume_weighted_average_price(self):
         """
@@ -215,6 +221,8 @@ class TestVolumeIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             volume_weighted_average_price(pd.DataFrame())
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_volume_weighted_average_price")
     
     def test_ease_of_movement(self):
         """
@@ -235,6 +243,8 @@ class TestVolumeIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             ease_of_movement(pd.DataFrame(), window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_ease_of_movement")
     
     def test_volume_oscillator(self):
         """
@@ -303,6 +313,8 @@ class TestVolumeIndicators(unittest.TestCase):
             volume_oscillator(pd.DataFrame(), volume_column='volume',
                              short_window=short_window, long_window=long_window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_volume_oscillator")
     
     def test_price_volume_trend(self):
         """
@@ -336,6 +348,8 @@ class TestVolumeIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             price_volume_trend(pd.DataFrame(), close_column='close', volume_column='volume')
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_price_volume_trend")
     
     def tearDown(self):
         """

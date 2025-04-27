@@ -5,7 +5,6 @@ Dữ liệu mẫu cho các unit test của module technical_indicators.
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import logging
 
 # Lấy logger từ __init__.py
 from tests.technical_indicators import logger
@@ -57,23 +56,6 @@ def generate_sample_price_data(n_samples: int = 100, seed: int = 42) -> pd.DataF
     
     logger.debug(f"Đã tạo DataFrame với shape={df.shape}")
     return df
-
-def generate_sample_ohlc_data(n_samples: int = 100, seed: int = 42) -> pd.DataFrame:
-    """
-    Tạo dữ liệu OHLC mẫu cho việc thử nghiệm.
-    
-    Args:
-        n_samples: Số lượng mẫu
-        seed: Seed ngẫu nhiên
-        
-    Returns:
-        DataFrame chứa dữ liệu giá OHLC (không có volume)
-    """
-    logger.info(f"Tạo dữ liệu OHLC mẫu với {n_samples} mẫu, seed={seed}")
-    df = generate_sample_price_data(n_samples, seed)
-    df_ohlc = df.drop('volume', axis=1)
-    logger.debug(f"Đã tạo DataFrame OHLC với shape={df_ohlc.shape}")
-    return df_ohlc
 
 def generate_trending_price_data(n_samples: int = 100, trend_strength: float = 0.01, seed: int = 42) -> pd.DataFrame:
     """

@@ -77,6 +77,8 @@ class TestMomentumIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             relative_strength_index(pd.DataFrame(), column='close', window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_relative_strength_index")
     
     def test_stochastic_oscillator(self):
         """
@@ -110,11 +112,18 @@ class TestMomentumIndicators(unittest.TestCase):
         # Tính %K thủ công và so sánh
         high_max = self.df['high'].rolling(window=k_period).max()
         low_min = self.df['low'].rolling(window=k_period).min()
-        expected_k = 100 * ((self.df['close'] - low_min) / (high_max - low_min))
+        
+        # Tránh chia cho 0
+        price_range = high_max - low_min
+        price_range_safe = price_range.replace(0, np.nan)
+        
+        expected_k = 100 * ((self.df['close'] - low_min) / price_range_safe)
+        
+        # So sánh kết quả, bỏ qua NaN
         pd.testing.assert_series_equal(
             result_df[k_column].dropna(),
             expected_k.dropna(),
-            check_dtype=False  # Bỏ qua kiểm tra kiểu dữ liệu
+            check_dtype=False
         )
         logger.debug("%K = 100 * ((Close - Low Min) / (High Max - Low Min)): OK")
         
@@ -123,7 +132,7 @@ class TestMomentumIndicators(unittest.TestCase):
         pd.testing.assert_series_equal(
             result_df[d_column].dropna(),
             expected_d.dropna(),
-            check_dtype=False  # Bỏ qua kiểm tra kiểu dữ liệu
+            check_dtype=False
         )
         logger.debug("%D = SMA(%K): OK")
         
@@ -131,6 +140,8 @@ class TestMomentumIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             stochastic_oscillator(pd.DataFrame(), k_period=k_period, d_period=d_period)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_stochastic_oscillator")
     
     def test_williams_r(self):
         """
@@ -156,11 +167,18 @@ class TestMomentumIndicators(unittest.TestCase):
         # Tính Williams %R thủ công và so sánh
         high_max = self.df['high'].rolling(window=window).max()
         low_min = self.df['low'].rolling(window=window).min()
-        expected_williams = -100 * ((high_max - self.df['close']) / (high_max - low_min))
+        
+        # Tránh chia cho 0
+        price_range = high_max - low_min
+        price_range_safe = price_range.replace(0, np.nan)
+        
+        expected_williams = -100 * ((high_max - self.df['close']) / price_range_safe)
+        
+        # So sánh kết quả, bỏ qua NaN
         pd.testing.assert_series_equal(
             result_df[expected_column].dropna(),
             expected_williams.dropna(),
-            check_dtype=False  # Bỏ qua kiểm tra kiểu dữ liệu
+            check_dtype=False
         )
         logger.debug("Williams %R = -100 * ((High Max - Close) / (High Max - Low Min)): OK")
         
@@ -168,6 +186,8 @@ class TestMomentumIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             williams_r(pd.DataFrame(), window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_williams_r")
     
     def test_commodity_channel_index(self):
         """
@@ -189,6 +209,8 @@ class TestMomentumIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             commodity_channel_index(pd.DataFrame(), window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_commodity_channel_index")
     
     def test_rate_of_change(self):
         """
@@ -208,11 +230,17 @@ class TestMomentumIndicators(unittest.TestCase):
         
         # Tính ROC Percentage thủ công và so sánh
         price_n_ago = self.df['close'].shift(window)
-        expected_roc_pct = (self.df['close'] - price_n_ago) / price_n_ago * 100
+        
+        # Tránh chia cho 0
+        price_n_ago_safe = price_n_ago.replace(0, np.nan)
+        
+        expected_roc_pct = (self.df['close'] - price_n_ago_safe) / price_n_ago_safe * 100
+        
+        # So sánh kết quả, bỏ qua NaN
         pd.testing.assert_series_equal(
-            result_df_pct[expected_column_pct].fillna(0),  # Điền NaN bằng 0 cho việc so sánh
-            expected_roc_pct.fillna(0),
-            check_dtype=False  # Bỏ qua kiểm tra kiểu dữ liệu
+            result_df_pct[expected_column_pct].dropna(),
+            expected_roc_pct.dropna(),
+            check_dtype=False
         )
         logger.debug("ROC % = (Close - Close n periods ago) / Close n periods ago * 100: OK")
         
@@ -226,10 +254,12 @@ class TestMomentumIndicators(unittest.TestCase):
         
         # Tính ROC Absolute thủ công và so sánh
         expected_roc_abs = self.df['close'] - price_n_ago
+        
+        # So sánh kết quả, bỏ qua NaN
         pd.testing.assert_series_equal(
-            result_df_abs[expected_column_abs].fillna(0),  # Điền NaN bằng 0 cho việc so sánh
-            expected_roc_abs.fillna(0),
-            check_dtype=False  # Bỏ qua kiểm tra kiểu dữ liệu
+            result_df_abs[expected_column_abs].dropna(),
+            expected_roc_abs.dropna(),
+            check_dtype=False
         )
         logger.debug("ROC absolute = Close - Close n periods ago: OK")
         
@@ -237,6 +267,8 @@ class TestMomentumIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             rate_of_change(pd.DataFrame(), column='close', window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_rate_of_change")
     
     def test_money_flow_index(self):
         """
@@ -263,6 +295,8 @@ class TestMomentumIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             money_flow_index(pd.DataFrame(), window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_money_flow_index")
     
     def test_true_strength_index(self):
         """
@@ -299,8 +333,8 @@ class TestMomentumIndicators(unittest.TestCase):
         expected_signal = tsi_values.ewm(span=signal_window, adjust=False).mean()
         pd.testing.assert_series_equal(
             signal_values,
-            expected_signal,
-            check_dtype=False  # Bỏ qua kiểm tra kiểu dữ liệu
+            expected_signal.dropna(),
+            check_dtype=False
         )
         logger.debug("Signal = EMA của TSI: OK")
         
@@ -309,6 +343,8 @@ class TestMomentumIndicators(unittest.TestCase):
             true_strength_index(pd.DataFrame(), column='close', 
                                long_window=long_window, short_window=short_window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_true_strength_index")
     
     def tearDown(self):
         """

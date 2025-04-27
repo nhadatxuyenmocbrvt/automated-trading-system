@@ -76,6 +76,8 @@ class TestVolatilityIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             average_true_range(pd.DataFrame(), window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_average_true_range")
     
     def test_bollinger_bandwidth(self):
         """
@@ -138,6 +140,8 @@ class TestVolatilityIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             bollinger_bandwidth(pd.DataFrame(), column='close', window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_bollinger_bandwidth")
     
     def test_keltner_channel(self):
         """
@@ -200,6 +204,8 @@ class TestVolatilityIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             keltner_channel(pd.DataFrame(), window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_keltner_channel")
     
     def test_donchian_channel(self):
         """
@@ -267,6 +273,8 @@ class TestVolatilityIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             donchian_channel(pd.DataFrame(), window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_donchian_channel")
     
     def test_ulcer_index(self):
         """
@@ -301,6 +309,8 @@ class TestVolatilityIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             ulcer_index(pd.DataFrame(), column='close', window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_ulcer_index")
     
     def test_standard_deviation(self):
         """
@@ -363,6 +373,8 @@ class TestVolatilityIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             standard_deviation(pd.DataFrame(), column='close', window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_standard_deviation")
     
     def test_historical_volatility(self):
         """
@@ -423,6 +435,8 @@ class TestVolatilityIndicators(unittest.TestCase):
         with self.assertRaises(ValueError):
             historical_volatility(pd.DataFrame(), column='close', window=window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_historical_volatility")
     
     def test_volatility_ratio(self):
         """
@@ -469,6 +483,8 @@ class TestVolatilityIndicators(unittest.TestCase):
             volatility_ratio(pd.DataFrame(), column='close',
                             short_window=short_window, long_window=long_window)
         logger.debug("Kiểm tra xử lý lỗi với dữ liệu không hợp lệ: OK")
+        
+        logger.debug("Hoàn thành test_volatility_ratio")
     
     def tearDown(self):
         """
