@@ -119,13 +119,13 @@
 
 #### Sprint 7 - Tạo đặc trưng
 - Phát triển module technical_indicators
-  - [ ] `data_processors/feature_engineering/technical_indicators/__init__.py`
-  - [ ] `data_processors/feature_engineering/technical_indicators/trend_indicators.py`
-  - [ ] `data_processors/feature_engineering/technical_indicators/momentum_indicators.py`
-  - [ ] `data_processors/feature_engineering/technical_indicators/volume_indicators.py`
-  - [ ] `data_processors/feature_engineering/technical_indicators/volatility_indicators.py`
-  - [ ] `data_processors/feature_engineering/technical_indicators/support_resistance.py`
-  - [ ] `data_processors/feature_engineering/technical_indicators/utils.py`
+  - [x] `data_processors/feature_engineering/technical_indicators/__init__.py`
+  - [x] `data_processors/feature_engineering/technical_indicators/trend_indicators.py`
+  - [x] `data_processors/feature_engineering/technical_indicators/momentum_indicators.py`
+  - [x] `data_processors/feature_engineering/technical_indicators/volume_indicators.py`
+  - [x] `data_processors/feature_engineering/technical_indicators/volatility_indicators.py`
+  - [x] `data_processors/feature_engineering/technical_indicators/support_resistance.py`
+  - [x] `data_processors/feature_engineering/technical_indicators/utils.py`
 - Phát triển module market_features
   - [ ] `data_processors/feature_engineering/market_features/__init__.py`
   - [ ] `data_processors/feature_engineering/market_features/price_features.py`
