@@ -54,12 +54,12 @@
 
 #### Sprint 7 - Tạo đặc trưng
 - Phát triển chung feature_engineering
-  - [ ] `data_processors/feature_engineering/__init__.py`
-  - [ ] `data_processors/feature_engineering/feature_generator.py`
-  - [ ] `data_processors/feature_engineering/utils/__init__.py`
-  - [ ] `data_processors/feature_engineering/utils/validation.py`
-  - [ ] `data_processors/feature_engineering/utils/preprocessing.py`
-  - [ ] `data_processors/feature_engineering/utils/visualization.py`
+  - [x] `data_processors/feature_engineering/__init__.py`
+  - [x] `data_processors/feature_engineering/feature_generator.py`
+  - [x] `data_processors/feature_engineering/utils/__init__.py`
+  - [x] `data_processors/feature_engineering/utils/validation.py`
+  - [x] `data_processors/feature_engineering/utils/preprocessing.py`
+  - [x] `data_processors/feature_engineering/utils/visualization.py`
 - Phát triển module technical_indicators
   - [x] `data_processors/feature_engineering/technical_indicators/__init__.py`
   - [x] `data_processors/feature_engineering/technical_indicators/trend_indicators.py`
