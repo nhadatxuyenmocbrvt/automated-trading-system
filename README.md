@@ -46,10 +46,43 @@ automated-trading-system/
 │   │   ├── outlier_detector.py            # Phát hiện ngoại lệ
 │   │   └── missing_data_handler.py        # Xử lý dữ liệu thiếu
 │   ├── feature_engineering/
-│   │   ├── technical_indicators.py        # Các chỉ báo kỹ thuật
-│   │   ├── market_features.py             # Đặc trưng thị trường
-│   │   ├── sentiment_features.py          # Đặc trưng từ dữ liệu tâm lý
-│   │   └── feature_selector.py            # Lựa chọn đặc trưng
+│   │   ├── technical_indicator/
+│   │   │   ├── __init__.py                  # Exports tất cả indicators từ các module con
+│   │   │   ├── trend_indicators.py          # Các chỉ báo xu hướng (MA, MACD, Bollinger Bands)
+│   │   │   ├── momentum_indicators.py       # Các chỉ báo động lượng (RSI, Stochastic, CCI)
+│   │   │   ├── volume_indicators.py         # Các chỉ báo khối lượng (OBV, ADI, VWAP)
+│   │   │   ├── volatility_indicators.py     # Các chỉ báo biến động (ATR, Bollinger Width)
+│   │   │   ├── support_resistance.py        # Phát hiện đường hỗ trợ/kháng cự
+│   │   │   └── utils.py                     # Các hàm tiện ích chung cho technical indicators
+│   │   ├── market_features/
+│   │   │   ├── __init__.py                  # Exports tất cả features từ các module con
+│   │   │   ├── price_features.py            # Các đặc trưng về giá (price_ratios, returns, etc)
+│   │   │   ├── volatility_features.py       # Các đặc trưng về biến động
+│   │   │   ├── volume_features.py           # Các đặc trưng về khối lượng
+│   │   │   ├── orderbook_features.py        # Các đặc trưng từ sổ lệnh
+│   │   │   ├── liquidity_features.py        # Các đặc trưng về thanh khoản
+│   │   │   └── custom_features.py           # Các đặc trưng tùy chỉnh
+│   │   ├── sentiment_features/
+│   │   │   ├── __init__.py                  # Exports tất cả features từ các module con
+│   │   │   ├── social_media.py              # Phân tích dữ liệu từ mạng xã hội
+│   │   │   ├── news_analysis.py             # Phân tích tin tức
+│   │   │   ├── market_sentiment.py          # Các chỉ báo tâm lý thị trường (Fear & Greed)
+│   │   │   ├── text_processors.py           # Xử lý văn bản cho phân tích tâm lý
+│   │   │   └── event_detection.py           # Phát hiện sự kiện từ dữ liệu tâm lý
+│   │   ├── feature_selector/
+│   │   │   ├── __init__.py                  # Exports tất cả phương thức từ các module con
+│   │   │   ├── statistical_methods.py       # Phương pháp thống kê (correlation, chi-square)
+│   │   │   ├── importance_methods.py        # Feature importance (Tree, Random Forest)
+│   │   │   ├── dimensionality_reduction.py  # Giảm chiều dữ liệu (PCA, t-SNE)
+│   │   │   ├── wrapper_methods.py           # Phương pháp bọc (Forward/Backward selection)
+│   │   │   └── feature_selection_pipeline.py # Pipeline chọn đặc trưng
+│   ├── __init__.py                       # Exports các module chính
+│   ├── feature_generator.py              # Lớp chính để tạo đặc trưng từ các module con
+│   ├── utils/
+│   │   ├── __init__.py                   # Exports các tiện ích chung
+│   │   ├── validation.py                 # Xác thực đặc trưng
+│   │   ├── preprocessing.py              # Tiền xử lý trước khi tạo đặc trưng
+│   │   └── visualization.py              # Trực quan hóa đặc trưng
 │   └── data_pipeline.py                   # Pipeline xử lý dữ liệu
 │
 ├── environments/                          # Môi trường huấn luyện
