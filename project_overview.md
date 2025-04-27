@@ -1,81 +1,16 @@
 # Automated Trading System - Tổng quan dự án
 
-## Modules đã hoàn thành
+## Lộ trình phát triển chi tiết
+
+### Giai đoạn 1: Nền tảng & Cấu hình (4 tuần)
+
+#### Sprint 1 - Cấu trúc dự án & Môi trường
 - [x] Cấu trúc thư mục cơ bản
 - [x] README.md
 - [x] .gitignore
 - [x] setup_project.py
 - [x] project_overview.md
 - [ ] CI/CD workflow (.github/workflows/main.yml)
-
-## Modules Đã hoàn thành
-#### Config
-- [x] `config/system_config.py`
-- [x] `config/logging_config.py`
-- [x] `config/security_config.py`
-- [x] `config/env.py`
-- [x] `config/constants.py`
-- [x] `config/utils/encryption.py`
-- [x] `config/utils/validators.py`
-
-#### Data Collectors
-- [x] `data_collectors/exchange_api/generic_connector.py`
-- [x] `data_collectors/exchange_api/binance_connector.py`
-- [x] `data_collectors/exchange_api/bybit_connector.py`
-- [x] `data_collectors/market_data/historical_data_collector.py`
-- [x] `data_collectors/market_data/realtime_data_stream.py`
-- [x] `data_collectors/market_data/orderbook_collector.py`
-
-#### Data Processors - Cleaners
-- [x] `data_processors/cleaners/data_cleaner.py`
-- [x] `data_processors/cleaners/outlier_detector.py`
-- [x] `data_processors/cleaners/missing_data_handler.py`
-
-## Modules đang phát triển
-#### Feature Engineering
-- [ ] `data_processors/feature_engineering/technical_indicators/__init__.py`
-- [ ] `data_processors/feature_engineering/technical_indicators/trend_indicators.py`
-- [ ] `data_processors/feature_engineering/technical_indicators/momentum_indicators.py`
-- [ ] `data_processors/feature_engineering/technical_indicators/volume_indicators.py`
-- [ ] `data_processors/feature_engineering/technical_indicators/volatility_indicators.py`
-- [ ] `data_processors/feature_engineering/technical_indicators/support_resistance.py`
-- [ ] `data_processors/feature_engineering/technical_indicators/utils.py`
-- [ ] `data_processors/feature_engineering/market_features/__init__.py`
-- [ ] `data_processors/feature_engineering/market_features/price_features.py`
-- [ ] `data_processors/feature_engineering/market_features/volatility_features.py`
-- [ ] `data_processors/feature_engineering/market_features/volume_features.py`
-- [ ] `data_processors/feature_engineering/market_features/orderbook_features.py`
-- [ ] `data_processors/feature_engineering/market_features/liquidity_features.py`
-- [ ] `data_processors/feature_engineering/market_features/custom_features.py`
-- [ ] `data_processors/feature_engineering/sentiment_features/__init__.py`
-- [ ] `data_processors/feature_engineering/sentiment_features/social_media.py`
-- [ ] `data_processors/feature_engineering/sentiment_features/news_analysis.py`
-- [ ] `data_processors/feature_engineering/sentiment_features/market_sentiment.py`
-- [ ] `data_processors/feature_engineering/sentiment_features/text_processors.py`
-- [ ] `data_processors/feature_engineering/sentiment_features/event_detection.py`
-- [ ] `data_processors/feature_engineering/feature_selector/__init__.py`
-- [ ] `data_processors/feature_engineering/feature_selector/statistical_methods.py`
-- [ ] `data_processors/feature_engineering/feature_selector/importance_methods.py`
-- [ ] `data_processors/feature_engineering/feature_selector/dimensionality_reduction.py`
-- [ ] `data_processors/feature_engineering/feature_selector/wrapper_methods.py`
-- [ ] `data_processors/feature_engineering/feature_selector/feature_selection_pipeline.py`
-- [ ] `data_processors/feature_engineering/__init__.py`
-- [ ] `data_processors/feature_engineering/feature_generator.py`
-- [ ] `data_processors/feature_engineering/utils/__init__.py`
-- [ ] `data_processors/feature_engineering/utils/validation.py`
-- [ ] `data_processors/feature_engineering/utils/preprocessing.py`
-- [ ] `data_processors/feature_engineering/utils/visualization.py`
-- [ ] `data_processors/data_pipeline.py`
-
-## Lộ trình phát triển chi tiết
-
-### Giai đoạn 1: Nền tảng & Cấu hình (4 tuần)
-
-#### Sprint 1 - Cấu trúc dự án & Môi trường
-- [x] Thiết lập GitHub repository
-- [x] Cấu trúc thư mục và module cơ bản
-- [ ] Xây dựng quy trình CI/CD đơn giản
-- [x] Cài đặt môi trường phát triển
 - **Đầu ra**: Repository với cấu trúc đầy đủ, README, và CI/CD workflow
 
 #### Sprint 2 - Hệ thống cấu hình
@@ -118,6 +53,13 @@
 - **Đầu ra**: Pipeline tiền xử lý dữ liệu
 
 #### Sprint 7 - Tạo đặc trưng
+- Phát triển chung feature_engineering
+  - [ ] `data_processors/feature_engineering/__init__.py`
+  - [ ] `data_processors/feature_engineering/feature_generator.py`
+  - [ ] `data_processors/feature_engineering/utils/__init__.py`
+  - [ ] `data_processors/feature_engineering/utils/validation.py`
+  - [ ] `data_processors/feature_engineering/utils/preprocessing.py`
+  - [ ] `data_processors/feature_engineering/utils/visualization.py`
 - Phát triển module technical_indicators
   - [x] `data_processors/feature_engineering/technical_indicators/__init__.py`
   - [x] `data_processors/feature_engineering/technical_indicators/trend_indicators.py`
@@ -148,13 +90,6 @@
   - [ ] `data_processors/feature_engineering/feature_selector/dimensionality_reduction.py`
   - [ ] `data_processors/feature_engineering/feature_selector/wrapper_methods.py`
   - [ ] `data_processors/feature_engineering/feature_selector/feature_selection_pipeline.py`
-- Phát triển chung feature_engineering
-  - [ ] `data_processors/feature_engineering/__init__.py`
-  - [ ] `data_processors/feature_engineering/feature_generator.py`
-  - [ ] `data_processors/feature_engineering/utils/__init__.py`
-  - [ ] `data_processors/feature_engineering/utils/validation.py`
-  - [ ] `data_processors/feature_engineering/utils/preprocessing.py`
-  - [ ] `data_processors/feature_engineering/utils/visualization.py`
 - [ ] `data_processors/data_pipeline.py`
 - **Đầu ra**: Pipeline xử lý dữ liệu và tạo đặc trưng hoàn chỉnh
 
