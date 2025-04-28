@@ -1,3 +1,7 @@
 2025-04-29 00:14:24,345 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:115] - Timeout khi load_markets, thử lại (1/3)
 2025-04-29 00:14:26,426 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:115] - Timeout khi load_markets, thử lại (2/3)
 2025-04-29 00:14:28,520 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:118] - Lỗi khi load_markets: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
+2025-04-29 00:20:41,440 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:44,451 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:50,454 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:59,464 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'

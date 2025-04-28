@@ -90,3 +90,13 @@ Traceback (most recent call last):
 ccxt.base.errors.RequestTimeout: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
 2025-04-29 00:14:28,555 - trading_system - INFO - [main.py:565] - Dọn dẹp tài nguyên hệ thống
 2025-04-29 00:14:28,556 - trading_system - INFO - [main.py:578] - Hệ thống đã dừng
+2025-04-29 00:20:41,424 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
+2025-04-29 00:20:41,425 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
+2025-04-29 00:20:41,425 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
+2025-04-29 00:20:41,440 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:44,451 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:50,454 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:59,464 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:21:02,040 - trading_system - INFO - [main.py:706] - Nhận tín hiệu dừng từ người dùng
+2025-04-29 00:21:02,042 - trading_system - INFO - [main.py:565] - Dọn dẹp tài nguyên hệ thống
+2025-04-29 00:21:02,043 - trading_system - INFO - [main.py:578] - Hệ thống đã dừng

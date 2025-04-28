@@ -83,3 +83,7 @@ Traceback (most recent call last):
   File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\exchange.py", line 581, in fetch
     raise RequestTimeout(details) from e
 ccxt.base.errors.RequestTimeout: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
+2025-04-29 00:20:41,440 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:44,451 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:50,454 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:20:59,464 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
