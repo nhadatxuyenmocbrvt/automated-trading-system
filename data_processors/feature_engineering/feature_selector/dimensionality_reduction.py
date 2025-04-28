@@ -531,10 +531,10 @@ def autoencoder_reducer(
     try:
         # Kiểm tra thư viện tensorflow/keras
         try:
-            import tensorflow as tf
-            from tensorflow.keras.models import Model
-            from tensorflow.keras.layers import Input, Dense
-            from tensorflow.keras.callbacks import EarlyStopping
+            import tensorflow as tf  # type: ignore
+            from tensorflow.keras.models import Model  # type: ignore
+            from tensorflow.keras.layers import Input, Dense  # type: ignore
+            from tensorflow.keras.callbacks import EarlyStopping  # type: ignore
             # Đặt seed cho TensorFlow
             tf.random.set_seed(random_state)
             np.random.seed(random_state)
