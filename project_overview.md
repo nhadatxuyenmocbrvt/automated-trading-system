@@ -39,9 +39,9 @@
 - **Đầu ra**: Pipeline thu thập dữ liệu thị trường
 
 #### Sprint 5 - Thu thập dữ liệu bổ sung
-- [ ] `data_collectors/news_collector/crypto_news_scraper.py`
-- [ ] `data_collectors/news_collector/sentiment_collector.py`
-- [ ] Tích hợp lưu trữ dữ liệu
+- [x] `data_collectors/news_collector/crypto_news_scraper.py`
+- [x] `data_collectors/news_collector/sentiment_collector.py`
+- [x] Tích hợp lưu trữ dữ liệu
 - **Đầu ra**: Hệ thống thu thập dữ liệu đa nguồn hoàn chỉnh
 
 ### Giai đoạn 3: Xử lý dữ liệu (4 tuần)
@@ -69,13 +69,13 @@
   - [x] `data_processors/feature_engineering/technical_indicators/support_resistance.py`
   - [x] `data_processors/feature_engineering/technical_indicators/utils.py`
 - Phát triển module market_features
-  - [ ] `data_processors/feature_engineering/market_features/__init__.py`
-  - [ ] `data_processors/feature_engineering/market_features/price_features.py`
-  - [ ] `data_processors/feature_engineering/market_features/volatility_features.py`
-  - [ ] `data_processors/feature_engineering/market_features/volume_features.py`
-  - [ ] `data_processors/feature_engineering/market_features/orderbook_features.py`
-  - [ ] `data_processors/feature_engineering/market_features/liquidity_features.py`
-  - [ ] `data_processors/feature_engineering/market_features/custom_features.py`
+  - [x] `data_processors/feature_engineering/market_features/__init__.py`
+  - [x] `data_processors/feature_engineering/market_features/price_features.py`
+  - [x] `data_processors/feature_engineering/market_features/volatility_features.py`
+  - [x] `data_processors/feature_engineering/market_features/volume_features.py`
+  - [x] `data_processors/feature_engineering/market_features/orderbook_features.py`
+  - [x] `data_processors/feature_engineering/market_features/liquidity_features.py`
+  - [x] `data_processors/feature_engineering/market_features/custom_features.py`
 - Phát triển module sentiment_features
   - [ ] `data_processors/feature_engineering/sentiment_features/__init__.py`
   - [ ] `data_processors/feature_engineering/sentiment_features/social_media.py`
