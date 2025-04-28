@@ -77,12 +77,12 @@
   - [x] `data_processors/feature_engineering/market_features/liquidity_features.py`
   - [x] `data_processors/feature_engineering/market_features/custom_features.py`
 - Phát triển module sentiment_features
-  - [ ] `data_processors/feature_engineering/sentiment_features/__init__.py`
-  - [ ] `data_processors/feature_engineering/sentiment_features/social_media.py`
-  - [ ] `data_processors/feature_engineering/sentiment_features/news_analysis.py`
-  - [ ] `data_processors/feature_engineering/sentiment_features/market_sentiment.py`
-  - [ ] `data_processors/feature_engineering/sentiment_features/text_processors.py`
-  - [ ] `data_processors/feature_engineering/sentiment_features/event_detection.py`
+  - [x] `data_processors/feature_engineering/sentiment_features/__init__.py`
+  - [x] `data_processors/feature_engineering/sentiment_features/social_media.py`
+  - [x] `data_processors/feature_engineering/sentiment_features/news_analysis.py`
+  - [x] `data_processors/feature_engineering/sentiment_features/market_sentiment.py`
+  - [x] `data_processors/feature_engineering/sentiment_features/text_processors.py`
+  - [x] `data_processors/feature_engineering/sentiment_features/event_detection.py`
 - Phát triển module feature_selector
   - [ ] `data_processors/feature_engineering/feature_selector/__init__.py`
   - [ ] `data_processors/feature_engineering/feature_selector/statistical_methods.py`
