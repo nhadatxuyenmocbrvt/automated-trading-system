@@ -8,7 +8,7 @@ import os
 import sys
 import json
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Union, Callable
+from typing import Dict, List, Any, Optional, Union, Callable
 from dotenv import load_dotenv
 
 from config.system_config import BASE_DIR
@@ -40,8 +40,8 @@ ENV_VARS = {
     
     # Sàn giao dịch
     "DEFAULT_EXCHANGE": {"type": "str", "default": "binance", "description": "Sàn giao dịch mặc định"},
-    "BINANCE_API_KEY": {"type": "str", "default": "", "description": "gwIQpSlP7PomIpn6zF6l9YyiS3lvogviaE4ADQDQjCjTiXCoFp5VwGJmhsd8TSFe"},
-    "BINANCE_API_SECRET": {"type": "str", "default": "", "description": "beM69btbIYoHAlF9PXuALn7xiosfqgJDih9j0BJMFIRHOQHmkaLDCEhgbr5PrePU"},
+    "BINANCE_API_KEY": {"type": "str", "default": "", "description": "API Key Binance"},
+    "BINANCE_API_SECRET": {"type": "str", "default": "", "description": "API Secret Binance"},
     "BYBIT_API_KEY": {"type": "str", "default": "", "description": "API Key ByBit"},
     "BYBIT_API_SECRET": {"type": "str", "default": "", "description": "API Secret ByBit"},
     
@@ -62,9 +62,11 @@ ENV_VARS = {
     # Performance
     "MAX_THREADS": {"type": "int", "default": "4", "description": "Số luồng tối đa"},
     "MAX_PROCESSES": {"type": "int", "default": "2", "description": "Số tiến trình tối đa"},
-    "REQUEST_TIMEOUT": {"type": "int", "default": "30", "description": "Thời gian timeout request (giây)"},
-    "MAX_RETRIES": {"type": "int", "default": "3", "description": "Số lần thử lại tối đa"},
+    "REQUEST_TIMEOUT": {"type": "int", "default": "60", "description": "Thời gian timeout request (giây)"}, # Tăng giá trị mặc định
+    "MAX_RETRIES": {"type": "int", "default": "5", "description": "Số lần thử lại tối đa"}, # Tăng giá trị mặc định
     "MEMORY_LIMIT": {"type": "int", "default": "8192", "description": "Giới hạn bộ nhớ (MB)"},
+    "HTTP_PROXY": {"type": "str", "default": "", "description": "Proxy HTTP (định dạng http://host:port)"},
+    "HTTPS_PROXY": {"type": "str", "default": "", "description": "Proxy HTTPS (định dạng https://host:port)"},
 }
 
 class EnvManager:
@@ -188,7 +190,7 @@ class EnvManager:
                 "# Exchanges": ["DEFAULT_EXCHANGE", "BINANCE_API_KEY", "BINANCE_API_SECRET", "BYBIT_API_KEY", "BYBIT_API_SECRET"],
                 "# Trading": ["MAX_OPEN_POSITIONS", "DEFAULT_LEVERAGE", "RISK_PER_TRADE", "ASSET_LIST"],
                 "# Training": ["RANDOM_SEED", "BATCH_SIZE", "LEARNING_RATE", "GAMMA", "EPSILON", "TRAIN_EPISODES"],
-                "# Performance": ["MAX_THREADS", "MAX_PROCESSES", "REQUEST_TIMEOUT", "MAX_RETRIES", "MEMORY_LIMIT"]
+                "# Performance": ["MAX_THREADS", "MAX_PROCESSES", "REQUEST_TIMEOUT", "MAX_RETRIES", "MEMORY_LIMIT", "HTTP_PROXY", "HTTPS_PROXY"]
             }
             
             for category, vars in categories.items():

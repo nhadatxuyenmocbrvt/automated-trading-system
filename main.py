@@ -87,7 +87,7 @@ class AutomatedTradingSystem:
         Args:
             exchange_id: ID của sàn giao dịch
             is_futures: True để sử dụng thị trường futures
-            testnet: True để sử dụng môi trường test
+            testnet: True để sử dụng testnet
             
         Returns:
             Đối tượng kết nối với sàn giao dịch
@@ -104,13 +104,17 @@ class AutomatedTradingSystem:
             api_key = get_env(f"{exchange_id.upper()}_API_KEY", "")
             api_secret = get_env(f"{exchange_id.upper()}_API_SECRET", "")
             
+            # Kiểm tra proxy nếu được cấu hình
+            use_proxy = bool(get_env('HTTP_PROXY', ''))
+            
             # Tạo connector phù hợp với sàn giao dịch
             if exchange_id.lower() == "binance":
                 connector = BinanceConnector(
                     api_key=api_key,
                     api_secret=api_secret,
                     is_futures=is_futures,
-                    testnet=testnet
+                    testnet=testnet,
+                    use_proxy=use_proxy
                 )
                 logger.info(f"Đã tạo kết nối Binance {'Futures' if is_futures else 'Spot'}")
             else:
@@ -119,9 +123,14 @@ class AutomatedTradingSystem:
                     exchange_id=exchange_id,
                     api_key=api_key,
                     api_secret=api_secret,
-                    testnet=testnet
+                    testnet=testnet,
+                    use_proxy=use_proxy
                 )
                 logger.info(f"Đã tạo kết nối {exchange_id}")
+            
+            # Thực hiện kết nối thử nghiệm để kiểm tra
+            if not connector.test_connection():
+                logger.warning(f"Kết nối với {exchange_id} không thành công, nhưng tiếp tục với chức năng hạn chế")
             
             # Lưu vào cache
             self.connectors[connector_key] = connector

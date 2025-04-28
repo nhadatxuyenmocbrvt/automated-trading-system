@@ -63,20 +63,23 @@ class BinanceConnector(ExchangeConnector):
         if self.is_futures:
             options['defaultType'] = 'future'
             
-        # Thêm các tùy chọn giúp giảm số lượng yêu cầu đến API
+        # Tùy chọn giúp tăng tính ổn định khi kết nối
         options['fetchCurrencies'] = False  # Tắt tính năng lấy danh sách tiền tệ
+        options['recvWindow'] = 60000  # Tăng thời gian chờ cho API private
+        options['adjustForTimeDifference'] = True  # Tự động điều chỉnh timestamp
+        options['verbose'] = False  # Tắt chế độ verbose để giảm log
         
         # Tạo đối tượng Binance với các tùy chọn
         params = {
             'apiKey': self.api_key,
             'secret': self.api_secret,
-            'timeout': int(get_env('REQUEST_TIMEOUT', '30000')),  # Đảm bảo timeout là ms và lấy từ biến môi trường
+            'timeout': self.timeout,  # Sử dụng timeout từ lớp cha
             'enableRateLimit': True,
             'options': options,
             # Giữ kết nối sống
             'keepAlive': True,
             # Tăng thời gian cho phép không hoạt động
-            'session': {'timeout': 60000},  # 60 giây
+            'session': {'timeout': 60},  # 60 giây
         }
         
         # Thêm proxy nếu có
@@ -104,77 +107,145 @@ class BinanceConnector(ExchangeConnector):
                 }
         
         # Khởi tạo đối tượng Binance phù hợp
+        exchange = None
         if self.is_futures:
             exchange = ccxt.binanceusdm(params)
         else:
             exchange = ccxt.binance(params)
         
-        # Tải thông tin thị trường một cách tối giản
-        # Sử dụng quá trình tùy chỉnh để tránh API sapiGetCapitalConfigGetall
+        # Khởi tạo thị trường an toàn để tránh lỗi
         try:
-            # Tùy chỉnh loadMarkets thay vì gọi hàm mặc định
-            exchange.options['fetchMarkets'] = {
-                'fetchTickersFees': False,  # Tắt tính năng lấy phí từ ticker
-            }
-            
-            # Tăng giá trị recvWindow (thời gian nhận) cho các yêu cầu API
-            exchange.options['recvWindow'] = 60000  # 60 giây
-            
-            # Tải thị trường với số lần thử lại và xử lý lỗi cải tiến
-            max_retries = 5  # Tăng số lần thử lại
-            wait_time_base = 3  # Thời gian chờ cơ bản (giây)
-            
-            for i in range(max_retries):
-                try:
-                    # Gọi phương thức fetch_markets trực tiếp thay vì load_markets để có thể kiểm soát tốt hơn
-                    markets_data = exchange.fetch_markets()
-                    # Lưu trữ thông tin thị trường
-                    exchange.markets = {}
-                    exchange.markets_by_id = {}
-                    
-                    # Xử lý dữ liệu thị trường
-                    for market in markets_data:
-                        exchange.markets[market['symbol']] = market
-                        exchange.markets_by_id.setdefault(market['id'], []).append(market)
-                    
-                    exchange.marketsLoaded = True
-                    self.logger.info(f"Đã tải thành công {len(markets_data)} thị trường")
-                    break
-                    
-                except ccxt.RequestTimeout as e:
-                    wait_time = wait_time_base * (i + 1)  # Tăng thời gian chờ theo cấp số cộng
-                    self.logger.warning(f"Timeout khi tải thị trường, thử lại ({i+1}/{max_retries}) sau {wait_time}s")
-                    
-                    if i == max_retries - 1:
-                        self.logger.error(f"Đã vượt quá số lần thử lại ({max_retries}). Không thể tải thị trường.")
-                        # Khởi tạo danh sách thị trường trống để tránh lỗi
-                        exchange.markets = {}
-                        exchange.markets_by_id = {}
-                        exchange.marketsLoaded = True
-                        # Không raise lỗi, tiếp tục với danh sách trống
-                        self.logger.warning("Tiếp tục với danh sách thị trường trống. Dữ liệu thị trường sẽ được tải sau khi cần.")
-                    
-                    time.sleep(wait_time)
-                    
-                except Exception as e:
-                    self.logger.error(f"Lỗi khi tải thị trường: {str(e)}")
-                    if i == max_retries - 1:
-                        # Khởi tạo danh sách thị trường trống để tránh lỗi
-                        exchange.markets = {}
-                        exchange.markets_by_id = {}
-                        exchange.marketsLoaded = True
-                        self.logger.warning("Tiếp tục với danh sách thị trường trống. Dữ liệu thị trường sẽ được tải sau khi cần.")
-                    time.sleep(wait_time_base * (i + 1))
-            
+            # Tải thông tin thị trường với retry
+            self._safe_load_markets(exchange)
         except Exception as e:
-            self.logger.error(f"Lỗi khi khởi tạo thị trường: {str(e)}")
-            # Khởi tạo danh sách thị trường trống để tránh lỗi
+            self.logger.error(f"Lỗi khi load_markets: {str(e)}")
+            # Khởi tạo danh sách thị trường trống
             exchange.markets = {}
             exchange.markets_by_id = {}
             exchange.marketsLoaded = True
-            self.logger.warning("Tiếp tục với danh sách thị trường trống. Dữ liệu thị trường sẽ được tải sau khi cần.")
+            self.logger.warning("Tiếp tục với danh sách thị trường trống. Sẽ tải lại khi cần.")
         
         return exchange
+    
+    def _safe_load_markets(self, exchange: ccxt.Exchange) -> None:
+        """
+        Tải thị trường với cơ chế an toàn và retry.
+        
+        Args:
+            exchange: Đối tượng exchange cần tải thị trường
+        """
+        max_retries = 3
+        retry = 0
+        wait_time_base = 2
+        
+        while retry < max_retries:
+            try:
+                # Tùy chỉnh tải thị trường để tránh các API không cần thiết
+                markets_response = exchange.publicGetExchangeInfo()
+                
+                if not markets_response or 'symbols' not in markets_response:
+                    raise ValueError("Invalid response from exchange info API")
+                
+                markets = []
+                for market in markets_response['symbols']:
+                    # Chỉ xử lý các thị trường đang giao dịch
+                    if market['status'] == 'TRADING':
+                        base_currency = market['baseAsset']
+                        quote_currency = market['quoteAsset']
+                        symbol = f"{base_currency}/{quote_currency}"
+                        
+                        precision = {
+                            'amount': None,
+                            'price': None
+                        }
+                        
+                        # Tìm độ chính xác từ filters
+                        for filter_item in market.get('filters', []):
+                            if filter_item['filterType'] == 'LOT_SIZE':
+                                step_size = filter_item.get('stepSize', '0.00000001')
+                                precision['amount'] = self._calculate_precision(step_size)
+                            
+                            if filter_item['filterType'] == 'PRICE_FILTER':
+                                tick_size = filter_item.get('tickSize', '0.00000001')
+                                precision['price'] = self._calculate_precision(tick_size)
+                        
+                        markets.append({
+                            'id': market['symbol'],
+                            'symbol': symbol,
+                            'base': base_currency,
+                            'quote': quote_currency,
+                            'active': True,
+                            'precision': precision,
+                            'limits': {
+                                'amount': {
+                                    'min': None,
+                                    'max': None
+                                },
+                                'price': {
+                                    'min': None,
+                                    'max': None
+                                }
+                            },
+                            'info': market,
+                        })
+                
+                # Cập nhật thị trường vào exchange
+                exchange.markets = {}
+                exchange.markets_by_id = {}
+                
+                for market in markets:
+                    exchange.markets[market['symbol']] = market
+                    if market['id'] not in exchange.markets_by_id:
+                        exchange.markets_by_id[market['id']] = []
+                    exchange.markets_by_id[market['id']].append(market)
+                
+                exchange.marketsLoaded = True
+                self.logger.info(f"Đã tải thành công {len(markets)} thị trường")
+                break
+                
+            except Exception as e:
+                retry += 1
+                wait_time = wait_time_base * (2 ** retry)
+                self.logger.warning(f"Lỗi khi tải thị trường, thử lại {retry}/{max_retries}: {str(e)}")
+                
+                if retry >= max_retries:
+                    # Thử phương pháp thay thế khi không thể tải thị trường
+                    self.logger.warning("Đang thử phương pháp thay thế để tải thị trường...")
+                    try:
+                        # Thử phương thức load_markets() của ccxt
+                        exchange.load_markets()
+                        self.logger.info(f"Đã tải {len(exchange.markets)} thị trường bằng phương pháp thay thế")
+                        break
+                    except Exception as fallback_error:
+                        self.logger.error(f"Không thể tải thị trường: {str(fallback_error)}")
+                        raise
+                
+                time.sleep(wait_time)
+    
+    def _calculate_precision(self, step_size_str: str) -> int:
+        """
+        Tính toán số chữ số thập phân từ step size.
+        
+        Args:
+            step_size_str: String biểu diễn step size (ví dụ: '0.00100000')
+            
+        Returns:
+            Số chữ số thập phân
+        """
+        try:
+            step_size = float(step_size_str)
+            if step_size == 0:
+                return 0
+                
+            precision = 0
+            step_size_str = str(step_size)
+            
+            if '.' in step_size_str:
+                precision = len(step_size_str.split('.')[1].rstrip('0'))
+            
+            return precision
+        except (ValueError, TypeError):
+            return 8  # Giá trị mặc định
     
     def _init_mapping(self) -> None:
         """
@@ -228,38 +299,22 @@ class BinanceConnector(ExchangeConnector):
         Returns:
             Danh sách các thị trường
         """
-        if force_update or not self._market_cache:
+        # Nếu danh sách thị trường trống hoặc cần cập nhật
+        if force_update or not self.exchange.markets:
             try:
-                # Sử dụng phương thức tải thị trường an toàn
-                symbols = list(self.exchange.markets.keys())
-                markets = list(self.exchange.markets.values())
+                self._safe_load_markets(self.exchange)
+                self._market_cache = list(self.exchange.markets.values())
+                self._last_market_update = datetime.now()
                 
-                if not markets or force_update:
-                    self.logger.info("Đang tải lại thông tin thị trường...")
-                    max_retries = 3
-                    wait_time_base = 2
-                    
-                    for i in range(max_retries):
-                        try:
-                            # Tải thị trường với số lần thử lại
-                            markets_data = self._retry_api_call(self.exchange.fetch_markets)
-                            self._market_cache = markets_data
-                            self._last_market_update = datetime.now()
-                            self.logger.info(f"Đã cập nhật thông tin {len(markets_data)} thị trường")
-                            break
-                        except Exception as e:
-                            if i == max_retries - 1:
-                                raise
-                            wait_time = wait_time_base * (2 ** i)
-                            self.logger.warning(f"Lỗi khi tải thị trường ({i+1}/{max_retries}), thử lại sau {wait_time}s: {str(e)}")
-                            time.sleep(wait_time)
-                else:
-                    self._market_cache = markets
-                    self._last_market_update = datetime.now()
-                    self.logger.info(f"Đã sử dụng thông tin {len(markets)} thị trường từ cache")
-                
+                self.logger.info(f"Đã cập nhật thông tin {len(self._market_cache)} thị trường")
             except Exception as e:
-                self._handle_error(e, "fetch_markets")
+                self.logger.error(f"Lỗi khi tải thị trường: {str(e)}")
+                # Trả về cache hiện tại nếu có lỗi
+                if self._market_cache:
+                    return self._market_cache
+                return []
+        elif not self._market_cache:
+            self._market_cache = list(self.exchange.markets.values())
         
         return self._market_cache
     
@@ -355,7 +410,7 @@ class BinanceConnector(ExchangeConnector):
             )
             
             # Lọc các vị thế có số lượng khác 0
-            active_positions = [p for p in positions if float(p['contracts']) > 0]
+            active_positions = [p for p in positions if float(p.get('contracts', 0)) > 0]
             
             self.logger.info(f"Đã lấy {len(active_positions)} vị thế đang mở")
             return active_positions
