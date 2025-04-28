@@ -60,8 +60,12 @@ class ExchangeConnector(ABC):
         self.testnet = testnet
         self.use_proxy = use_proxy
         self.proxy = get_env('HTTP_PROXY', '') if use_proxy else ''
-        self.timeout = get_env('REQUEST_TIMEOUT', 30000)  # milliseconds
-        self.max_retries = get_env('MAX_RETRIES', 3)
+        
+        # Lấy timeout từ biến môi trường và chuyển đổi thành milliseconds nếu cần
+        timeout_seconds = int(get_env('REQUEST_TIMEOUT', '30'))
+        self.timeout = timeout_seconds * 1000  # Chuyển đổi sang milliseconds cho CCXT
+        
+        self.max_retries = int(get_env('MAX_RETRIES', '3'))
         
         # Lấy API key từ tham số nếu cung cấp, nếu không thì lấy từ cấu hình
         if not api_key or not api_secret:
@@ -668,8 +672,21 @@ class ExchangeConnector(ABC):
             True nếu kết nối thành công, False nếu thất bại
         """
         try:
+            # Sử dụng phương thức load_markets với timeout phù hợp
             self.exchange.load_markets()
             return True
         except Exception as e:
             self.logger.error(f"Kiểm tra kết nối thất bại: {str(e)}")
             return False
+            
+    async def close(self):
+        """
+        Đóng kết nối với sàn giao dịch.
+        """
+        # Không cần implement chi tiết vì CCXT tự đóng kết nối
+        self.logger.info(f"Đóng kết nối với {self.exchange_id}")
+        
+        # Xóa các tài nguyên nếu cần
+        self._market_cache.clear()
+        self._ticker_cache.clear()
+        self._last_ticker_update.clear()

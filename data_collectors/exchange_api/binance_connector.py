@@ -67,7 +67,7 @@ class BinanceConnector(ExchangeConnector):
         params = {
             'apiKey': self.api_key,
             'secret': self.api_secret,
-            'timeout': self.timeout,
+            'timeout': int(get_env('REQUEST_TIMEOUT', '30000')),  # Đảm bảo timeout là ms và lấy từ biến môi trường
             'enableRateLimit': True,
             'options': options,
         }
@@ -102,8 +102,21 @@ class BinanceConnector(ExchangeConnector):
         else:
             exchange = ccxt.binance(params)
         
-        # Tải thông tin thị trường
-        exchange.load_markets()
+        try:
+            # Tải thông tin thị trường với số lần thử lại
+            max_retries = 3
+            for i in range(max_retries):
+                try:
+                    exchange.load_markets()
+                    break
+                except ccxt.RequestTimeout as e:
+                    if i == max_retries - 1:
+                        raise
+                    self.logger.warning(f"Timeout khi load_markets, thử lại ({i+1}/{max_retries})")
+                    time.sleep(2)  # Chờ 2 giây trước khi thử lại
+        except Exception as e:
+            self.logger.error(f"Lỗi khi load_markets: {str(e)}")
+            raise
         
         return exchange
     

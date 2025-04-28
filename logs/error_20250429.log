@@ -1,9 +1,7 @@
-2025-04-28 23:54:25,486 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
-2025-04-28 23:54:25,487 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
-2025-04-28 23:54:25,488 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
-2025-04-28 23:54:25,682 - trading_system - ERROR - [main.py:131] - Lỗi khi khởi tạo kết nối binance: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745859265503&recvWindow=10000&signature=b48d972e7b4973179656821f81655f74f3b1b755f3fceb596d44f32f11681f78
-2025-04-28 23:54:25,684 - trading_system - ERROR - [main.py:198] - Lỗi khi thu thập dữ liệu lịch sử: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745859265503&recvWindow=10000&signature=b48d972e7b4973179656821f81655f74f3b1b755f3fceb596d44f32f11681f78
-2025-04-28 23:54:25,686 - trading_system - ERROR - [main.py:708] - Lỗi không xử lý được: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745859265503&recvWindow=10000&signature=b48d972e7b4973179656821f81655f74f3b1b755f3fceb596d44f32f11681f78
+2025-04-29 00:14:28,520 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:118] - Lỗi khi load_markets: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
+2025-04-29 00:14:28,522 - trading_system - ERROR - [main.py:131] - Lỗi khi khởi tạo kết nối binance: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
+2025-04-29 00:14:28,523 - trading_system - ERROR - [main.py:198] - Lỗi khi thu thập dữ liệu lịch sử: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
+2025-04-29 00:14:28,524 - trading_system - ERROR - [main.py:708] - Lỗi không xử lý được: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
 Traceback (most recent call last):
   File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\connectionpool.py", line 534, in _make_request
     response = conn.getresponse()
@@ -66,9 +64,9 @@ Traceback (most recent call last):
     connector = BinanceConnector(
   File "E:\AI_AGENT\automated-trading-system\data_collectors\exchange_api\binance_connector.py", line 45, in __init__
     super().__init__(exchange_id, api_key, api_secret, testnet, use_proxy)
-  File "E:\AI_AGENT\automated-trading-system\data_collectors\exchange_api\generic_connector.py", line 74, in __init__
+  File "E:\AI_AGENT\automated-trading-system\data_collectors\exchange_api\generic_connector.py", line 78, in __init__
     self.exchange = self._init_ccxt()
-  File "E:\AI_AGENT\automated-trading-system\data_collectors\exchange_api\binance_connector.py", line 106, in _init_ccxt
+  File "E:\AI_AGENT\automated-trading-system\data_collectors\exchange_api\binance_connector.py", line 110, in _init_ccxt
     exchange.load_markets()
   File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\exchange.py", line 1512, in load_markets
     currencies = self.fetch_currencies()
@@ -84,6 +82,4 @@ Traceback (most recent call last):
     return self.fetch(request['url'], request['method'], request['headers'], request['body'])
   File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\exchange.py", line 581, in fetch
     raise RequestTimeout(details) from e
-ccxt.base.errors.RequestTimeout: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745859265503&recvWindow=10000&signature=b48d972e7b4973179656821f81655f74f3b1b755f3fceb596d44f32f11681f78
-2025-04-28 23:54:25,738 - trading_system - INFO - [main.py:565] - Dọn dẹp tài nguyên hệ thống
-2025-04-28 23:54:25,739 - trading_system - INFO - [main.py:578] - Hệ thống đã dừng
+ccxt.base.errors.RequestTimeout: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
