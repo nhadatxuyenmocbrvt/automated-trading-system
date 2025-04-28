@@ -23,7 +23,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from config.logging_config import setup_logger
-from config.system_config import BASE_DIR, MODELS_DIR
+from config.system_config import BASE_DIR, MODEL_DIR
 from data_processors.feature_engineering.utils.validation import validate_features, check_feature_integrity
 from data_processors.feature_engineering.utils.preprocessing import normalize_features, standardize_features, min_max_scale
 
@@ -72,7 +72,7 @@ class FeatureGenerator:
         """
         # Thiết lập thư mục lưu trữ
         if data_dir is None:
-            self.data_dir = MODELS_DIR / 'feature_engineering'
+            self.data_dir = MODEL_DIR / 'feature_engineering'
         else:
             self.data_dir = data_dir
         
