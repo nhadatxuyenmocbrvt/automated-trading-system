@@ -1,2 +1,4 @@
 2025-04-28 10:53:29,216 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1188] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'asset'
 2025-04-28 11:38:11,355 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1188] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'asset'
+2025-04-28 11:44:29,450 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1188] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'asset'
+2025-04-28 11:50:40,267 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1188] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'asset'

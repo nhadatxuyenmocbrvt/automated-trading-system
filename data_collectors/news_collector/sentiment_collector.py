@@ -12,14 +12,20 @@ import logging
 import asyncio
 import aiohttp
 import datetime
+import platform
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Dict, List, Any, Optional, Union, Tuple, TYPE_CHECKING
 from urllib.parse import urlencode
 from dataclasses import dataclass
 import requests
 from requests.exceptions import RequestException
+
+# Import matplotlib có điều kiện để hỗ trợ type hints
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
+    from matplotlib.figure import Figure
 
 # Import các module nội bộ
 from config.env import get_env
@@ -27,6 +33,14 @@ from config.logging_config import get_logger
 
 # Tạo logger cho module
 logger = get_logger("sentiment_collector")
+
+# Kiểm tra nếu đang chạy trên Windows
+IS_WINDOWS = platform.system() == 'Windows'
+
+# Số lần retry cho HTTP requests
+MAX_RETRIES = 3
+# Thời gian chờ giữa các lần retry (giây)
+RETRY_DELAY = 2
 
 @dataclass
 class SentimentData:
@@ -85,46 +99,125 @@ class SentimentSource:
         self.description = description
         self.session = None
     
+    def get_browser_headers(self) -> Dict[str, str]:
+        """
+        Tạo headers giả lập trình duyệt đầy đủ.
+        
+        Returns:
+            Headers HTTP với thông tin trình duyệt đầy đủ
+        """
+        return {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml,application/json;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,vi;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "max-age=0",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-User": "?1",
+            "DNT": "1"
+        }
+    
     async def initialize_session(self) -> None:
         """Khởi tạo phiên HTTP."""
-        if self.session is None or self.session.closed:
+        if not IS_WINDOWS and (self.session is None or self.session.closed):
             timeout = aiohttp.ClientTimeout(total=30)
             self.session = aiohttp.ClientSession(timeout=timeout)
     
     async def close_session(self) -> None:
         """Đóng phiên HTTP."""
-        if self.session and not self.session.closed:
+        if not IS_WINDOWS and self.session and not self.session.closed:
             await self.session.close()
     
-    async def fetch_url(self, url: str, params: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    async def fetch_url(self, url: str, params: Optional[Dict[str, Any]] = None, max_retries: int = MAX_RETRIES) -> Optional[str]:
         """
-        Tải nội dung từ URL sử dụng aiohttp.
+        Tải nội dung từ URL với cơ chế retry.
         
         Args:
             url: URL cần tải nội dung
             params: Tham số truy vấn (tùy chọn)
+            max_retries: Số lần thử lại tối đa nếu request thất bại
         
         Returns:
             Nội dung trang web hoặc None nếu có lỗi
         """
-        await self.initialize_session()
+        headers = self.get_browser_headers()
         
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml,application/json",
-            "Accept-Language": "en-US,en;q=0.9",
-        }
+        # Đếm số lần retry
+        retry_count = 0
         
-        try:
-            async with self.session.get(url, headers=headers, params=params) as response:
-                if response.status == 200:
-                    return await response.text()
+        while retry_count < max_retries:
+            try:
+                # Sử dụng requests đồng bộ trên Windows
+                if IS_WINDOWS:
+                    response = requests.get(url, headers=headers, params=params, timeout=30)
+                    if response.status_code == 200:
+                        return response.text
+                    elif response.status_code in [403, 404, 429, 500, 502, 503, 504]:
+                        # Ghi log lỗi HTTP
+                        logger.warning(f"Không tải được URL {url}, mã trạng thái: {response.status_code}")
+                        
+                        # Nếu là lỗi 404 (không tìm thấy), không cần retry
+                        if response.status_code == 404:
+                            return None
+                            
+                        # Đối với các lỗi khác, thử lại
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            logger.info(f"Đang thử lại ({retry_count}/{max_retries}) sau {RETRY_DELAY}s...")
+                            time.sleep(RETRY_DELAY)
+                            continue
+                        return None
+                    else:
+                        # Các mã trạng thái khác xử lý như lỗi
+                        logger.warning(f"Mã trạng thái không xác định: {response.status_code} khi tải {url}")
+                        return None
                 else:
-                    logger.warning(f"Không tải được URL {url}, mã trạng thái: {response.status}")
-                    return None
-        except Exception as e:
-            logger.error(f"Lỗi khi tải URL {url}: {str(e)}")
-            return None
+                    # Sử dụng aiohttp cho các hệ điều hành khác
+                    await self.initialize_session()
+                    
+                    async with self.session.get(url, headers=headers, params=params) as response:
+                        if response.status == 200:
+                            return await response.text()
+                        elif response.status in [403, 404, 429, 500, 502, 503, 504]:
+                            # Ghi log lỗi HTTP
+                            logger.warning(f"Không tải được URL {url}, mã trạng thái: {response.status}")
+                            
+                            # Nếu là lỗi 404 (không tìm thấy), không cần retry
+                            if response.status == 404:
+                                return None
+                                
+                            # Đối với các lỗi khác, thử lại
+                            retry_count += 1
+                            if retry_count < max_retries:
+                                logger.info(f"Đang thử lại ({retry_count}/{max_retries}) sau {RETRY_DELAY}s...")
+                                await asyncio.sleep(RETRY_DELAY)
+                                continue
+                            return None
+                        else:
+                            # Các mã trạng thái khác xử lý như lỗi
+                            logger.warning(f"Mã trạng thái không xác định: {response.status} khi tải {url}")
+                            return None
+            except Exception as e:
+                logger.error(f"Lỗi khi tải URL {url}: {str(e)}")
+                
+                # Thử lại nếu có lỗi mạng
+                retry_count += 1
+                if retry_count < max_retries:
+                    logger.info(f"Đang thử lại ({retry_count}/{max_retries}) sau {RETRY_DELAY}s...")
+                    if IS_WINDOWS:
+                        time.sleep(RETRY_DELAY)
+                    else:
+                        await asyncio.sleep(RETRY_DELAY)
+                    continue
+                
+                return None
+        
+        # Nếu tất cả các lần retry đều thất bại
+        return None
     
     async def fetch_json(self, url: str, params: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
@@ -137,17 +230,35 @@ class SentimentSource:
         Returns:
             Dữ liệu JSON hoặc None nếu có lỗi
         """
-        content = await self.fetch_url(url, params)
-        if content:
+        if IS_WINDOWS:
             try:
-                return json.loads(content)
-            except json.JSONDecodeError as e:
-                logger.error(f"Lỗi khi phân tích JSON từ {url}: {str(e)}")
-        return None
+                headers = self.get_browser_headers()
+                headers["Accept"] = "application/json"
+                
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    logger.warning(f"Không tải được JSON từ {url}, mã trạng thái: {response.status_code}")
+                    return None
+            except Exception as e:
+                logger.error(f"Lỗi khi tải JSON từ {url}: {str(e)}")
+                return None
+        else:
+            content = await self.fetch_url(url, params)
+            if content:
+                try:
+                    return json.loads(content)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Lỗi khi phân tích JSON từ {url}: {str(e)}")
+            return None
     
     async def get_sentiment(self, **kwargs) -> List[SentimentData]:
         """
         Lấy dữ liệu tâm lý từ nguồn.
+        
+        Args:
+            **kwargs: Các tham số tùy chọn
         
         Returns:
             Danh sách dữ liệu tâm lý
@@ -234,7 +345,7 @@ class FearAndGreedIndex(SentimentSource):
                         label=label,
                         source=self.name,
                         timestamp=timestamp,
-                        asset="BTC",
+                        asset="BTC",  # Mặc định là BTC vì chỉ số này chỉ theo dõi Bitcoin
                         timeframe="1d",
                         metadata={
                             'classification': item.get('value_classification', ''),
@@ -309,19 +420,35 @@ class TwitterSentimentScraper(SentimentSource):
             "user.fields": "name,username,verified,public_metrics"
         }
         
-        try:
-            # Sử dụng requests thay vì aiohttp vì xác thực phức tạp
-            response = requests.get(self.search_url, headers=headers, params=params)
-            
-            if response.status_code != 200:
-                logger.error(f"Lỗi Twitter API: {response.status_code}, {response.text}")
+        # Sử dụng phương thức khác nhau tùy thuộc vào hệ điều hành
+        if IS_WINDOWS:
+            try:
+                response = requests.get(self.search_url, headers=headers, params=params)
+                
+                if response.status_code != 200:
+                    logger.error(f"Lỗi Twitter API: {response.status_code}, {response.text}")
+                    return None
+                
+                return response.json()
+                
+            except Exception as e:
+                logger.error(f"Lỗi khi tìm kiếm tweets: {str(e)}")
                 return None
-            
-            return response.json()
-            
-        except Exception as e:
-            logger.error(f"Lỗi khi tìm kiếm tweets: {str(e)}")
-            return None
+        else:
+            try:
+                # Sử dụng aiohttp cho các hệ điều hành khác
+                await self.initialize_session()
+                
+                async with self.session.get(self.search_url, headers=headers, params=params) as response:
+                    if response.status != 200:
+                        logger.error(f"Lỗi Twitter API: {response.status}, {await response.text()}")
+                        return None
+                    
+                    return await response.json()
+                    
+            except Exception as e:
+                logger.error(f"Lỗi khi tìm kiếm tweets: {str(e)}")
+                return None
     
     def analyze_sentiment(self, text: str) -> Tuple[float, str]:
         """
@@ -563,25 +690,44 @@ class RedditSentimentScraper(SentimentSource):
             "User-Agent": self.user_agent
         }
         
-        await self.initialize_session()
-        
-        try:
-            async with self.session.post(
-                auth_url, 
-                auth=auth,
-                data=data,
-                headers=headers
-            ) as response:
-                if response.status == 200:
-                    json_data = await response.json()
-                    return json_data.get("access_token")
+        # Sử dụng phương pháp khác nhau tùy vào hệ điều hành
+        if IS_WINDOWS:
+            try:
+                response = requests.post(
+                    auth_url,
+                    auth=(self.client_id, self.client_secret),
+                    data=data,
+                    headers=headers
+                )
+                
+                if response.status_code == 200:
+                    return response.json().get("access_token")
                 else:
-                    error_text = await response.text()
-                    logger.error(f"Lỗi khi lấy Reddit token: {response.status}, {error_text}")
+                    logger.error(f"Lỗi khi lấy Reddit token: {response.status_code}, {response.text}")
                     return None
-        except Exception as e:
-            logger.error(f"Lỗi khi lấy Reddit token: {str(e)}")
-            return None
+            except Exception as e:
+                logger.error(f"Lỗi khi lấy Reddit token: {str(e)}")
+                return None
+        else:
+            await self.initialize_session()
+            
+            try:
+                async with self.session.post(
+                    auth_url, 
+                    auth=auth,
+                    data=data,
+                    headers=headers
+                ) as response:
+                    if response.status == 200:
+                        json_data = await response.json()
+                        return json_data.get("access_token")
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Lỗi khi lấy Reddit token: {response.status}, {error_text}")
+                        return None
+            except Exception as e:
+                logger.error(f"Lỗi khi lấy Reddit token: {str(e)}")
+                return None
     
     async def fetch_subreddit_posts(self, subreddit: str, sort: str = "hot", 
                                    limit: int = 100, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -614,17 +760,31 @@ class RedditSentimentScraper(SentimentSource):
             "limit": min(limit, 100)  # Reddit API giới hạn 100 kết quả mỗi request
         }
         
-        try:
-            async with self.session.get(api_url, headers=headers, params=params) as response:
-                if response.status == 200:
-                    return await response.json()
+        # Sử dụng phương pháp khác nhau tùy vào hệ điều hành
+        if IS_WINDOWS:
+            try:
+                response = requests.get(api_url, headers=headers, params=params)
+                
+                if response.status_code == 200:
+                    return response.json()
                 else:
-                    error_text = await response.text()
-                    logger.error(f"Lỗi khi lấy bài viết Reddit từ r/{subreddit}: {response.status}, {error_text}")
+                    logger.error(f"Lỗi khi lấy bài viết Reddit từ r/{subreddit}: {response.status_code}, {response.text}")
                     return None
-        except Exception as e:
-            logger.error(f"Lỗi khi lấy bài viết Reddit từ r/{subreddit}: {str(e)}")
-            return None
+            except Exception as e:
+                logger.error(f"Lỗi khi lấy bài viết Reddit từ r/{subreddit}: {str(e)}")
+                return None
+        else:
+            try:
+                async with self.session.get(api_url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Lỗi khi lấy bài viết Reddit từ r/{subreddit}: {response.status}, {error_text}")
+                        return None
+            except Exception as e:
+                logger.error(f"Lỗi khi lấy bài viết Reddit từ r/{subreddit}: {str(e)}")
+                return None
     
     def analyze_sentiment(self, text: str) -> Tuple[float, str]:
         """
@@ -774,7 +934,10 @@ class RedditSentimentScraper(SentimentSource):
                         logger.error(f"Lỗi khi xử lý bài viết Reddit: {str(e)}")
                 
                 # Chờ một chút để tránh quá nhiều request
-                await asyncio.sleep(1)
+                if IS_WINDOWS:
+                    time.sleep(1)
+                else:
+                    await asyncio.sleep(1)
                 
             except Exception as e:
                 logger.error(f"Lỗi khi lấy dữ liệu từ subreddit r/{subreddit}: {str(e)}")
@@ -907,17 +1070,36 @@ class GlassNodeSentiment(SentimentSource):
         if until:
             params["u"] = until
         
-        try:
-            async with self.session.get(endpoint, params=params) as response:
-                if response.status == 200:
-                    return await response.json()
+        # Phương pháp khác nhau tùy vào hệ điều hành
+        if IS_WINDOWS:
+            try:
+                headers = self.get_browser_headers()
+                headers["Accept"] = "application/json"
+                
+                response = requests.get(endpoint, params=params, headers=headers)
+                
+                if response.status_code == 200:
+                    return response.json()
                 else:
-                    error_text = await response.text()
-                    logger.error(f"Lỗi khi lấy dữ liệu GlassNode {metric}: {response.status}, {error_text}")
+                    logger.error(f"Lỗi khi lấy dữ liệu GlassNode {metric}: {response.status_code}, {response.text}")
                     return None
-        except Exception as e:
-            logger.error(f"Lỗi khi lấy dữ liệu GlassNode {metric}: {str(e)}")
-            return None
+            except Exception as e:
+                logger.error(f"Lỗi khi lấy dữ liệu GlassNode {metric}: {str(e)}")
+                return None
+        else:
+            try:
+                await self.initialize_session()
+                
+                async with self.session.get(endpoint, params=params) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Lỗi khi lấy dữ liệu GlassNode {metric}: {response.status}, {error_text}")
+                        return None
+            except Exception as e:
+                logger.error(f"Lỗi khi lấy dữ liệu GlassNode {metric}: {str(e)}")
+                return None
     
     def _get_sopr_label(self, value: float) -> str:
         """
@@ -1181,7 +1363,14 @@ class SentimentCollector:
         
         source = self.sources[source_name]
         try:
-            data = await source.get_sentiment(**kwargs)
+            # Xử lý đặc biệt cho Fear and Greed Index
+            if source_name == "Fear and Greed Index":
+                # Sao chép kwargs và loại bỏ tham số không cần thiết
+                kwargs_copy = {k: v for k, v in kwargs.items() if k not in ['asset']} 
+                data = await source.get_sentiment(**kwargs_copy)
+            else:
+                data = await source.get_sentiment(**kwargs)
+                
             self.logger.info(f"Đã thu thập {len(data)} bản ghi tâm lý từ {source_name}")
             return data
         except Exception as e:
@@ -1202,19 +1391,42 @@ class SentimentCollector:
             Từ điển với khóa là tên nguồn và giá trị là danh sách dữ liệu tâm lý
         """
         results = {}
-        tasks = []
         
-        for source_name in self.sources:
-            task = self.collect_from_source(source_name, **kwargs)
-            tasks.append((source_name, task))
-        
-        for source_name, task in tasks:
-            try:
-                data = await task
-                results[source_name] = data
-            except Exception as e:
-                self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý từ {source_name}: {str(e)}")
-                results[source_name] = []
+        # Trên Windows, xử lý tuần tự để tránh vấn đề với asyncio
+        if IS_WINDOWS:
+            for source_name in self.sources:
+                try:
+                    # Xử lý đặc biệt cho Fear and Greed Index
+                    if source_name == "Fear and Greed Index":
+                        # Sao chép kwargs và loại bỏ tham số 'asset'
+                        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ['asset']}
+                        data = await self.collect_from_source(source_name, **filtered_kwargs)
+                    else:
+                        data = await self.collect_from_source(source_name, **kwargs)
+                    results[source_name] = data
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý từ {source_name}: {str(e)}")
+                    results[source_name] = []
+        else:
+            # Trên các hệ điều hành khác, sử dụng asyncio để xử lý song song
+            tasks = []
+            for source_name in self.sources:
+                # Xử lý đặc biệt cho Fear and Greed Index
+                if source_name == "Fear and Greed Index":
+                    # Sao chép kwargs và loại bỏ tham số 'asset'
+                    filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ['asset']}
+                    task = self.collect_from_source(source_name, **filtered_kwargs)
+                else:
+                    task = self.collect_from_source(source_name, **kwargs)
+                tasks.append((source_name, task))
+            
+            for source_name, task in tasks:
+                try:
+                    data = await task
+                    results[source_name] = data
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý từ {source_name}: {str(e)}")
+                    results[source_name] = []
         
         return results
     
@@ -1385,6 +1597,146 @@ class SentimentCollector:
         aggregated['label'] = aggregated['value_mean'].apply(get_label)
         
         return aggregated
+    
+    def get_latest_sentiment(self, n: int = 10) -> List[SentimentData]:
+        """
+        Lấy n bản ghi tâm lý mới nhất từ tất cả các file JSON trong thư mục dữ liệu.
+        
+        Args:
+            n: Số lượng bản ghi muốn lấy
+            
+        Returns:
+            Danh sách bản ghi tâm lý mới nhất
+        """
+        all_data = []
+        
+        # Tìm tất cả các file JSON trong thư mục dữ liệu
+        json_files = list(self.data_dir.glob("*.json"))
+        
+        # Sắp xếp theo thời gian tạo file (mới nhất trước)
+        json_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+        
+        # Đọc các file cho đến khi đủ n bản ghi
+        for file_path in json_files:
+            if len(all_data) >= n:
+                break
+                
+            try:
+                data = self.load_from_json(file_path)
+                all_data.extend(data)
+            except Exception as e:
+                self.logger.error(f"Lỗi khi đọc file {file_path}: {str(e)}")
+        
+        # Sắp xếp theo thời gian và lấy n bản ghi mới nhất
+        all_data.sort(key=lambda x: x.timestamp, reverse=True)
+        
+        return all_data[:n]
+    
+    def get_sentiment_by_asset(self, asset: str, data: Optional[List[SentimentData]] = None) -> List[SentimentData]:
+        """
+        Lọc dữ liệu tâm lý theo tài sản.
+        
+        Args:
+            asset: Mã tài sản cần lọc
+            data: Danh sách dữ liệu tâm lý (tùy chọn, nếu None sẽ tải từ file)
+            
+        Returns:
+            Danh sách dữ liệu tâm lý cho tài sản cụ thể
+        """
+        # Nếu không có dữ liệu, tải từ tất cả các file
+        if data is None:
+            data = self.get_latest_sentiment(1000)  # Giới hạn một số lượng hợp lý
+        
+        # Lọc theo tài sản
+        asset = asset.upper()
+        return [item for item in data if item.asset == asset]
+    
+    def plot_sentiment_trends(self, data: List[SentimentData], 
+                             source_filter: Optional[str] = None,
+                             asset_filter: Optional[str] = None,
+                             days: int = 30) -> Optional["Figure"]:
+        """
+        Tạo biểu đồ xu hướng tâm lý theo thời gian.
+        
+        Args:
+            data: Danh sách dữ liệu tâm lý
+            source_filter: Lọc theo nguồn (tùy chọn)
+            asset_filter: Lọc theo tài sản (tùy chọn)
+            days: Số ngày hiển thị
+            
+        Returns:
+            Đối tượng Figure matplotlib hoặc None nếu không có dữ liệu
+        """
+        try:
+            import matplotlib.pyplot as plt
+            from matplotlib.figure import Figure
+            import matplotlib.dates as mdates
+            
+            # Lọc dữ liệu
+            filtered_data = data
+            
+            if source_filter:
+                filtered_data = [item for item in filtered_data if source_filter in item.source]
+                
+            if asset_filter:
+                filtered_data = [item for item in filtered_data if item.asset == asset_filter]
+            
+            # Chuyển thành DataFrame
+            df = self.convert_to_dataframe(filtered_data)
+            
+            if df.empty:
+                return None
+            
+            # Chuyển timestamp sang datetime
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            
+            # Lọc theo số ngày
+            min_date = datetime.datetime.now() - datetime.timedelta(days=days)
+            df = df[df['timestamp'] >= min_date]
+            
+            # Nhóm theo nguồn và ngày
+            df['date'] = df['timestamp'].dt.date
+            grouped = df.groupby(['source', 'date'])['value'].mean().reset_index()
+            
+            # Tạo biểu đồ
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            for source, group in grouped.groupby('source'):
+                ax.plot(group['date'], group['value'], 'o-', label=source)
+            
+            # Định dạng biểu đồ
+            ax.set_title('Xu hướng tâm lý thị trường theo thời gian')
+            ax.set_xlabel('Ngày')
+            ax.set_ylabel('Điểm tâm lý')
+            ax.grid(True, alpha=0.3)
+            
+            # Định dạng trục ngày
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
+            
+            # Thêm chú thích
+            ax.legend(loc='best')
+            
+            # Thêm đường tham chiếu
+            ax.axhline(y=0, color='k', linestyle='-', alpha=0.2)
+            ax.axhline(y=0.6, color='g', linestyle='--', alpha=0.2)
+            ax.axhline(y=-0.6, color='r', linestyle='--', alpha=0.2)
+            
+            # Thêm nhãn tâm lý
+            ylim = ax.get_ylim()
+            ax.text(min_date, 0.8, 'Very Bullish', color='g', fontsize=8)
+            ax.text(min_date, 0, 'Neutral', color='k', fontsize=8)
+            ax.text(min_date, -0.8, 'Very Bearish', color='r', fontsize=8)
+            
+            plt.tight_layout()
+            return fig
+        
+        except ImportError:
+            self.logger.warning("Thư viện matplotlib không được cài đặt. Không thể tạo biểu đồ.")
+            return None
+        except Exception as e:
+            self.logger.error(f"Lỗi khi tạo biểu đồ: {str(e)}")
+            return None
 
 
 # Phương thức chạy chính
@@ -1419,6 +1771,12 @@ async def main():
         print("\nTâm lý tổng hợp theo nguồn:")
         print(agg_df[['source', 'value_mean', 'label', 'timestamp_max']].head())
 
+# Cách khởi chạy khác nhau tùy thuộc vào hệ điều hành
 if __name__ == "__main__":
+    if IS_WINDOWS:
+        # Trên Windows, sử dụng asyncio.run trong ProactorEventLoopPolicy
+        # để tránh các vấn đề với SelectorEventLoop
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    
     # Chạy hàm main bất đồng bộ
     asyncio.run(main())
