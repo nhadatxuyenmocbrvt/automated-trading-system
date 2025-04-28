@@ -90,7 +90,7 @@
   - [x] `data_processors/feature_engineering/feature_selector/dimensionality_reduction.py`
   - [x] `data_processors/feature_engineering/feature_selector/wrapper_methods.py`
   - [x] `data_processors/feature_engineering/feature_selector/feature_selection_pipeline.py`
-- [ ] `data_processors/data_pipeline.py`
+- [x] `data_processors/data_pipeline.py`
 - **Đầu ra**: Pipeline xử lý dữ liệu và tạo đặc trưng hoàn chỉnh
 
 ### Giai đoạn 4: Môi trường huấn luyện (6 tuần)
