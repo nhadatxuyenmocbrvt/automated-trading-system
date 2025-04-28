@@ -84,12 +84,12 @@
   - [x] `data_processors/feature_engineering/sentiment_features/text_processors.py`
   - [x] `data_processors/feature_engineering/sentiment_features/event_detection.py`
 - Phát triển module feature_selector
-  - [ ] `data_processors/feature_engineering/feature_selector/__init__.py`
-  - [ ] `data_processors/feature_engineering/feature_selector/statistical_methods.py`
-  - [ ] `data_processors/feature_engineering/feature_selector/importance_methods.py`
-  - [ ] `data_processors/feature_engineering/feature_selector/dimensionality_reduction.py`
-  - [ ] `data_processors/feature_engineering/feature_selector/wrapper_methods.py`
-  - [ ] `data_processors/feature_engineering/feature_selector/feature_selection_pipeline.py`
+  - [x] `data_processors/feature_engineering/feature_selector/__init__.py`
+  - [x] `data_processors/feature_engineering/feature_selector/statistical_methods.py`
+  - [x] `data_processors/feature_engineering/feature_selector/importance_methods.py`
+  - [x] `data_processors/feature_engineering/feature_selector/dimensionality_reduction.py`
+  - [x] `data_processors/feature_engineering/feature_selector/wrapper_methods.py`
+  - [x] `data_processors/feature_engineering/feature_selector/feature_selection_pipeline.py`
 - [ ] `data_processors/data_pipeline.py`
 - **Đầu ra**: Pipeline xử lý dữ liệu và tạo đặc trưng hoàn chỉnh
 
