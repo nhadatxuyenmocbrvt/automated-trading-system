@@ -1,0 +1,4 @@
+2025-04-28 10:53:29,216 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1140] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-04-28 10:53:29,216 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1188] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'asset'
+2025-04-28 11:38:11,354 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1140] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-04-28 11:38:11,355 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1188] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'asset'

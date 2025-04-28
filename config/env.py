@@ -40,8 +40,8 @@ ENV_VARS = {
     
     # Sàn giao dịch
     "DEFAULT_EXCHANGE": {"type": "str", "default": "binance", "description": "Sàn giao dịch mặc định"},
-    "BINANCE_API_KEY": {"type": "str", "default": "", "description": "API Key Binance"},
-    "BINANCE_API_SECRET": {"type": "str", "default": "", "description": "API Secret Binance"},
+    "BINANCE_API_KEY": {"type": "str", "default": "", "description": "gwIQpSlP7PomIpn6zF6l9YyiS3lvogviaE4ADQDQjCjTiXCoFp5VwGJmhsd8TSFe"},
+    "BINANCE_API_SECRET": {"type": "str", "default": "", "description": "beM69btbIYoHAlF9PXuALn7xiosfqgJDih9j0BJMFIRHOQHmkaLDCEhgbr5PrePU"},
     "BYBIT_API_KEY": {"type": "str", "default": "", "description": "API Key ByBit"},
     "BYBIT_API_SECRET": {"type": "str", "default": "", "description": "API Secret ByBit"},
     
