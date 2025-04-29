@@ -1,18 +1,19 @@
 @echo off
-:: Lấy thời gian hiện tại
-for /f "tokens=1-4 delims=/ " %%a in ('date /t') do set mydate=%%d-%%b-%%a
-for /f "tokens=1-2 delims=: " %%a in ('time /t') do set mytime=%%a:%%b
+set /p commit_message="Enter commit message: "
 
-:: Tạo commit message tự động
-set commit_message=Update %mydate% %mytime%
+:: Đảm bảo file .env được ignore
+if not exist ".gitignore" (
+    echo .env>>.gitignore
+)
 
-:: Hiển thị commit message
-echo Commit Message: %commit_message%
-
-:: Tiến hành git
+:: Add tất cả file đã cho phép (không add file .env nếu đã ignore)
 git add .
-git commit -m "%commit_message%"
-git push
 
-:: Thoát sau khi hoàn thành
-exit
+:: Hiển thị trạng thái để kiểm tra lần nữa
+git status
+
+:: Commit với message
+git commit -m "%commit_message%"
+
+:: Push lên remote
+git push
