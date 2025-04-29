@@ -9,6 +9,7 @@ import json
 import hmac
 import hashlib
 import urllib.parse
+import traceback
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union, Tuple
 from datetime import datetime, timedelta
