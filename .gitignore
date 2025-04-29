@@ -1,0 +1,7 @@
+# Ignore file nhạy cảm
+.env
+master.key
+*.key
+*.pem
+*.crt
+config/credentials.yml.enc
