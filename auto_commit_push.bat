@@ -21,7 +21,7 @@ set "commit_message=Cap nhat %YYYY%-%MM%-%DD% %HH%:%Min%"
 
 REM Them, commit và push
 echo.
-echo Đang thêm các file da thay doi...
+echo Đang them cac file da thay doi...
 git add .
 if %errorlevel% neq 0 (
     echo Loi khi them file!
