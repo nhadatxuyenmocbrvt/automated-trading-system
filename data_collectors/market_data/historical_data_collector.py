@@ -126,13 +126,15 @@ class HistoricalDataCollector:
         
         # Kiểm tra xem cặp giao dịch có hiệu lực không
         try:
-            # Sửa lỗi 1: Truy cập markets từ exchange, không phải từ connector
-            if symbol not in self.exchange_connector.exchange.markets:
-                # Sửa lỗi 2: Không sử dụng await với load_markets vì đây không phải coroutine
+            # Kiểm tra markets có rỗng không và load lại nếu cần
+            markets = self.exchange_connector.exchange.markets
+            if not markets:
                 self.exchange_connector.exchange.load_markets(reload=True)
-                if symbol not in self.exchange_connector.exchange.markets:
-                    self.logger.error(f"Cặp giao dịch {symbol} không hợp lệ cho {self.exchange_id}")
-                    return pd.DataFrame()
+                markets = self.exchange_connector.exchange.markets
+
+            if symbol not in markets:
+                self.logger.error(f"Cặp giao dịch {symbol} không hợp lệ cho {self.exchange_id}")
+                return pd.DataFrame()
         except Exception as e:
             self.logger.error(f"Lỗi khi kiểm tra cặp giao dịch {symbol}: {e}")
             return pd.DataFrame()

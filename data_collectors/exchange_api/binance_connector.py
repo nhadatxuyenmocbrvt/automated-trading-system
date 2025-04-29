@@ -78,12 +78,10 @@ class BinanceConnector(ExchangeConnector):
             'secret': self.api_secret,
             'timeout': timeout,
             'enableRateLimit': True,
-            'options': options,
-            # Giữ kết nối sống
-            'keepAlive': True,
-            # Tăng thời gian cho phép không hoạt động
-            'session': {'timeout': 60000},  # 60 giây
         }
+        exchange = ccxt.binanceusdm(params)  # futures
+        # hoặc
+        exchange = ccxt.binance(params)      # spot
         
         # Thêm proxy nếu có
         if self.use_proxy and self.proxy:
@@ -118,11 +116,6 @@ class BinanceConnector(ExchangeConnector):
         # Tải thông tin thị trường một cách tối giản
         # Sử dụng quá trình tùy chỉnh để tránh API sapiGetCapitalConfigGetall
         try:
-            # Tùy chỉnh loadMarkets thay vì gọi hàm mặc định
-            exchange.options['fetchMarkets'] = {
-                'fetchTickersFees': False,  # Tắt tính năng lấy phí từ ticker
-            }
-            
             # Tăng giá trị recvWindow (thời gian nhận) cho các yêu cầu API
             exchange.options['recvWindow'] = 60000  # 60 giây
             
