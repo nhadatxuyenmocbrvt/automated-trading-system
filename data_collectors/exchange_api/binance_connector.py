@@ -164,9 +164,9 @@ class BinanceConnector(ExchangeConnector):
                     
                 except Exception as e:
                     self.logger.error(f"Lỗi khi tải thị trường: {str(e)}")
-                    if "headers" in str(e).lower():
+                    error_message = str(e).lower()
+                    if "headers" in error_message:
                         self.logger.warning("Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.")
-                        self.logger.warning("Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.")
                     if i == max_retries - 1:    
                         # Khởi tạo danh sách thị trường trống để tránh lỗi                        
                         exchange.markets = {}
