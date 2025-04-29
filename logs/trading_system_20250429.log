@@ -1,67 +1,16 @@
-2025-04-29 20:13:01,160 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
-2025-04-29 20:13:01,161 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
-2025-04-29 20:13:01,161 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
-2025-04-29 20:13:01,180 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:170] - Lỗi headers trong response: 'dict' object has no attribute 'headers'
-2025-04-29 20:13:01,181 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:171] - Đang thử phương pháp thay thế (lần 1/5)...
-2025-04-29 20:13:01,182 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:188] - Đã tải 4 thị trường mặc định để tạm thời sử dụng
-2025-04-29 20:13:01,183 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-04-29 20:13:01,184 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
-2025-04-29 20:13:01,184 - trading_system - INFO - [main.py:121] - Đã tạo kết nối Binance Futures
-2025-04-29 20:13:01,206 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:170] - Lỗi headers trong response: 'dict' object has no attribute 'headers'
-2025-04-29 20:13:01,207 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:171] - Đang thử phương pháp thay thế (lần 1/5)...
-2025-04-29 20:13:01,208 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:188] - Đã tải 4 thị trường mặc định để tạm thời sử dụng
-2025-04-29 20:13:01,208 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-04-29 20:13:01,209 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
-2025-04-29 20:13:01,210 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:337] - Đã sử dụng thông tin 4 thị trường từ cache
-2025-04-29 20:13:01,210 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
-2025-04-29 20:13:01,212 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:88] - Đã khởi tạo HistoricalDataCollector cho binanceusdm
-2025-04-29 20:13:01,212 - trading_system - INFO - [main.py:211] - Bắt đầu thu thập dữ liệu từ 2025-03-30 20:13:01.212249 đến 2025-04-29 20:13:01.212249
-2025-04-29 20:13:01,213 - trading_system - INFO - [main.py:212] - Cặp giao dịch: ['BTC/USDT', 'ETH/USDT']
-2025-04-29 20:13:01,213 - trading_system - INFO - [main.py:213] - Timeframes: ['1h', '4h', '1d']
-2025-04-29 20:13:01,214 - trading_system - INFO - [main.py:218] - Thu thập dữ liệu BTC/USDT - 1h
-2025-04-29 20:13:01,214 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (1h) từ 2025-03-30 20:13:01.212249 đến 2025-04-29 20:13:01.212249
-2025-04-29 20:13:01,214 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:139] - Không tìm thấy BTC/USDT trong markets, thử tải lại thị trường...
-2025-04-29 20:13:01,215 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:162] - Không tìm thấy BTC/USDT, thử lại sau 2s (lần 1/3)
-2025-04-29 20:13:03,229 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:139] - Không tìm thấy BTC/USDT trong markets, thử tải lại thị trường...
-2025-04-29 20:13:03,230 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:162] - Không tìm thấy BTC/USDT, thử lại sau 4s (lần 2/3)
-2025-04-29 20:13:07,242 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:139] - Không tìm thấy BTC/USDT trong markets, thử tải lại thị trường...
-2025-04-29 20:13:07,243 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:166] - Không tìm thấy BTC/USDT trong danh sách thị trường sau 3 lần thử
-2025-04-29 20:13:07,244 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:167] - Vẫn tiếp tục thu thập dữ liệu cho BTC/USDT dù không xác nhận được
-2025-04-29 20:13:07,245 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 1.0s (lần thử 1/5). Lỗi: 'spot'
-2025-04-29 20:13:08,251 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 2.0s (lần thử 2/5). Lỗi: 'spot'
-2025-04-29 20:13:10,259 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 4.0s (lần thử 3/5). Lỗi: 'spot'
-2025-04-29 20:13:14,268 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 8.0s (lần thử 4/5). Lỗi: 'spot'
-2025-04-29 20:13:22,273 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:260] - Đã vượt quá số lần thử lại. Lỗi cuối cùng: 'spot'
-2025-04-29 20:13:22,275 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:22,277 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 1h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:22,279 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:291] - Lỗi khi thu thập OHLCV cho BTC/USDT: [binanceusdm] Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 1h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:22,368 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:335] - Không có dữ liệu mới cho BTC/USDT
-2025-04-29 20:13:22,370 - trading_system - INFO - [main.py:232] - Đã thu thập 0 bản ghi cho BTC/USDT - 1h
-2025-04-29 20:13:22,371 - trading_system - INFO - [main.py:218] - Thu thập dữ liệu BTC/USDT - 4h
-2025-04-29 20:13:22,372 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (4h) từ 2025-03-30 20:13:01.212249 đến 2025-04-29 20:13:01.212249
-2025-04-29 20:13:22,372 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:139] - Không tìm thấy BTC/USDT trong markets, thử tải lại thị trường...
-2025-04-29 20:13:22,373 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:162] - Không tìm thấy BTC/USDT, thử lại sau 2s (lần 1/3)
-2025-04-29 20:13:24,386 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:139] - Không tìm thấy BTC/USDT trong markets, thử tải lại thị trường...
-2025-04-29 20:13:24,387 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:162] - Không tìm thấy BTC/USDT, thử lại sau 4s (lần 2/3)
-2025-04-29 20:13:28,393 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:139] - Không tìm thấy BTC/USDT trong markets, thử tải lại thị trường...
-2025-04-29 20:13:28,394 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:166] - Không tìm thấy BTC/USDT trong danh sách thị trường sau 3 lần thử
-2025-04-29 20:13:28,396 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:167] - Vẫn tiếp tục thu thập dữ liệu cho BTC/USDT dù không xác nhận được
-2025-04-29 20:13:28,397 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 1.0s (lần thử 1/5). Lỗi: 'spot'
-2025-04-29 20:13:29,402 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 2.0s (lần thử 2/5). Lỗi: 'spot'
-2025-04-29 20:13:31,414 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 4.0s (lần thử 3/5). Lỗi: 'spot'
-2025-04-29 20:13:35,420 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 8.0s (lần thử 4/5). Lỗi: 'spot'
-2025-04-29 20:13:43,430 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:260] - Đã vượt quá số lần thử lại. Lỗi cuối cùng: 'spot'
-2025-04-29 20:13:43,432 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:43,434 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 4h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:43,436 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:291] - Lỗi khi thu thập OHLCV cho BTC/USDT: [binanceusdm] Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 4h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:43,525 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:335] - Không có dữ liệu mới cho BTC/USDT
-2025-04-29 20:13:43,527 - trading_system - INFO - [main.py:232] - Đã thu thập 0 bản ghi cho BTC/USDT - 4h
-2025-04-29 20:13:43,528 - trading_system - INFO - [main.py:218] - Thu thập dữ liệu BTC/USDT - 1d
-2025-04-29 20:13:43,529 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (1d) từ 2025-03-30 20:13:01.212249 đến 2025-04-29 20:13:01.212249
-2025-04-29 20:13:43,530 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:139] - Không tìm thấy BTC/USDT trong markets, thử tải lại thị trường...
-2025-04-29 20:13:43,531 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:162] - Không tìm thấy BTC/USDT, thử lại sau 2s (lần 1/3)
-2025-04-29 20:13:45,541 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:139] - Không tìm thấy BTC/USDT trong markets, thử tải lại thị trường...
-2025-04-29 20:13:45,542 - trading_system.historical_data_collector_binanceusdm - WARNING - [historical_data_collector.py:162] - Không tìm thấy BTC/USDT, thử lại sau 4s (lần 2/3)
-2025-04-29 20:13:46,706 - trading_system - INFO - [main.py:621] - Dọn dẹp tài nguyên hệ thống
-2025-04-29 20:13:46,707 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
-2025-04-29 20:13:46,709 - trading_system - INFO - [main.py:634] - Hệ thống đã dừng
+2025-04-29 21:02:20,820 - trading_system - INFO - [main.py:44] - Khởi tạo Hệ thống Giao dịch Tự động
+2025-04-29 21:02:20,820 - trading_system - INFO - [main.py:51] - Đã tải cấu hình hệ thống - Môi trường: development
+2025-04-29 21:02:20,821 - trading_system - INFO - [main.py:63] - Hệ thống đã sẵn sàng
+2025-04-29 21:02:20,821 - trading_system - ERROR - [main.py:115] - Lỗi khi khởi tạo kết nối binance: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:02:20,822 - trading_system - ERROR - [main.py:182] - Lỗi khi thu thập dữ liệu lịch sử: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:02:20,823 - trading_system - ERROR - [main.py:299] - Lỗi không xử lý được: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 281, in main
+    await system.collect_historical_data(
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 133, in collect_historical_data
+    connector = await self.init_exchange_connector(
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 93, in init_exchange_connector
+    connector = BinanceConnector(
+TypeError: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:02:20,825 - trading_system - INFO - [main.py:217] - Dọn dẹp tài nguyên hệ thống
+2025-04-29 21:02:20,826 - trading_system - INFO - [main.py:230] - Hệ thống đã dừng

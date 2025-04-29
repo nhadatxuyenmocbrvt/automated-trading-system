@@ -1,8 +1,11 @@
-2025-04-29 20:13:22,273 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:260] - Đã vượt quá số lần thử lại. Lỗi cuối cùng: 'spot'
-2025-04-29 20:13:22,275 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:22,277 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 1h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:22,279 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:291] - Lỗi khi thu thập OHLCV cho BTC/USDT: [binanceusdm] Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 1h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:43,430 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:260] - Đã vượt quá số lần thử lại. Lỗi cuối cùng: 'spot'
-2025-04-29 20:13:43,432 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:43,434 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 4h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
-2025-04-29 20:13:43,436 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:291] - Lỗi khi thu thập OHLCV cho BTC/USDT: [binanceusdm] Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 4h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
+2025-04-29 21:02:20,821 - trading_system - ERROR - [main.py:115] - Lỗi khi khởi tạo kết nối binance: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:02:20,822 - trading_system - ERROR - [main.py:182] - Lỗi khi thu thập dữ liệu lịch sử: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:02:20,823 - trading_system - ERROR - [main.py:299] - Lỗi không xử lý được: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 281, in main
+    await system.collect_historical_data(
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 133, in collect_historical_data
+    connector = await self.init_exchange_connector(
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 93, in init_exchange_connector
+    connector = BinanceConnector(
+TypeError: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping

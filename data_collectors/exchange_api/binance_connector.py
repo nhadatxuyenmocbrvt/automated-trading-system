@@ -50,68 +50,72 @@ class BinanceConnector(ExchangeConnector):
         
         self.logger.info(f"Đã khởi tạo kết nối Binance {'Futures' if is_futures else 'Spot'}")
     
-    def _init_ccxt(self) -> ccxt.Exchange:
-        """
-        Khởi tạo đối tượng ccxt Exchange cho Binance.
+def _init_ccxt(self) -> ccxt.Exchange:
+    """
+    Khởi tạo đối tượng ccxt Exchange cho Binance.
+    
+    Returns:
+        Đối tượng ccxt.binance đã được cấu hình
+    """
+    options = {}
+    
+    # Cấu hình cho Futures
+    if self.is_futures:
+        options['defaultType'] = 'future'
+        options['future'] = True    # Thêm dòng này
+        options['spot'] = False     # Thêm dòng này
+        options['linear'] = True    # Thêm dòng này - cho USDⓈ-M Futures
         
-        Returns:
-            Đối tượng ccxt.binance đã được cấu hình
-        """
-        options = {}
-        
-        # Cấu hình cho Futures
-        if self.is_futures:
-            options['defaultType'] = 'future'
-            
-        # Thêm các tùy chọn giúp giảm số lượng yêu cầu đến API
-        options['fetchCurrencies'] = False  # Tắt tính năng lấy danh sách tiền tệ
-        
-        # Đảm bảo timeout là đủ lớn
-        timeout = int(get_env('REQUEST_TIMEOUT', '30')) * 1000  # Chuyển từ giây sang millisecond
-        
-        # Tạo đối tượng Binance với các tùy chọn
-        params = {
-            'apiKey': self.api_key,
-            'secret': self.api_secret,
-            'timeout': timeout,
-            'enableRateLimit': True,
-            'options': options,
-            # Giữ kết nối sống
-            'keepAlive': True,
-            # Tăng thời gian cho phép không hoạt động
-            'session': {'timeout': 60000},  # 60 giây
+    # Thêm các tùy chọn giúp giảm số lượng yêu cầu đến API
+    options['fetchCurrencies'] = False  # Tắt tính năng lấy danh sách tiền tệ
+    
+    # Đảm bảo timeout là đủ lớn
+    timeout = int(get_env('REQUEST_TIMEOUT', '30')) * 1000  # Chuyển từ giây sang millisecond
+    
+    # Tạo đối tượng Binance với các tùy chọn
+    params = {
+        'apiKey': self.api_key,
+        'secret': self.api_secret,
+        'timeout': timeout,
+        'enableRateLimit': True,
+        'options': options,
+        # Giữ kết nối sống
+        'keepAlive': True,
+        # Tăng thời gian cho phép không hoạt động
+        'session': {'timeout': 60000},  # 60 giây
+    }
+    
+    # Thêm proxy nếu có
+    if self.use_proxy and self.proxy:
+        params['proxies'] = {
+            'http': self.proxy,
+            'https': self.proxy
         }
-        
-        # Thêm proxy nếu có
-        if self.use_proxy and self.proxy:
-            params['proxies'] = {
-                'http': self.proxy,
-                'https': self.proxy
-            }
-        
-        # Sử dụng testnet nếu yêu cầu
-        if self.testnet:
-            if self.is_futures:
-                params['urls'] = {
-                    'api': {
-                        'public': 'https://testnet.binancefuture.com/fapi/v1',
-                        'private': 'https://testnet.binancefuture.com/fapi/v1',
-                    }
-                }
-            else:
-                params['urls'] = {
-                    'api': {
-                        'public': 'https://testnet.binance.vision/api/v3',
-                        'private': 'https://testnet.binance.vision/api/v3',
-                    }
-                }
-        
-        # Khởi tạo đối tượng Binance phù hợp
+    
+    # Sử dụng testnet nếu yêu cầu
+    if self.testnet:
         if self.is_futures:
-            exchange = ccxt.binanceusdm(params)
+            params['urls'] = {
+                'api': {
+                    'public': 'https://testnet.binancefuture.com/fapi/v1',
+                    'private': 'https://testnet.binancefuture.com/fapi/v1',
+                }
+            }
         else:
-            exchange = ccxt.binance(params)
-        
+            params['urls'] = {
+                'api': {
+                    'public': 'https://testnet.binance.vision/api/v3',
+                    'private': 'https://testnet.binance.vision/api/v3',
+                }
+            }
+    
+    # Khởi tạo đối tượng Binance phù hợp
+    if self.is_futures:
+        exchange = ccxt.binanceusdm(params)
+    else:
+        exchange = ccxt.binance(params)
+    
+    # Code tiếp theo để tải thông tin thị trường một cách tối giản...        
         # Tải thông tin thị trường một cách tối giản
         try:
             # Tùy chỉnh loadMarkets thay vì gọi hàm mặc định
