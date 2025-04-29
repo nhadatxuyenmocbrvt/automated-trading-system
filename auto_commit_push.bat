@@ -1,25 +1,18 @@
 @echo off
-:: Lấy ngày giờ chuẩn định dạng YYYY-MM-DD_HH-MM-SS
-for /f %%i in ('wmic os get localdatetime ^| find "."') do set dt=%%i
-
-:: Tách thành ngày và giờ
-set year=%dt:~0,4%
-set month=%dt:~4,2%
-set day=%dt:~6,2%
-set hour=%dt:~8,2%
-set minute=%dt:~10,2%
-set second=%dt:~12,2%
+:: Lấy thời gian hiện tại
+for /f "tokens=1-4 delims=/ " %%a in ('date /t') do set mydate=%%d-%%b-%%a
+for /f "tokens=1-2 delims=: " %%a in ('time /t') do set mytime=%%a:%%b
 
 :: Tạo commit message tự động
-set commit_message=Update %year%-%month%-%day% %hour%:%minute%:%second%
+set commit_message=Update %mydate% %mytime%
 
-:: In commit message ra màn hình
+:: Hiển thị commit message
 echo Commit Message: %commit_message%
 
-:: Chạy git
+:: Tiến hành git
 git add .
 git commit -m "%commit_message%"
 git push
 
-:: Thoát CMD
+:: Thoát sau khi hoàn thành
 exit
