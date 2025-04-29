@@ -29,10 +29,10 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo Commit với message: "%commit_message%"
+echo Commit voi message: "%commit_message%"
 git commit -m "%commit_message%"
 if %errorlevel% neq 0 (
-    echo Lỗi khi commit!
+    echo Loi khi commit!
     goto end
 )
 
@@ -45,7 +45,7 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo ===== Hoàn thành commit và push thành công! =====
+echo ===== Hoan Thanh commit va push Thanh Cong! =====
 
 :end
 echo.
