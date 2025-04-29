@@ -1,9 +1,0 @@
-2025-04-29 11:11:05,302 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:08,317 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:14,321 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:23,324 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:35,327 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:35,329 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:172] - Tiếp tục với danh sách thị trường trống. Dữ liệu thị trường sẽ được tải sau khi cần.
-2025-04-29 11:11:50,341 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-04-29 11:11:50,342 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
-2025-04-29 11:11:50,350 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
