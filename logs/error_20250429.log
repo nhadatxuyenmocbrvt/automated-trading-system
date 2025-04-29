@@ -1,11 +1,16 @@
-2025-04-29 21:02:20,821 - trading_system - ERROR - [main.py:115] - Lỗi khi khởi tạo kết nối binance: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
-2025-04-29 21:02:20,822 - trading_system - ERROR - [main.py:182] - Lỗi khi thu thập dữ liệu lịch sử: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
-2025-04-29 21:02:20,823 - trading_system - ERROR - [main.py:299] - Lỗi không xử lý được: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:34:27,049 - trading_system - ERROR - [main.py:137] - Lỗi khi khởi tạo kết nối binance: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:34:29,064 - trading_system - ERROR - [main.py:137] - Lỗi khi khởi tạo kết nối binance: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:34:33,080 - trading_system - ERROR - [main.py:137] - Lỗi khi khởi tạo kết nối binance: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:34:41,095 - trading_system - ERROR - [main.py:137] - Lỗi khi khởi tạo kết nối binance: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:34:57,101 - trading_system - ERROR - [main.py:137] - Lỗi khi khởi tạo kết nối binance: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:34:57,103 - trading_system - ERROR - [main.py:185] - Đã vượt quá số lần thử lại (5) khi kết nối binance
+2025-04-29 21:34:57,104 - trading_system - ERROR - [main.py:250] - Lỗi khi thu thập dữ liệu lịch sử: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
+2025-04-29 21:34:57,106 - trading_system - ERROR - [main.py:763] - Lỗi không xử lý được: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
 Traceback (most recent call last):
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 281, in main
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 732, in main
     await system.collect_historical_data(
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 133, in collect_historical_data
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 174, in collect_historical_data
     connector = await self.init_exchange_connector(
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 93, in init_exchange_connector
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 115, in init_exchange_connector
     connector = BinanceConnector(
 TypeError: Can't instantiate abstract class BinanceConnector with abstract methods _init_ccxt, _init_mapping
