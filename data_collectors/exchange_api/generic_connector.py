@@ -9,7 +9,6 @@ import json
 import hmac
 import hashlib
 import urllib.parse
-import traceback
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union, Tuple
 from datetime import datetime, timedelta
@@ -253,10 +252,9 @@ class ExchangeConnector(ABC):
                 
                 # Log chi tiết lỗi
                 error_msg = str(e)
-                if hasattr(e, '__traceback__'):
-                    error_details = traceback.format_exception(type(e), e, e.__traceback__)
-                    if len(error_details) > 0:
-                        error_msg = f"{error_msg}\n{''.join(error_details[-3:])}"  # Chỉ lấy 3 dòng cuối của traceback
+                
+                # Không sử dụng traceback.format_exception để tránh lỗi
+                # Thay vào đó, chỉ lấy thông tin cơ bản
                 
                 if retry_count >= self.max_retries:
                     self.logger.error(f"Đã vượt quá số lần thử lại. Lỗi cuối cùng: {error_msg}")
@@ -268,7 +266,7 @@ class ExchangeConnector(ABC):
                 
                 self.logger.warning(
                     f"Lỗi khi gọi {method_name}, thử lại sau {wait_time:.1f}s "
-                    f"(lần thử {retry_count}/{self.max_retries}). Lỗi: {error_msg[:200]}..."
+                    f"(lần thử {retry_count}/{self.max_retries}). Lỗi: {error_msg[:200]}"
                 )
                 time.sleep(wait_time)
     

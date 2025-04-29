@@ -12,7 +12,6 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 from datetime import datetime
 import ccxt
 import logging
-import traceback
 
 from data_collectors.exchange_api.generic_connector import ExchangeConnector, APIError
 from config.constants import OrderType, TimeInForce, ErrorCode
