@@ -113,7 +113,6 @@ class BinanceConnector(ExchangeConnector):
             exchange = ccxt.binance(params)
         
         # Tải thông tin thị trường một cách tối giản
-        # Sử dụng quá trình tùy chỉnh để tránh API sapiGetCapitalConfigGetall
         try:
             # Tùy chỉnh loadMarkets thay vì gọi hàm mặc định
             exchange.options['fetchMarkets'] = {
@@ -123,60 +122,150 @@ class BinanceConnector(ExchangeConnector):
             # Tăng giá trị recvWindow (thời gian nhận) cho các yêu cầu API
             exchange.options['recvWindow'] = 60000  # 60 giây
             
-            # Tải thị trường với số lần thử lại và xử lý lỗi cải tiến
-            max_retries = 5  # Tăng số lần thử lại
-            wait_time_base = 3  # Thời gian chờ cơ bản (giây)
+            # Thiết lập các biến cơ bản
+            max_retries = 5
+            wait_time_base = 3
+            
+            # Tạo một biến để theo dõi trạng thái tải
+            markets_loaded = False
             
             for i in range(max_retries):
                 try:
-                    # Gọi phương thức fetch_markets trực tiếp thay vì load_markets để có thể kiểm soát tốt hơn
-                    markets_data = exchange.fetch_markets()
-                    # Lưu trữ thông tin thị trường
-                    exchange.markets = {}
-                    exchange.markets_by_id = {}
-                    
-                    # Xử lý dữ liệu thị trường
-                    for market in markets_data:
-                        exchange.markets[market['symbol']] = market
-                        # Sử dụng setdefault để tránh KeyError
-                        if market['id'] not in exchange.markets_by_id:
-                            exchange.markets_by_id[market['id']] = []
-                        exchange.markets_by_id[market['id']].append(market)
-                    
-                    exchange.marketsLoaded = True
-                    self.logger.info(f"Đã tải thành công {len(markets_data)} thị trường")
-                    break
-                    
+                    # Sử dụng try-except chi tiết hơn để xác định lỗi
+                    try:
+                        # Thử gọi API theo cách khác nếu gặp lỗi headers
+                        if i > 0:
+                            # Thử phương pháp thay thế sau lần thử đầu tiên thất bại
+                            self.logger.info(f"Thử phương pháp thay thế (lần {i+1}/{max_retries})...")
+                            
+                            # Phương pháp 1: Sử dụng load_markets trực tiếp
+                            exchange.load_markets()
+                            markets_data = list(exchange.markets.values())
+                        else:
+                            # Phương pháp ban đầu: Sử dụng fetch_markets
+                            markets_data = exchange.fetch_markets()
+                            
+                        # Xử lý dữ liệu thị trường
+                        if markets_data:
+                            exchange.markets = {}
+                            exchange.markets_by_id = {}
+                            
+                            for market in markets_data:
+                                exchange.markets[market['symbol']] = market
+                                # Sử dụng setdefault để tránh KeyError
+                                if market['id'] not in exchange.markets_by_id:
+                                    exchange.markets_by_id[market['id']] = []
+                                exchange.markets_by_id[market['id']].append(market)
+                            
+                            exchange.marketsLoaded = True
+                            markets_loaded = True
+                            self.logger.info(f"Đã tải thành công {len(markets_data)} thị trường")
+                            break
+                        else:
+                            self.logger.warning(f"fetch_markets trả về danh sách trống (lần {i+1}/{max_retries})")
+                            
+                    except AttributeError as attr_err:
+                        # Xử lý lỗi 'dict' object has no attribute 'headers'
+                        if "headers" in str(attr_err):
+                            self.logger.warning(f"Lỗi headers trong response: {str(attr_err)}")
+                            self.logger.warning(f"Đang thử phương pháp thay thế (lần {i+1}/{max_retries})...")
+                            # Thay đổi chiến lược tải thị trường
+                            try:
+                                # Phương pháp thay thế: Sử dụng các API riêng lẻ
+                                if self.is_futures:
+                                    # Với futures, tạo một số thị trường mặc định
+                                    default_markets = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT']
+                                    exchange.markets = {symbol: {'symbol': symbol, 'id': symbol.replace('/', '')} 
+                                                        for symbol in default_markets}
+                                    exchange.markets_by_id = {}
+                                    for market in exchange.markets.values():
+                                        if market['id'] not in exchange.markets_by_id:
+                                            exchange.markets_by_id[market['id']] = []
+                                        exchange.markets_by_id[market['id']].append(market)
+                                    
+                                    exchange.marketsLoaded = True
+                                    markets_loaded = True
+                                    self.logger.info(f"Đã tải {len(default_markets)} thị trường mặc định để tạm thời sử dụng")
+                                    break
+                                else:
+                                    # Với spot, thử sử dụng publicGetExchangeInfo
+                                    exchange_info = exchange.publicGetExchangeInfo()
+                                    if 'symbols' in exchange_info:
+                                        markets_data = []
+                                        for symbol_info in exchange_info['symbols']:
+                                            if symbol_info.get('status') == 'TRADING':
+                                                base = symbol_info.get('baseAsset')
+                                                quote = symbol_info.get('quoteAsset')
+                                                markets_data.append({
+                                                    'id': symbol_info.get('symbol'),
+                                                    'symbol': f"{base}/{quote}",
+                                                    'base': base,
+                                                    'quote': quote,
+                                                    'type': 'spot',
+                                                    'spot': True,
+                                                })
+                                        
+                                        exchange.markets = {m['symbol']: m for m in markets_data}
+                                        exchange.markets_by_id = {}
+                                        for market in markets_data:
+                                            if market['id'] not in exchange.markets_by_id:
+                                                exchange.markets_by_id[market['id']] = []
+                                            exchange.markets_by_id[market['id']].append(market)
+                                        
+                                        exchange.marketsLoaded = True
+                                        markets_loaded = True
+                                        self.logger.info(f"Đã tải thành công {len(markets_data)} thị trường bằng phương pháp thay thế")
+                                        break
+                            except Exception as alt_err:
+                                self.logger.warning(f"Phương pháp thay thế cũng thất bại: {str(alt_err)}")
+                            
+                            # Nếu phương pháp thay thế cũng thất bại, tiếp tục vòng lặp
+                        else:
+                            # Lỗi AttributeError khác
+                            raise
+                        
                 except ccxt.RequestTimeout as e:
                     wait_time = wait_time_base * (i + 1)  # Tăng thời gian chờ theo cấp số cộng
                     self.logger.warning(f"Timeout khi tải thị trường, thử lại ({i+1}/{max_retries}) sau {wait_time}s")
+                    time.sleep(wait_time)
                     
-                    if i == max_retries - 1:
-                        self.logger.error(f"Đã vượt quá số lần thử lại ({max_retries}). Không thể tải thị trường.")
-                        # Khởi tạo danh sách thị trường trống để tránh lỗi
-                        exchange.markets = {}
-                        exchange.markets_by_id = {}
-                        exchange.marketsLoaded = True
-                        # Không raise lỗi, tiếp tục với danh sách trống
-                        self.logger.warning("Tiếp tục với danh sách thị trường trống. Dữ liệu thị trường sẽ được tải sau khi cần.")
-                    
+                except ccxt.NetworkError as e:
+                    wait_time = wait_time_base * (i + 1)
+                    self.logger.warning(f"Lỗi mạng khi tải thị trường, thử lại ({i+1}/{max_retries}) sau {wait_time}s: {str(e)}")
                     time.sleep(wait_time)
                     
                 except Exception as e:
-                    self.logger.error(f"Lỗi khi tải thị trường: {str(e)}")
-                    error_message = str(e).lower()
-                    if "headers" in error_message:
-                        self.logger.warning("Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.")
-                    if i == max_retries - 1:    
-                        # Khởi tạo danh sách thị trường trống để tránh lỗi                        
-                        exchange.markets = {}
-                        exchange.markets_by_id = {}
-                        exchange.marketsLoaded = True
-                        self.logger.warning("Tiếp tục với danh sách thị trường trống. Dữ liệu thị trường sẽ được tải sau khi cần.")
-                    time.sleep(wait_time_base * (i + 1))
+                    # Kiểm tra an toàn trước khi truy cập thuộc tính
+                    error_msg = str(e)
+                    self.logger.error(f"Lỗi khi tải thị trường: {error_msg}")
+                    
+                    # Xử lý an toàn, không truy cập thuộc tính .headers nữa
+                    if isinstance(e, dict):
+                        self.logger.warning("Exception là một dict, không phải HTTPResponse")
+                    elif hasattr(e, 'headers'):
+                        self.logger.warning(f"HTTP Headers: {e.headers}")
+                    
+                    wait_time = wait_time_base * (i + 1)
+                    time.sleep(wait_time)
             
+            # Kiểm tra nếu không tải được thị trường sau tất cả các lần thử
+            if not markets_loaded:
+                self.logger.warning(f"Không thể tải thị trường sau {max_retries} lần thử. Khởi tạo thị trường trống.")
+                exchange.markets = {}
+                exchange.markets_by_id = {}
+                exchange.marketsLoaded = True
+                
         except Exception as e:
-            self.logger.error(f"Lỗi khi khởi tạo thị trường: {str(e)}")
+            # Kiểm tra an toàn trước khi truy cập thuộc tính
+            error_msg = str(e)
+            self.logger.error(f"Lỗi khi khởi tạo thị trường: {error_msg}")
+            
+            # Xử lý an toàn, không truy cập thuộc tính .headers nữa
+            if isinstance(e, dict):
+                self.logger.warning("Exception là một dict, không phải HTTPResponse")
+            elif hasattr(e, 'headers'):
+                self.logger.warning(f"HTTP Headers: {e.headers}")
+                
             # Khởi tạo danh sách thị trường trống để tránh lỗi
             exchange.markets = {}
             exchange.markets_by_id = {}
@@ -262,13 +351,26 @@ class BinanceConnector(ExchangeConnector):
                         break
                     except Exception as e:
                         if i == max_retries - 1:
+                            # Xử lý an toàn lỗi
+                            error_msg = str(e)
+                            self.logger.error(f"Lỗi khi tải thị trường: {error_msg}")
+                            
+                            # Không truy cập thuộc tính headers nữa
+                            if isinstance(e, dict):
+                                self.logger.warning("Exception là một dict, không phải HTTPResponse")
+                            elif hasattr(e, 'headers'):
+                                self.logger.warning(f"HTTP Headers: {e.headers}")
+                                
                             raise
                         wait_time = wait_time_base * (2 ** i)
                         self.logger.warning(f"Lỗi khi tải thị trường ({i+1}/{max_retries}), thử lại sau {wait_time}s: {str(e)}")
                         time.sleep(wait_time)
                 
             except Exception as e:
-                self.logger.error(f"Lỗi khi tải thị trường: {str(e)}")
+                # Kiểm tra an toàn, không truy cập thuộc tính .headers
+                error_msg = str(e)
+                self.logger.error(f"Lỗi khi tải thị trường: {error_msg}")
+                
                 # Trả về list trống thay vì raise lỗi để tránh làm crash chương trình
                 if not self._market_cache:
                     self._market_cache = []
@@ -601,6 +703,34 @@ class BinanceConnector(ExchangeConnector):
             self.logger.info(f"Đã lấy {len(klines)} klines {interval} cho {symbol}")
             return klines
         except Exception as e:
+            # Xử lý lỗi headers an toàn
+            if "headers" in str(e).lower():
+                self.logger.warning(f"Lỗi headers khi fetch_klines: {str(e)}")
+                # Thử các phương pháp thay thế tùy thuộc vào sàn giao dịch
+                try:
+                    # Thử sử dụng publicGetKlines trực tiếp
+                    if hasattr(self.exchange, 'publicGetKlines'):
+                        klines_params = {
+                            'symbol': symbol.replace('/', ''),
+                            'interval': interval
+                        }
+                        if start_time is not None:
+                            klines_params['startTime'] = start_time
+                        if end_time is not None:
+                            klines_params['endTime'] = end_time
+                        klines_params['limit'] = params['limit']
+                        
+                        response = self.exchange.publicGetKlines(klines_params)
+                        if isinstance(response, list):
+                            return response
+                    
+                    # Nếu không có phương pháp thay thế, trả về danh sách trống
+                    self.logger.warning("Không có phương pháp thay thế cho fetch_klines")
+                    return []
+                except Exception as alt_e:
+                    self.logger.error(f"Phương pháp thay thế cũng thất bại: {str(alt_e)}")
+                    # Tiếp tục với _handle_error ban đầu
+            
             self._handle_error(e, f"fetch_klines({symbol}, {interval})")
     
     def fetch_historical_klines(self, symbol: str, interval: str, 
@@ -628,26 +758,62 @@ class BinanceConnector(ExchangeConnector):
         # Danh sách kết quả
         all_klines = []
         current_start = start_time
+        max_retries = 3
         
         self.logger.info(f"Bắt đầu lấy dữ liệu lịch sử cho {symbol} từ {datetime.fromtimestamp(start_time/1000)}")
         
         while current_start < end_time:
-            # Lấy dữ liệu
-            klines = self.fetch_klines(
-                symbol, interval, current_start, end_time, limit
-            )
+            retry_count = 0
+            success = False
             
-            if not klines:
+            while not success and retry_count < max_retries:
+                try:
+                    # Lấy dữ liệu
+                    klines = self.fetch_klines(
+                        symbol, interval, current_start, end_time, limit
+                    )
+                    
+                    if not klines or len(klines) == 0:
+                        self.logger.debug(f"Không có dữ liệu mới từ {datetime.fromtimestamp(current_start/1000)}")
+                        break
+                    
+                    all_klines.extend(klines)
+                    self.logger.debug(f"Đã lấy {len(klines)} nến từ {datetime.fromtimestamp(current_start/1000)}")
+                    
+                    # Cập nhật timestamp cho lần gọi tiếp theo
+                    # Thời gian của candle cuối cùng + 1ms
+                    current_start = klines[-1][0] + 1
+                    
+                    # Thêm delay để tránh rate limit
+                    time.sleep(0.2)
+                    
+                    success = True
+                    
+                except Exception as e:
+                    retry_count += 1
+                    wait_time = 2 ** retry_count
+                    
+                    # Kiểm tra lỗi headers
+                    if "headers" in str(e).lower():
+                        self.logger.warning(f"Lỗi headers khi fetch_historical_klines (lần {retry_count}/{max_retries}): {str(e)}")
+                        # Cần xử lý đặc biệt
+                        wait_time = wait_time * 1.5
+                    else:
+                        self.logger.warning(f"Lỗi khi fetch_historical_klines (lần {retry_count}/{max_retries}): {str(e)}")
+                    
+                    if retry_count >= max_retries:
+                        self.logger.error(f"Đã vượt quá số lần thử lại. Tiếp tục với timestamp tiếp theo.")
+                        # Tăng timestamp lên một khoảng thời gian để tránh lặp vô hạn
+                        timeframe_seconds = {
+                            '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400
+                        }.get(interval, 3600)
+                        current_start += timeframe_seconds * 1000 * limit
+                    else:
+                        time.sleep(wait_time)
+            
+            # Kiểm tra đã đạt đến end_time chưa
+            if current_start >= end_time:
                 break
-                
-            all_klines.extend(klines)
-            
-            # Cập nhật thời gian bắt đầu cho request tiếp theo
-            # Thời gian của candle cuối cùng + 1ms
-            current_start = klines[-1][0] + 1
-            
-            # Thêm delay để tránh rate limit
-            time.sleep(0.2)
         
         self.logger.info(f"Đã lấy tổng cộng {len(all_klines)} klines cho {symbol}")
         return all_klines
