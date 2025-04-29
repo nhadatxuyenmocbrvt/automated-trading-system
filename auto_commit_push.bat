@@ -1,23 +1,23 @@
 @echo off
 echo ===== Tu Dong commit va push =====
 
-REM Kiểm tra xem .gitignore có tồn tại không, nếu không thì tạo một file để loại trừ các file nhạy cảm
+REM Kiem tra xem .gitignore co ton tai khong, neu không thi tao mot file đe loai tru cac file nhay cam
 if not exist .gitignore (
-    echo Tạo file .gitignore để loại trừ các file nhạy cảm...
+    echo Tao file .gitignore đe loai tru cac file nhay cam...
     (
         echo .env
         echo config/security_config.py
     ) > .gitignore
 )
 
-REM Tự động tạo message commit với timestamp
+REM Tu đong tao message commit với timestamp
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
 set "YYYY=%dt:~0,4%"
 set "MM=%dt:~4,2%"
 set "DD=%dt:~6,2%"
 set "HH=%dt:~8,2%"
 set "Min=%dt:~10,2%"
-set "commit_message=Cập nhật %YYYY%-%MM%-%DD% %HH%:%Min%"
+set "commit_message=Cap nhat %YYYY%-%MM%-%DD% %HH%:%Min%"
 
 REM Them, commit và push
 echo.
@@ -37,7 +37,7 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo Đang push lên repository...
+echo Đang push len repository...
 git push
 if %errorlevel% neq 0 (
     echo Lỗi khi push!
