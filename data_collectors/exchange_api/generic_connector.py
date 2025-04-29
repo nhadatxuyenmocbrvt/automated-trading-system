@@ -60,12 +60,8 @@ class ExchangeConnector(ABC):
         self.testnet = testnet
         self.use_proxy = use_proxy
         self.proxy = get_env('HTTP_PROXY', '') if use_proxy else ''
-        
-        # Lấy timeout từ biến môi trường và chuyển đổi thành milliseconds nếu cần
-        timeout_seconds = int(get_env('REQUEST_TIMEOUT', '30'))
-        self.timeout = timeout_seconds * 1000  # Chuyển đổi sang milliseconds cho CCXT
-        
-        self.max_retries = int(get_env('MAX_RETRIES', '3'))
+        self.timeout = get_env('REQUEST_TIMEOUT', 30000)  # milliseconds
+        self.max_retries = get_env('MAX_RETRIES', 3)
         
         # Lấy API key từ tham số nếu cung cấp, nếu không thì lấy từ cấu hình
         if not api_key or not api_secret:
@@ -101,10 +97,6 @@ class ExchangeConnector(ABC):
         Returns:
             Tuple (api_key, api_secret)
         """
-        # Nếu đang trong quá trình kiểm thử (xác định thông qua exchange_id có tiền tố 'test_')
-        if self.exchange_id.startswith('test_'):
-            return 'test_api_key', 'test_api_secret'
-            
         # Lấy danh sách tất cả các key cho sàn hiện tại từ security_config
         exchange_keys = self.security_config.get_exchange_keys(self.exchange_id)
         
@@ -196,79 +188,29 @@ class ExchangeConnector(ABC):
         status_code = None
         response = None
         
-        # Kiểm tra môi trường kiểm thử
-        is_test_environment = self.exchange_id.startswith('test_') or 'mock' in str(e.__class__).lower()
-        
-        # Xử lý đơn giản hóa nếu đang trong môi trường kiểm thử
-        if is_test_environment:
-            if isinstance(e, ccxt.NetworkError):
-                error_code = ErrorCode.CONNECTION_ERROR
-            elif isinstance(e, ccxt.AuthenticationError):
-                error_code = ErrorCode.AUTHENTICATION_FAILED
-            elif isinstance(e, ccxt.DDoSProtection) or isinstance(e, ccxt.RateLimitExceeded):
-                error_code = ErrorCode.RATE_LIMIT_EXCEEDED
-            elif isinstance(e, ccxt.InvalidOrder):
-                error_code = ErrorCode.INVALID_ORDER_PARAMS
-            
-            # Tạo thông báo đơn giản cho môi trường kiểm thử
-            simple_message = f"Lỗi kiểm thử trong {method_name}"
-            self.logger.error(simple_message)
-            
-            raise APIError(
-                error_code=error_code,
-                message=simple_message,
-                exchange=self.exchange_id,
-                status_code=None,
-                response=None
-            )
-        
-        # Xử lý cho môi trường thông thường
-        # Lấy loại lỗi một cách an toàn
-        error_type = "Unknown"
-        try:
-            if hasattr(e, '__class__') and hasattr(e.__class__, '__name__'):
-                error_type = e.__class__.__name__
-        except:
-            pass
-        
-        # Lấy thông báo lỗi một cách an toàn
-        error_message = "Unknown error"
-        try:
-            error_message = str(e)
-        except:
-            pass
-        
-        # Xác định loại lỗi dựa trên isinstance
         if isinstance(e, ccxt.NetworkError):
             error_code = ErrorCode.CONNECTION_ERROR
-            message = f"Lỗi kết nối trong {method_name}: {error_message}"
+            message = f"Lỗi kết nối trong {method_name}: {str(e)}"
         elif isinstance(e, ccxt.ExchangeError):
-            message = f"Lỗi sàn giao dịch trong {method_name}: {error_message}"
+            message = f"Lỗi sàn giao dịch trong {method_name}: {str(e)}"
         elif isinstance(e, ccxt.AuthenticationError):
             error_code = ErrorCode.AUTHENTICATION_FAILED
-            message = f"Lỗi xác thực trong {method_name}: {error_message}"
+            message = f"Lỗi xác thực trong {method_name}: {str(e)}"
         elif isinstance(e, ccxt.DDoSProtection) or isinstance(e, ccxt.RateLimitExceeded):
             error_code = ErrorCode.RATE_LIMIT_EXCEEDED
-            message = f"Vượt quá giới hạn API trong {method_name}: {error_message}"
+            message = f"Vượt quá giới hạn API trong {method_name}: {str(e)}"
         elif isinstance(e, ccxt.InvalidOrder):
             error_code = ErrorCode.INVALID_ORDER_PARAMS
-            message = f"Lệnh không hợp lệ trong {method_name}: {error_message}"
+            message = f"Lệnh không hợp lệ trong {method_name}: {str(e)}"
         else:
-            message = f"Lỗi {error_type} trong {method_name}: {error_message}"
+            message = f"Lỗi không xác định trong {method_name}: {str(e)}"
         
-        # Lấy thông tin bổ sung một cách an toàn
-        try:
-            if hasattr(e, 'status_code'):
-                status_code = e.status_code
-        except:
-            pass
-        
-        try:
-            if hasattr(e, 'response'):
-                response = e.response
-        except:
-            pass
-        
+        # Cố gắng trích xuất thêm thông tin chi tiết
+        if hasattr(e, 'status_code'):
+            status_code = e.status_code
+        if hasattr(e, 'response'):
+            response = e.response
+            
         # Log lỗi
         self.logger.error(message)
         
@@ -305,14 +247,27 @@ class ExchangeConnector(ABC):
             except Exception as e:
                 retry_count += 1
                 
+                # Kiểm tra nếu là lỗi timeout, tăng thêm thời gian chờ
+                is_timeout = isinstance(e, ccxt.RequestTimeout) or "timeout" in str(e).lower()
+                
+                # Log chi tiết lỗi
+                error_msg = str(e)
+                if hasattr(e, '__traceback__'):
+                    error_details = traceback.format_exception(type(e), e, e.__traceback__)
+                    if len(error_details) > 0:
+                        error_msg = f"{error_msg}\n{''.join(error_details[-3:])}"  # Chỉ lấy 3 dòng cuối của traceback
+                
                 if retry_count >= self.max_retries:
+                    self.logger.error(f"Đã vượt quá số lần thử lại. Lỗi cuối cùng: {error_msg}")
                     self._handle_error(e, method_name)
                 
-                # Tăng thời gian chờ theo cấp số nhân
-                wait_time = 0.5 * (2 ** retry_count)
+                # Tăng thời gian chờ theo cấp số nhân, và thêm thời gian nếu là lỗi timeout
+                wait_time_base = 0.5 * (2 ** retry_count)
+                wait_time = wait_time_base * 2 if is_timeout else wait_time_base
+                
                 self.logger.warning(
-                    f"Lỗi khi gọi {method_name}, thử lại sau {wait_time}s "
-                    f"(lần thử {retry_count}/{self.max_retries})"
+                    f"Lỗi khi gọi {method_name}, thử lại sau {wait_time:.1f}s "
+                    f"(lần thử {retry_count}/{self.max_retries}). Lỗi: {error_msg[:200]}..."
                 )
                 time.sleep(wait_time)
     
@@ -331,11 +286,35 @@ class ExchangeConnector(ABC):
         
         if force_update or cache_expired or not self._market_cache:
             try:
-                self._market_cache = self._retry_api_call(self.exchange.fetch_markets)
-                self._last_market_update = datetime.now()
-                self.logger.info(f"Đã cập nhật thông tin {len(self._market_cache)} thị trường")
+                # Kiểm tra xem thị trường đã được tải trong đối tượng exchange chưa
+                if hasattr(self.exchange, 'markets') and self.exchange.markets and not force_update:
+                    markets = list(self.exchange.markets.values())
+                    self._market_cache = markets
+                    self._last_market_update = datetime.now()
+                    self.logger.info(f"Sử dụng thông tin {len(markets)} thị trường từ đối tượng exchange")
+                else:
+                    # Tìm cách tải thị trường an toàn hơn
+                    try:
+                        # Thử fetch_markets trước
+                        markets_data = self._retry_api_call(self.exchange.fetch_markets)
+                        self._market_cache = markets_data
+                    except Exception as e:
+                        # Nếu có lỗi, thử lấy từ thuộc tính markets của exchange
+                        if hasattr(self.exchange, 'markets') and self.exchange.markets:
+                            self._market_cache = list(self.exchange.markets.values())
+                            self.logger.warning(f"Sử dụng thông tin thị trường sẵn có sau khi gặp lỗi: {str(e)}")
+                        else:
+                            # Nếu không có cách nào lấy được thị trường, khởi tạo cache trống
+                            self._market_cache = []
+                            self.logger.error(f"Không thể lấy thông tin thị trường: {str(e)}")
+                        
+                    self._last_market_update = datetime.now()
+                    self.logger.info(f"Đã cập nhật thông tin {len(self._market_cache)} thị trường")
             except Exception as e:
-                self._handle_error(e, "fetch_markets")
+                # Xử lý lỗi cuối cùng nếu mọi cách đều thất bại
+                self.logger.error(f"Lỗi nghiêm trọng khi lấy thông tin thị trường: {str(e)}")
+                if not self._market_cache:
+                    self._market_cache = []  # Đảm bảo cache không bị None
         
         return self._market_cache
     
@@ -679,6 +658,23 @@ class ExchangeConnector(ABC):
             self.logger.error(f"Kiểm tra kết nối thất bại: {str(e)}")
             return False
             
+    async def initialize(self) -> bool:
+        """
+        Khởi tạo kết nối và tải thông tin cần thiết.
+        Hàm này nên được gọi sau khi tạo đối tượng connector.
+        
+        Returns:
+            True nếu khởi tạo thành công, False nếu thất bại
+        """
+        try:
+            # Thử tải thị trường để kiểm tra kết nối
+            _ = self.fetch_markets()
+            self.logger.info(f"Đã khởi tạo thành công connector {self.exchange_id}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Khởi tạo connector {self.exchange_id} thất bại: {str(e)}")
+            return False
+    
     async def close(self):
         """
         Đóng kết nối với sàn giao dịch.

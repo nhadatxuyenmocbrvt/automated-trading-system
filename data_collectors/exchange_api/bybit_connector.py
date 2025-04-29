@@ -73,9 +73,11 @@ class BybitConnector(ExchangeConnector):
         params = {
             'apiKey': self.api_key,
             'secret': self.api_secret,
-            'timeout': self.timeout,
+            'timeout': int(get_env('REQUEST_TIMEOUT', '60000')),  # Timeout lớn hơn
             'enableRateLimit': True,
             'options': options,
+            'keepAlive': True,  # Giữ kết nối sống
+            'session': {'timeout': 60000},  # 60 giây
         }
         
         # Thêm proxy nếu có
@@ -97,8 +99,39 @@ class BybitConnector(ExchangeConnector):
         # Khởi tạo đối tượng ByBit
         exchange = ccxt.bybit(params)
         
-        # Tải thông tin thị trường
-        exchange.load_markets()
+        # Tải thông tin thị trường - với xử lý lỗi mạnh hơn
+        try:
+            # Tùy chỉnh options trước khi load markets
+            exchange.options['recvWindow'] = 60000  # Tăng thời gian chờ
+            
+            # Tải thị trường an toàn
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    exchange.load_markets()
+                    self.logger.info(f"Đã tải thông tin thị trường ByBit thành công")
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        self.logger.error(f"Không thể tải thị trường ByBit sau {max_retries} lần thử: {str(e)}")
+                        # Khởi tạo trống để tránh lỗi
+                        exchange.markets = {}
+                        exchange.markets_by_id = {}
+                        exchange.marketsLoaded = True
+                    else:
+                        wait_time = 2 ** retry_count
+                        self.logger.warning(f"Lỗi khi tải thị trường ByBit, thử lại sau {wait_time}s (lần {retry_count}/{max_retries})")
+                        time.sleep(wait_time)
+                        
+        except Exception as e:
+            self.logger.error(f"Lỗi không mong đợi khi tải thị trường ByBit: {str(e)}")
+            # Đảm bảo markets được khởi tạo
+            exchange.markets = {}
+            exchange.markets_by_id = {}
+            exchange.marketsLoaded = True
         
         return exchange
     

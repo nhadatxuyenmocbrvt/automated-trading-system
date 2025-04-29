@@ -1,89 +1,29 @@
-2025-04-29 00:14:28,520 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:118] - Lỗi khi load_markets: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
-2025-04-29 00:14:28,522 - trading_system - ERROR - [main.py:131] - Lỗi khi khởi tạo kết nối binance: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
-2025-04-29 00:14:28,523 - trading_system - ERROR - [main.py:198] - Lỗi khi thu thập dữ liệu lịch sử: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
-2025-04-29 00:14:28,524 - trading_system - ERROR - [main.py:708] - Lỗi không xử lý được: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
+2025-04-29 00:36:00,752 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:220] - Không thể tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 00:36:00,754 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:121] - Lỗi khi load_markets: 'dict' object has no attribute 'headers'
+2025-04-29 00:36:00,816 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:679] - Kiểm tra kết nối thất bại: 'dict' object has no attribute 'headers'
+2025-04-29 00:36:00,819 - trading_system - ERROR - [main.py:207] - Lỗi khi thu thập dữ liệu lịch sử: __init__() got an unexpected keyword argument 'sandbox'
+2025-04-29 00:36:00,820 - trading_system - ERROR - [main.py:717] - Lỗi không xử lý được: __init__() got an unexpected keyword argument 'sandbox'
 Traceback (most recent call last):
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\connectionpool.py", line 534, in _make_request
-    response = conn.getresponse()
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\connection.py", line 516, in getresponse
-    httplib_response = super().getresponse()
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\http\client.py", line 1377, in getresponse
-    response.begin()
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\http\client.py", line 320, in begin
-    version, status, reason = self._read_status()
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\http\client.py", line 281, in _read_status
-    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\socket.py", line 716, in readinto
-    return self._sock.recv_into(b)
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\ssl.py", line 1275, in recv_into
-    return self.read(nbytes, buffer)
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\ssl.py", line 1133, in read
-    return self._sslobj.read(len, buffer)
-socket.timeout: The read operation timed out
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\requests\adapters.py", line 667, in send
-    resp = conn.urlopen(
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
-    retries = retries.increment(
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\util\retry.py", line 474, in increment
-    raise reraise(type(error), error, _stacktrace)
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\util\util.py", line 39, in reraise
-    raise value
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\connectionpool.py", line 787, in urlopen
-    response = self._make_request(
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\connectionpool.py", line 536, in _make_request
-    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\urllib3\connectionpool.py", line 367, in _raise_timeout
-    raise ReadTimeoutError(
-urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='api.binance.com', port=443): Read timed out. (read timeout=0.03)
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\exchange.py", line 551, in fetch
-    response = self.session.request(
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\requests\sessions.py", line 589, in request
-    resp = self.send(prep, **send_kwargs)
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\requests\sessions.py", line 703, in send
-    r = adapter.send(request, **kwargs)
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\requests\adapters.py", line 713, in send
-    raise ReadTimeout(e, request=request)
-requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='api.binance.com', port=443): Read timed out. (read timeout=0.03)
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 677, in main
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 686, in main
     await system.collect_historical_data(
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 149, in collect_historical_data
-    connector = await self.init_exchange_connector(
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 109, in init_exchange_connector
-    connector = BinanceConnector(
-  File "E:\AI_AGENT\automated-trading-system\data_collectors\exchange_api\binance_connector.py", line 45, in __init__
-    super().__init__(exchange_id, api_key, api_secret, testnet, use_proxy)
-  File "E:\AI_AGENT\automated-trading-system\data_collectors\exchange_api\generic_connector.py", line 78, in __init__
-    self.exchange = self._init_ccxt()
-  File "E:\AI_AGENT\automated-trading-system\data_collectors\exchange_api\binance_connector.py", line 110, in _init_ccxt
-    exchange.load_markets()
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\exchange.py", line 1512, in load_markets
-    currencies = self.fetch_currencies()
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\binance.py", line 2993, in fetch_currencies
-    promises = [self.sapiGetCapitalConfigGetall(params)]
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\types.py", line 35, in unbound_method
-    return _self.request(self.path, self.api, self.method, params, config=self.config)
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\binance.py", line 11508, in request
-    response = self.fetch2(path, api, method, params, headers, body, config)
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\exchange.py", line 4389, in fetch2
-    raise e
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\exchange.py", line 4380, in fetch2
-    return self.fetch(request['url'], request['method'], request['headers'], request['body'])
-  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\ccxt\base\exchange.py", line 581, in fetch
-    raise RequestTimeout(details) from e
-ccxt.base.errors.RequestTimeout: binanceusdm GET https://api.binance.com/sapi/v1/capital/config/getall?timestamp=1745860468440&recvWindow=10000&signature=051fd6fbf72600788872c73f0298fafc681977dbba2afd43e45f12334bede737
-2025-04-29 00:20:41,440 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 00:20:44,451 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 00:20:50,454 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 00:20:59,464 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:160] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 165, in collect_historical_data
+    collector = await create_data_collector(
+  File "E:\AI_AGENT\automated-trading-system\data_collectors\market_data\historical_data_collector.py", line 978, in create_data_collector
+    exchange_connector = BinanceConnector(
+TypeError: __init__() got an unexpected keyword argument 'sandbox'
+2025-04-29 07:02:10,996 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 07:02:13,998 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 07:02:20,005 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 07:02:29,019 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 07:02:41,025 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 07:02:56,044 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:679] - Kiểm tra kết nối thất bại: 'dict' object has no attribute 'headers'
+2025-04-29 07:02:56,047 - trading_system - ERROR - [main.py:207] - Lỗi khi thu thập dữ liệu lịch sử: __init__() got an unexpected keyword argument 'sandbox'
+2025-04-29 07:02:56,049 - trading_system - ERROR - [main.py:717] - Lỗi không xử lý được: __init__() got an unexpected keyword argument 'sandbox'
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 686, in main
+    await system.collect_historical_data(
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 165, in collect_historical_data
+    collector = await create_data_collector(
+  File "E:\AI_AGENT\automated-trading-system\data_collectors\market_data\historical_data_collector.py", line 978, in create_data_collector
+    exchange_connector = BinanceConnector(
+TypeError: __init__() got an unexpected keyword argument 'sandbox'
