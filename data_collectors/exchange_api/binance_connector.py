@@ -11,7 +11,6 @@ import urllib.parse
 from typing import Dict, List, Any, Optional, Union, Tuple
 from datetime import datetime
 import ccxt
-import logging
 
 from data_collectors.exchange_api.generic_connector import ExchangeConnector, APIError
 from config.constants import OrderType, TimeInForce, ErrorCode
@@ -63,12 +62,18 @@ class BinanceConnector(ExchangeConnector):
         # Cấu hình cho Futures
         if self.is_futures:
             options['defaultType'] = 'future'
+            
+        # Thêm các tùy chọn giúp giảm số lượng yêu cầu đến API
+        options['fetchCurrencies'] = False  # Tắt tính năng lấy danh sách tiền tệ
+        
+        # Đảm bảo timeout là đủ lớn
+        timeout = int(get_env('REQUEST_TIMEOUT', '30')) * 1000  # Chuyển từ giây sang millisecond
         
         # Tạo đối tượng Binance với các tùy chọn
         params = {
             'apiKey': self.api_key,
             'secret': self.api_secret,
-            'timeout': int(get_env('REQUEST_TIMEOUT', '30000')),  # Đảm bảo timeout là ms và lấy từ biến môi trường
+            'timeout': timeout,
             'enableRateLimit': True,
             'options': options,
             # Giữ kết nối sống
@@ -133,7 +138,10 @@ class BinanceConnector(ExchangeConnector):
                     # Xử lý dữ liệu thị trường
                     for market in markets_data:
                         exchange.markets[market['symbol']] = market
-                        exchange.markets_by_id.setdefault(market['id'], []).append(market)
+                        # Sử dụng setdefault để tránh KeyError
+                        if market['id'] not in exchange.markets_by_id:
+                            exchange.markets_by_id[market['id']] = []
+                        exchange.markets_by_id[market['id']].append(market)
                     
                     exchange.marketsLoaded = True
                     self.logger.info(f"Đã tải thành công {len(markets_data)} thị trường")
@@ -141,7 +149,7 @@ class BinanceConnector(ExchangeConnector):
                     
                 except ccxt.RequestTimeout as e:
                     wait_time = wait_time_base * (i + 1)  # Tăng thời gian chờ theo cấp số cộng
-                    self.logger.warning(f"Timeout khi load_markets, thử lại ({i+1}/{max_retries}) sau {wait_time}s")
+                    self.logger.warning(f"Timeout khi tải thị trường, thử lại ({i+1}/{max_retries}) sau {wait_time}s")
                     
                     if i == max_retries - 1:
                         self.logger.error(f"Đã vượt quá số lần thử lại ({max_retries}). Không thể tải thị trường.")
@@ -214,6 +222,55 @@ class BinanceConnector(ExchangeConnector):
             TimeInForce.FOK.value: 'FOK',  # Fill Or Kill
             TimeInForce.GTX.value: 'GTX',  # Good Till Crossing
         }
+    
+    def fetch_markets(self, force_update: bool = False) -> List[Dict]:
+        """
+        Lấy thông tin về các thị trường có sẵn.
+        Ghi đè phương thức từ lớp cơ sở để xử lý lỗi tốt hơn.
+        
+        Args:
+            force_update: True để bỏ qua cache và cập nhật mới
+            
+        Returns:
+            Danh sách các thị trường
+        """
+        if force_update or not self._market_cache:
+            try:
+                # Sử dụng phương thức tải thị trường an toàn
+                if hasattr(self.exchange, 'markets') and self.exchange.markets:
+                    markets = list(self.exchange.markets.values())
+                    
+                    if markets and not force_update:
+                        self._market_cache = markets
+                        self.logger.info(f"Đã sử dụng thông tin {len(markets)} thị trường từ cache")
+                        return self._market_cache
+                
+                # Tải lại thị trường
+                self.logger.info("Đang tải lại thông tin thị trường...")
+                max_retries = 3
+                wait_time_base = 2
+                
+                for i in range(max_retries):
+                    try:
+                        # Tải thị trường với số lần thử lại
+                        markets_data = self._retry_api_call(self.exchange.fetch_markets)
+                        self._market_cache = markets_data
+                        self.logger.info(f"Đã cập nhật thông tin {len(markets_data)} thị trường")
+                        break
+                    except Exception as e:
+                        if i == max_retries - 1:
+                            raise
+                        wait_time = wait_time_base * (2 ** i)
+                        self.logger.warning(f"Lỗi khi tải thị trường ({i+1}/{max_retries}), thử lại sau {wait_time}s: {str(e)}")
+                        time.sleep(wait_time)
+                
+            except Exception as e:
+                self.logger.error(f"Lỗi khi tải thị trường: {str(e)}")
+                # Trả về list trống thay vì raise lỗi để tránh làm crash chương trình
+                if not self._market_cache:
+                    self._market_cache = []
+        
+        return self._market_cache
     
     def fetch_funding_rate(self, symbol: str) -> Dict:
         """

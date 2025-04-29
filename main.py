@@ -87,7 +87,7 @@ class AutomatedTradingSystem:
         Args:
             exchange_id: ID của sàn giao dịch
             is_futures: True để sử dụng thị trường futures
-            testnet: True để sử dụng testnet
+            testnet: True để sử dụng môi trường test
             
         Returns:
             Đối tượng kết nối với sàn giao dịch
@@ -104,17 +104,19 @@ class AutomatedTradingSystem:
             api_key = get_env(f"{exchange_id.upper()}_API_KEY", "")
             api_secret = get_env(f"{exchange_id.upper()}_API_SECRET", "")
             
-            # Kiểm tra proxy nếu được cấu hình
-            use_proxy = bool(get_env('HTTP_PROXY', ''))
+            # Đảm bảo REQUEST_TIMEOUT đủ lớn
+            timeout_seconds = int(get_env('REQUEST_TIMEOUT', '60'))
+            if timeout_seconds < 60:
+                logger.warning(f"REQUEST_TIMEOUT ({timeout_seconds}s) có thể quá thấp, đề xuất ít nhất 60 giây")
             
             # Tạo connector phù hợp với sàn giao dịch
             if exchange_id.lower() == "binance":
+                # Cấu hình timeout dài hơn để tránh lỗi timeout 
                 connector = BinanceConnector(
                     api_key=api_key,
                     api_secret=api_secret,
                     is_futures=is_futures,
-                    testnet=testnet,
-                    use_proxy=use_proxy
+                    testnet=testnet
                 )
                 logger.info(f"Đã tạo kết nối Binance {'Futures' if is_futures else 'Spot'}")
             else:
@@ -123,14 +125,9 @@ class AutomatedTradingSystem:
                     exchange_id=exchange_id,
                     api_key=api_key,
                     api_secret=api_secret,
-                    testnet=testnet,
-                    use_proxy=use_proxy
+                    testnet=testnet
                 )
                 logger.info(f"Đã tạo kết nối {exchange_id}")
-            
-            # Thực hiện kết nối thử nghiệm để kiểm tra
-            if not connector.test_connection():
-                logger.warning(f"Kết nối với {exchange_id} không thành công, nhưng tiếp tục với chức năng hạn chế")
             
             # Lưu vào cache
             self.connectors[connector_key] = connector
@@ -138,6 +135,18 @@ class AutomatedTradingSystem:
             
         except Exception as e:
             logger.error(f"Lỗi khi khởi tạo kết nối {exchange_id}: {str(e)}")
+            
+            # Tạo ghi chú lỗi chi tiết với các đề xuất giải pháp
+            if exchange_id.lower() == "binance":
+                if "timeout" in str(e).lower():
+                    logger.warning(f"Lỗi timeout khi kết nối tới {exchange_id}. Đảm bảo kết nối mạng ổn định.")
+                    logger.warning("Giải pháp: Tăng giá trị REQUEST_TIMEOUT trong .env hoặc biến môi trường.")
+                
+                if "headers" in str(e).lower():
+                    logger.warning(f"Lỗi xử lý response từ {exchange_id}. Có thể do cấu trúc response không đúng định dạng.")
+                    logger.warning("Giải pháp: Kiểm tra cập nhật thư viện CCXT hoặc sử dụng proxy nếu cần thiết.")
+            
+            # Nếu không thể tạo connector, vẫn raise lỗi để hàm gọi xử lý
             raise
     
     async def collect_historical_data(self, exchange_id: str, symbols: List[str], 
@@ -154,12 +163,33 @@ class AutomatedTradingSystem:
             is_futures: True để sử dụng thị trường futures
         """
         try:
-            # Khởi tạo connector
-            connector = await self.init_exchange_connector(
-                exchange_id=exchange_id,
-                is_futures=is_futures,
-                testnet=False  # Sử dụng mainnet để lấy dữ liệu thực
-            )
+            # Khởi tạo connector với cơ chế retry
+            max_retries = int(get_env('MAX_RETRIES', '5'))
+            retry_count = 0
+            connector = None
+            
+            while retry_count < max_retries:
+                try:
+                    # Khởi tạo connector
+                    connector = await self.init_exchange_connector(
+                        exchange_id=exchange_id,
+                        is_futures=is_futures,
+                        testnet=False  # Sử dụng mainnet để lấy dữ liệu thực
+                    )
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    wait_time = 2 ** retry_count  # exponential backoff
+                    
+                    if retry_count >= max_retries:
+                        logger.error(f"Đã vượt quá số lần thử lại ({max_retries}) khi kết nối {exchange_id}")
+                        raise
+                    
+                    logger.warning(f"Lỗi khi kết nối {exchange_id}, thử lại sau {wait_time}s (lần {retry_count}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+            
+            if connector is None:
+                raise Exception(f"Không thể khởi tạo kết nối với {exchange_id} sau {max_retries} lần thử")
             
             # Khởi tạo collector
             collector = await create_data_collector(
@@ -188,23 +218,40 @@ class AutomatedTradingSystem:
                     logger.info(f"Thu thập dữ liệu {symbol} - {timeframe}")
                     
                     try:
-                        # Thu thập OHLCV
-                        df = await collector.collect_ohlcv(
-                            symbol=symbol,
-                            timeframe=timeframe,
-                            start_time=start_time,
-                            end_time=end_time
-                        )
-                        
-                        logger.info(f"Đã thu thập {len(df) if df is not None else 0} bản ghi cho {symbol} - {timeframe}")
+                        # Thu thập OHLCV với cơ chế retry
+                        for attempt in range(max_retries):
+                            try:
+                                # Thu thập OHLCV
+                                df = await collector.collect_ohlcv(
+                                    symbol=symbol,
+                                    timeframe=timeframe,
+                                    start_time=start_time,
+                                    end_time=end_time
+                                )
+                                
+                                logger.info(f"Đã thu thập {len(df) if df is not None else 0} bản ghi cho {symbol} - {timeframe}")
+                                break
+                            except Exception as e:
+                                if attempt == max_retries - 1:
+                                    logger.error(f"Không thể thu thập dữ liệu cho {symbol} - {timeframe} sau {max_retries} lần thử: {str(e)}")
+                                    raise
+                                
+                                wait_time = 2 ** (attempt + 1)
+                                logger.warning(f"Lỗi khi thu thập dữ liệu {symbol} - {timeframe}, thử lại sau {wait_time}s (lần {attempt+1}/{max_retries})")
+                                await asyncio.sleep(wait_time)
                         
                     except Exception as e:
                         logger.error(f"Lỗi khi thu thập dữ liệu {symbol} - {timeframe}: {str(e)}")
+                        logger.info(f"Tiếp tục với cặp/timeframe tiếp theo")
+                        continue
             
             logger.info(f"Đã hoàn thành thu thập dữ liệu lịch sử cho {exchange_id}")
             
         except Exception as e:
             logger.error(f"Lỗi khi thu thập dữ liệu lịch sử: {str(e)}")
+            if "timeout" in str(e).lower():
+                logger.warning("Lỗi timeout có thể do kết nối mạng không ổn định hoặc sàn giao dịch không phản hồi")
+                logger.warning("Giải pháp: Tăng REQUEST_TIMEOUT, kiểm tra kết nối mạng hoặc sử dụng proxy")
             raise
     
     async def process_data(self, command: str, **kwargs) -> None:
@@ -715,6 +762,14 @@ async def main():
         logger.info("Nhận tín hiệu dừng từ người dùng")
     except Exception as e:
         logger.error(f"Lỗi không xử lý được: {str(e)}", exc_info=True)
+        
+        # Đưa ra gợi ý giải pháp dựa trên loại lỗi
+        if "timeout" in str(e).lower():
+            logger.warning("Lỗi timeout có thể do kết nối mạng không ổn định hoặc sàn giao dịch không phản hồi")
+            logger.warning("Giải pháp: Tăng REQUEST_TIMEOUT trong .env, kiểm tra kết nối mạng hoặc sử dụng proxy")
+        elif "headers" in str(e).lower():
+            logger.warning("Lỗi xử lý response từ sàn giao dịch. Có thể do cấu trúc response không đúng định dạng.")
+            logger.warning("Giải pháp: Cập nhật thư viện CCXT hoặc kiểm tra lại các connector")
     finally:
         # Dọn dẹp tài nguyên
         await system.cleanup()

@@ -283,3 +283,91 @@ Chi tiết lộ trình được theo dõi trong file [project_overview.md](proje
 
 ## Giấy phép
 Distributed under the MIT License. See `LICENSE` for more information.
+
+# Các lệnh để chạy Hệ thống Giao dịch Tự động
+
+Dưới đây là các lệnh để khởi chạy các chức năng khác nhau của hệ thống:
+
+## 1. Chuẩn bị môi trường
+
+Trước khi chạy, bạn cần thiết lập môi trường và cài đặt các thư viện cần thiết:
+
+```bash
+# Tạo môi trường ảo (khuyến nghị)
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# hoặc
+venv\Scripts\activate     # Windows
+
+# Cài đặt dependencies
+pip install -r requirements.txt
+```
+
+## 2. Thu thập dữ liệu lịch sử
+
+```bash
+# Thu thập dữ liệu thị trường spot cho BTC/USDT và ETH/USDT
+python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 30
+
+# Thu thập dữ liệu thị trường futures
+python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 30 --futures
+
+# Thu thập dữ liệu từ sàn Bybit
+python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
+```
+
+## 3. Chạy backtest (chưa triển khai đầy đủ)
+
+```bash
+# Chạy backtest với chiến lược mặc định
+python main.py backtest
+
+# Chạy backtest với chiến lược cụ thể
+python main.py backtest --strategy dqn
+```
+
+## 4. Huấn luyện agent (chưa triển khai đầy đủ)
+
+```bash
+# Huấn luyện agent DQN
+python main.py train --agent dqn
+
+# Huấn luyện agent PPO
+python main.py train --agent ppo
+```
+
+## 5. Giao dịch thực tế (chưa triển khai đầy đủ)
+
+```bash
+# Bắt đầu giao dịch thực tế
+python main.py trade --exchange binance --symbols BTC/USDT
+```
+
+## 6. Khởi chạy dashboard (chưa triển khai đầy đủ)
+
+```bash
+# Khởi chạy dashboard
+python main.py dashboard
+```
+
+## 7. Chạy file env để tạo file môi trường mẫu
+
+```bash
+# Tạo file .env.example
+python -m config.env
+```
+
+## Lưu ý quan trọng
+
+1. Trước khi sử dụng, bạn cần tạo file `.env` với các biến môi trường cần thiết, đặc biệt là API key và secret cho các sàn giao dịch.
+
+2. Chạy lệnh để tạo file `.env.example` và sao chép thành file `.env` rồi điền các thông tin:
+   ```bash
+   python -m config.env
+   cp .env.example .env
+   # Chỉnh sửa file .env và thêm các thông tin cần thiết
+   ```
+
+3. Hiện tại chỉ có chức năng thu thập dữ liệu đã được triển khai đầy đủ. Các chức năng khác (backtest, huấn luyện, giao dịch thực tế, dashboard) đang trong quá trình phát triển theo lộ trình.
+
+4. Đối với các chức năng chưa được triển khai, hệ thống sẽ hiển thị thông báo "Chức năng ... chưa được triển khai" khi bạn chạy lệnh.

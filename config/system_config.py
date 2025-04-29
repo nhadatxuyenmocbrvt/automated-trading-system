@@ -28,7 +28,7 @@ for directory in [DATA_DIR, MODEL_DIR, LOG_DIR, TEMP_DIR]:
 VERSION = "0.1.0"
 BUILD_DATE = datetime.now().strftime("%Y-%m-%d")
 
-# Cấu hình chung cho hệ thống
+# Các cấu hình chung cho hệ thống
 SYSTEM_CONFIG = {
     "version": VERSION,
     "build_date": BUILD_DATE,
@@ -36,13 +36,12 @@ SYSTEM_CONFIG = {
     "debug_mode": os.getenv("DEBUG_MODE", "True").lower() in ("true", "1", "t"),
     "max_threads": int(os.getenv("MAX_THREADS", "4")),
     "max_processes": int(os.getenv("MAX_PROCESSES", "2")),
-    "request_timeout": int(os.getenv("REQUEST_TIMEOUT", "30")),  # seconds
-    "max_retries": int(os.getenv("MAX_RETRIES", "3")),
+    "request_timeout": int(os.getenv("REQUEST_TIMEOUT", "60")),  # Tăng thời gian timeout lên 60 giây
+    "max_retries": int(os.getenv("MAX_RETRIES", "5")),           # Tăng số lần thử lại lên 5
     "memory_limit": int(os.getenv("MEMORY_LIMIT", "8192")),  # MB
     "data_storage_format": os.getenv("DATA_STORAGE_FORMAT", "csv"),
     "default_exchange": os.getenv("DEFAULT_EXCHANGE", "binance"),
 }
-
 # Cấu hình môi trường
 ENVIRONMENT_CONFIGS = {
     "development": {

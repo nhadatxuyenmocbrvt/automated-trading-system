@@ -1,31 +1,14 @@
-2025-04-29 07:14:32,744 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:159] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:14:35,748 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:159] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:14:41,766 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:159] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:14:50,768 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:159] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:15:02,777 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:159] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:15:17,791 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:659] - Kiểm tra kết nối thất bại: 'dict' object has no attribute 'headers'
-2025-04-29 07:15:17,794 - trading_system - ERROR - [main.py:207] - Lỗi khi thu thập dữ liệu lịch sử: __init__() got an unexpected keyword argument 'sandbox'
-2025-04-29 07:15:17,795 - trading_system - ERROR - [main.py:717] - Lỗi không xử lý được: __init__() got an unexpected keyword argument 'sandbox'
+2025-04-29 11:11:05,302 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:11:08,317 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:11:14,321 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:11:23,324 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:11:35,327 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:11:50,344 - trading_system - ERROR - [main.py:251] - Lỗi khi thu thập dữ liệu lịch sử: __init__() got an unexpected keyword argument 'sandbox'
+2025-04-29 11:11:50,345 - trading_system - ERROR - [main.py:764] - Lỗi không xử lý được: __init__() got an unexpected keyword argument 'sandbox'
 Traceback (most recent call last):
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 686, in main
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 733, in main
     await system.collect_historical_data(
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 165, in collect_historical_data
-    collector = await create_data_collector(
-  File "E:\AI_AGENT\automated-trading-system\data_collectors\market_data\historical_data_collector.py", line 978, in create_data_collector
-    exchange_connector = BinanceConnector(
-TypeError: __init__() got an unexpected keyword argument 'sandbox'
-2025-04-29 07:19:17,877 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:158] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:19:20,885 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:158] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:19:26,898 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:158] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:19:35,910 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:158] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:19:47,916 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:158] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 07:20:02,928 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:657] - Kiểm tra kết nối thất bại: 'dict' object has no attribute 'headers'
-2025-04-29 07:20:02,931 - trading_system - ERROR - [main.py:207] - Lỗi khi thu thập dữ liệu lịch sử: __init__() got an unexpected keyword argument 'sandbox'
-2025-04-29 07:20:02,932 - trading_system - ERROR - [main.py:717] - Lỗi không xử lý được: __init__() got an unexpected keyword argument 'sandbox'
-Traceback (most recent call last):
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 686, in main
-    await system.collect_historical_data(
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 165, in collect_historical_data
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 195, in collect_historical_data
     collector = await create_data_collector(
   File "E:\AI_AGENT\automated-trading-system\data_collectors\market_data\historical_data_collector.py", line 978, in create_data_collector
     exchange_connector = BinanceConnector(
