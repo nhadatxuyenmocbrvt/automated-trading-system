@@ -1,13 +1,27 @@
-2025-04-29 13:12:33,970 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:170] - Lỗi headers trong response: 'dict' object has no attribute 'headers'
-2025-04-29 13:12:33,971 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:171] - Đang thử phương pháp thay thế (lần 1/5)...
-2025-04-29 13:12:33,972 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:188] - Đã tải 4 thị trường mặc định để tạm thời sử dụng
-2025-04-29 13:12:33,973 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-04-29 13:12:33,974 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
-2025-04-29 13:12:33,990 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:170] - Lỗi headers trong response: 'dict' object has no attribute 'headers'
-2025-04-29 13:12:33,991 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:171] - Đang thử phương pháp thay thế (lần 1/5)...
-2025-04-29 13:12:33,991 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:188] - Đã tải 4 thị trường mặc định để tạm thời sử dụng
-2025-04-29 13:12:33,992 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-04-29 13:12:33,993 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
-2025-04-29 13:12:33,994 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:337] - Đã sử dụng thông tin 4 thị trường từ cache
-2025-04-29 13:12:33,995 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
-2025-04-29 13:12:34,016 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
+2025-04-29 20:13:01,180 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:170] - Lỗi headers trong response: 'dict' object has no attribute 'headers'
+2025-04-29 20:13:01,181 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:171] - Đang thử phương pháp thay thế (lần 1/5)...
+2025-04-29 20:13:01,182 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:188] - Đã tải 4 thị trường mặc định để tạm thời sử dụng
+2025-04-29 20:13:01,183 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
+2025-04-29 20:13:01,184 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
+2025-04-29 20:13:01,206 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:170] - Lỗi headers trong response: 'dict' object has no attribute 'headers'
+2025-04-29 20:13:01,207 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:171] - Đang thử phương pháp thay thế (lần 1/5)...
+2025-04-29 20:13:01,208 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:188] - Đã tải 4 thị trường mặc định để tạm thời sử dụng
+2025-04-29 20:13:01,208 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
+2025-04-29 20:13:01,209 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
+2025-04-29 20:13:01,210 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:337] - Đã sử dụng thông tin 4 thị trường từ cache
+2025-04-29 20:13:01,210 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
+2025-04-29 20:13:07,245 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 1.0s (lần thử 1/5). Lỗi: 'spot'
+2025-04-29 20:13:08,251 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 2.0s (lần thử 2/5). Lỗi: 'spot'
+2025-04-29 20:13:10,259 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 4.0s (lần thử 3/5). Lỗi: 'spot'
+2025-04-29 20:13:14,268 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 8.0s (lần thử 4/5). Lỗi: 'spot'
+2025-04-29 20:13:22,273 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:260] - Đã vượt quá số lần thử lại. Lỗi cuối cùng: 'spot'
+2025-04-29 20:13:22,275 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv: 'spot'
+2025-04-29 20:13:22,277 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 1h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
+2025-04-29 20:13:28,397 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 1.0s (lần thử 1/5). Lỗi: 'spot'
+2025-04-29 20:13:29,402 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 2.0s (lần thử 2/5). Lỗi: 'spot'
+2025-04-29 20:13:31,414 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 4.0s (lần thử 3/5). Lỗi: 'spot'
+2025-04-29 20:13:35,420 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:267] - Lỗi khi gọi fetch_ohlcv, thử lại sau 8.0s (lần thử 4/5). Lỗi: 'spot'
+2025-04-29 20:13:43,430 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:260] - Đã vượt quá số lần thử lại. Lỗi cuối cùng: 'spot'
+2025-04-29 20:13:43,432 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv: 'spot'
+2025-04-29 20:13:43,434 - trading_system.exchange.binanceusdm_connector - ERROR - [generic_connector.py:215] - Lỗi không xác định trong fetch_ohlcv(BTC/USDT, 4h): [binanceusdm] Lỗi không xác định trong fetch_ohlcv: 'spot'
+2025-04-29 20:13:46,707 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm

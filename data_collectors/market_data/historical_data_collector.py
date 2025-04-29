@@ -126,14 +126,62 @@ class HistoricalDataCollector:
         
         # Kiểm tra xem cặp giao dịch có hiệu lực không
         try:
-            if symbol not in self.exchange_connector.markets:
-                await self.exchange_connector.load_markets(reload=True)
-                if symbol not in self.exchange_connector.markets:
-                    self.logger.error(f"Cặp giao dịch {symbol} không hợp lệ cho {self.exchange_id}")
-                    return pd.DataFrame()
+            markets_loaded = False
+            retry_count = 0
+            max_retries = 3
+            
+            while not markets_loaded and retry_count < max_retries:
+                try:
+                    # Kiểm tra an toàn cho markets
+                    connector_markets = getattr(self.exchange_connector, 'markets', {})
+                    
+                    if not connector_markets or symbol not in connector_markets:
+                        self.logger.info(f"Không tìm thấy {symbol} trong markets, thử tải lại thị trường...")
+                        # Kiểm tra xem phương thức load_markets tồn tại
+                        if hasattr(self.exchange_connector, 'load_markets'):
+                            await self.exchange_connector.load_markets(reload=True)
+                            # Lấy lại markets sau khi tải
+                            connector_markets = getattr(self.exchange_connector, 'markets', {})
+                    
+                    # Kiểm tra lại sau khi tải
+                    if connector_markets and symbol in connector_markets:
+                        markets_loaded = True
+                        self.logger.info(f"Đã tìm thấy {symbol} trong danh sách thị trường")
+                    else:
+                        # Thử kiểm tra với định dạng khác
+                        alt_symbol = symbol.replace('/', '')
+                        connector_markets_by_id = getattr(self.exchange_connector, 'markets_by_id', {})
+                        
+                        if connector_markets_by_id and alt_symbol in connector_markets_by_id:
+                            self.logger.info(f"Tìm thấy cặp giao dịch {symbol} với định dạng thay thế {alt_symbol}")
+                            markets_loaded = True
+                        else:
+                            retry_count += 1
+                            if retry_count < max_retries:
+                                wait_time = 2 ** retry_count
+                                self.logger.warning(f"Không tìm thấy {symbol}, thử lại sau {wait_time}s (lần {retry_count}/{max_retries})")
+                                await asyncio.sleep(wait_time)
+                            else:
+                                # Nếu vẫn không tìm thấy sau số lần thử tối đa, vẫn tiếp tục thu thập
+                                self.logger.warning(f"Không tìm thấy {symbol} trong danh sách thị trường sau {max_retries} lần thử")
+                                self.logger.warning(f"Vẫn tiếp tục thu thập dữ liệu cho {symbol} dù không xác nhận được")
+                                markets_loaded = True  # Để tiếp tục chạy
+                    
+                except Exception as e:
+                    retry_count += 1
+                    wait_time = 2 ** retry_count
+                    
+                    if retry_count >= max_retries:
+                        self.logger.error(f"Lỗi khi kiểm tra cặp giao dịch {symbol}: {e}")
+                        self.logger.warning(f"Vẫn tiếp tục thu thập dữ liệu cho {symbol} dù không xác nhận được")
+                        markets_loaded = True  # Để tiếp tục chạy
+                    else:
+                        self.logger.warning(f"Lỗi khi kiểm tra cặp giao dịch, thử lại sau {wait_time}s (lần {retry_count}/{max_retries}): {str(e)}")
+                        await asyncio.sleep(wait_time)
+        
         except Exception as e:
             self.logger.error(f"Lỗi khi kiểm tra cặp giao dịch {symbol}: {e}")
-            return pd.DataFrame()
+            self.logger.warning("Tiếp tục thu thập dữ liệu dù cặp giao dịch chưa được xác nhận")
         
         # Xác định đường dẫn file và kiểm tra dữ liệu hiện có
         filename = f"{symbol.replace('/', '_')}_{timeframe}".lower()
@@ -189,10 +237,36 @@ class HistoricalDataCollector:
             try:
                 # Gọi API với giới hạn rate
                 async with self.semaphore:
-                    candles = await self.exchange_connector.fetch_ohlcv(
-                        symbol, timeframe, current_start_ts, limit
-                    )
-                    await asyncio.sleep(self.rate_limit_sleep)
+                    try:
+                        candles = await self.exchange_connector.fetch_ohlcv(
+                            symbol, timeframe, current_start_ts, limit
+                        )
+                        await asyncio.sleep(self.rate_limit_sleep)
+                    except Exception as e:
+                        # Xử lý lỗi khi gọi fetch_ohlcv
+                        if "headers" in str(e).lower():
+                            self.logger.warning(f"Lỗi headers khi lấy OHLCV cho {symbol}: {str(e)}")
+                            # Thử phương pháp thay thế
+                            try:
+                                # Sử dụng klines API nếu có
+                                if hasattr(self.exchange_connector, 'fetch_klines'):
+                                    self.logger.info(f"Thử sử dụng fetch_klines thay thế...")
+                                    candles = await self.exchange_connector.fetch_klines(
+                                        symbol, timeframe, current_start_ts, end_ts, limit
+                                    )
+                                else:
+                                    self.logger.warning("Không có phương pháp thay thế, đang thử lại...")
+                                    # Tạm dừng dài hơn và thử lại với fetch_ohlcv
+                                    await asyncio.sleep(self.rate_limit_sleep * 3)
+                                    candles = await self.exchange_connector.fetch_ohlcv(
+                                        symbol, timeframe, current_start_ts, limit
+                                    )
+                            except Exception as alt_e:
+                                self.logger.error(f"Phương pháp thay thế cũng thất bại: {str(alt_e)}")
+                                raise
+                        else:
+                            # Lỗi khác, tiếp tục đẩy lên
+                            raise
                 
                 if not candles or len(candles) == 0:
                     self.logger.debug(f"Không có dữ liệu mới từ {datetime.fromtimestamp(current_start_ts/1000)}")
@@ -241,6 +315,9 @@ class HistoricalDataCollector:
             
             # Lưu dữ liệu
             try:
+                # Đảm bảo thư mục tồn tại
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                
                 if save_format == 'parquet':
                     df.to_parquet(file_path, index=False)
                 elif save_format == 'csv':
@@ -393,6 +470,9 @@ class HistoricalDataCollector:
         # Lưu dữ liệu
         if all_snapshots:
             try:
+                # Đảm bảo thư mục tồn tại
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                
                 if save_format == 'parquet':
                     pd.DataFrame(all_snapshots).to_parquet(file_path, index=False)
                 elif save_format == 'csv':
@@ -581,6 +661,9 @@ class HistoricalDataCollector:
             
             # Lưu dữ liệu
             try:
+                # Đảm bảo thư mục tồn tại
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                
                 if save_format == 'parquet':
                     df.to_parquet(file_path, index=False)
                 elif save_format == 'csv':
@@ -700,6 +783,9 @@ class HistoricalDataCollector:
             
             # Lưu dữ liệu
             try:
+                # Đảm bảo thư mục tồn tại
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                
                 if save_format == 'parquet':
                     new_data.to_parquet(file_path, index=False)
                 elif save_format == 'csv':
@@ -1022,7 +1108,7 @@ async def main():
         exchange_id=exchange_id,
         api_key=api_key,
         api_secret=api_secret,
-        sandbox=True
+        testnet=True
     )
     
     # Lấy danh sách cặp giao dịch phổ biến
