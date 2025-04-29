@@ -1,31 +1,33 @@
 @echo off
-:: Tên file: push_to_github.bat
-:: Tự động commit và push lên GitHub
+:: Tên file: auto_commit_push.bat
+:: Auto commit and push, exclude sensitive files
 
-:: Đặt tiêu đề cửa sổ CMD
-title 🚀 Auto Commit and Push to GitHub
+:: Đặt tiêu đề CMD
+title 🚀 Auto Commit and Push to GitHub (Exclude .env & master.key)
 
-:: Lấy ngày giờ hiện tại
+:: Lấy ngày giờ commit
 for /f "tokens=1-5 delims=/: " %%d in ("%date% %time%") do (
     set datestamp=%%d-%%e-%%f
     set timestamp=%%g-%%h
 )
 
-:: Ghép nội dung commit
+:: Ghép commit message
 set commit_message=Auto commit: %datestamp% %timestamp%
 
-:: Thực hiện git add
-git add .
+:: Thêm tất cả thay đổi trừ file nhạy cảm
+git add --all
+git reset HEAD .env
+git reset HEAD master.key
 
-:: Commit với thông điệp tự động
+:: Commit với thông điệp
 git commit -m "%commit_message%"
 
 :: Lấy nhánh hiện tại
 for /f "delims=" %%b in ('git rev-parse --abbrev-ref HEAD') do set branch=%%b
 
-:: Push lên nhánh hiện tại
+:: Push lên GitHub
 git push origin %branch%
 
 :: Thông báo hoàn tất
-echo ✅ Đã push code lên GitHub trên nhánh %branch%.
+echo ✅ Đã push lên GitHub (đã bỏ qua .env và master.key)!
 pause
