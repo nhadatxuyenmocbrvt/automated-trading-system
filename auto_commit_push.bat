@@ -1,52 +1,31 @@
 @echo off
-echo ===== Tu Dong commit va push =====
+:: Tên file: push_to_github.bat
+:: Tự động commit và push lên GitHub
 
-REM Kiem tra xem .gitignore co ton tai khong, neu không thi tao mot file đe loai tru cac file nhay cam
-if not exist .gitignore (
-    echo Tao file .gitignore đe loai tru cac file nhay cam...
-    (
-        echo .env
-        echo config/security_config.py
-    ) > .gitignore
+:: Đặt tiêu đề cửa sổ CMD
+title 🚀 Auto Commit and Push to GitHub
+
+:: Lấy ngày giờ hiện tại
+for /f "tokens=1-5 delims=/: " %%d in ("%date% %time%") do (
+    set datestamp=%%d-%%e-%%f
+    set timestamp=%%g-%%h
 )
 
-REM Tu đong tao message commit với timestamp
-for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
-set "YYYY=%dt:~0,4%"
-set "MM=%dt:~4,2%"
-set "DD=%dt:~6,2%"
-set "HH=%dt:~8,2%"
-set "Min=%dt:~10,2%"
-set "commit_message=Cap nhat %YYYY%-%MM%-%DD% %HH%:%Min%"
+:: Ghép nội dung commit
+set commit_message=Auto commit: %datestamp% %timestamp%
 
-REM Them, commit và push
-echo.
-echo Đang them cac file da thay doi...
+:: Thực hiện git add
 git add .
-if %errorlevel% neq 0 (
-    echo Loi khi them file!
-    goto end
-)
 
-echo.
-echo Commit voi message: "%commit_message%"
+:: Commit với thông điệp tự động
 git commit -m "%commit_message%"
-if %errorlevel% neq 0 (
-    echo Loi khi commit!
-    goto end
-)
 
-echo.
-echo Đang push len repository...
-git push
-if %errorlevel% neq 0 (
-    echo Lỗi khi push!
-    goto end
-)
+:: Lấy nhánh hiện tại
+for /f "delims=" %%b in ('git rev-parse --abbrev-ref HEAD') do set branch=%%b
 
-echo.
-echo ===== Hoan Thanh commit va push Thanh Cong! =====
+:: Push lên nhánh hiện tại
+git push origin %branch%
 
-:end
-echo.
+:: Thông báo hoàn tất
+echo ✅ Đã push code lên GitHub trên nhánh %branch%.
 pause
