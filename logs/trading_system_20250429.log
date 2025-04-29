@@ -1,25 +1,35 @@
-2025-04-29 11:11:05,284 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
-2025-04-29 11:11:05,284 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
-2025-04-29 11:11:05,285 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
-2025-04-29 11:11:05,302 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:08,317 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:14,321 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:23,324 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:35,327 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
-2025-04-29 11:11:35,329 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:172] - Tiếp tục với danh sách thị trường trống. Dữ liệu thị trường sẽ được tải sau khi cần.
-2025-04-29 11:11:50,341 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-04-29 11:11:50,342 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
-2025-04-29 11:11:50,343 - trading_system - INFO - [main.py:121] - Đã tạo kết nối Binance Futures
-2025-04-29 11:11:50,344 - trading_system - ERROR - [main.py:251] - Lỗi khi thu thập dữ liệu lịch sử: __init__() got an unexpected keyword argument 'sandbox'
-2025-04-29 11:11:50,345 - trading_system - ERROR - [main.py:764] - Lỗi không xử lý được: __init__() got an unexpected keyword argument 'sandbox'
-Traceback (most recent call last):
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 733, in main
-    await system.collect_historical_data(
-  File "E:\AI_AGENT\automated-trading-system\main.py", line 195, in collect_historical_data
-    collector = await create_data_collector(
-  File "E:\AI_AGENT\automated-trading-system\data_collectors\market_data\historical_data_collector.py", line 978, in create_data_collector
-    exchange_connector = BinanceConnector(
-TypeError: __init__() got an unexpected keyword argument 'sandbox'
-2025-04-29 11:11:50,350 - trading_system - INFO - [main.py:621] - Dọn dẹp tài nguyên hệ thống
-2025-04-29 11:11:50,350 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
-2025-04-29 11:11:50,351 - trading_system - INFO - [main.py:634] - Hệ thống đã dừng
+2025-04-29 11:48:25,829 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
+2025-04-29 11:48:25,830 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
+2025-04-29 11:48:25,831 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
+2025-04-29 11:48:25,847 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:48:25,848 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:168] - Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.
+2025-04-29 11:48:25,849 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:169] - Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.
+2025-04-29 11:48:28,850 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:48:28,853 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:168] - Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.
+2025-04-29 11:48:28,854 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:169] - Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.
+2025-04-29 11:48:34,857 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:48:34,859 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:168] - Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.
+2025-04-29 11:48:34,860 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:169] - Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.
+2025-04-29 11:48:43,872 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:48:43,875 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:168] - Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.
+2025-04-29 11:48:43,876 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:169] - Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.
+2025-04-29 11:48:55,885 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:48:55,886 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:168] - Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.
+2025-04-29 11:48:55,888 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:169] - Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.
+2025-04-29 11:48:55,889 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:175] - Tiếp tục với danh sách thị trường trống. Dữ liệu thị trường sẽ được tải sau khi cần.
+2025-04-29 11:49:10,891 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
+2025-04-29 11:49:10,892 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:51] - Đã khởi tạo kết nối Binance Futures
+2025-04-29 11:49:10,894 - trading_system - INFO - [main.py:121] - Đã tạo kết nối Binance Futures
+2025-04-29 11:49:10,933 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:49:10,935 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:168] - Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.
+2025-04-29 11:49:10,937 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:169] - Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.
+2025-04-29 11:49:13,950 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:49:13,952 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:168] - Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.
+2025-04-29 11:49:13,953 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:169] - Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.
+2025-04-29 11:49:19,967 - trading_system.exchange.binanceusdm_connector - ERROR - [binance_connector.py:166] - Lỗi khi tải thị trường: 'dict' object has no attribute 'headers'
+2025-04-29 11:49:19,969 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:168] - Lỗi liên quan đến headers trong response. Có thể do định dạng response không như mong đợi hoặc vấn đề kết nối.
+2025-04-29 11:49:19,971 - trading_system.exchange.binanceusdm_connector - WARNING - [binance_connector.py:169] - Thử lại sau hoặc kiểm tra kết nối mạng và trạng thái API của Binance.
+2025-04-29 11:49:28,102 - trading_system - INFO - [main.py:762] - Nhận tín hiệu dừng từ người dùng
+2025-04-29 11:49:28,104 - trading_system - INFO - [main.py:621] - Dọn dẹp tài nguyên hệ thống
+2025-04-29 11:49:28,105 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
+2025-04-29 11:49:28,106 - trading_system - INFO - [main.py:634] - Hệ thống đã dừng

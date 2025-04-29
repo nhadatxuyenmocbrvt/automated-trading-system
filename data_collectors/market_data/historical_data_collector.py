@@ -953,7 +953,7 @@ async def create_data_collector(
     exchange_id: str,
     api_key: Optional[str] = None,
     api_secret: Optional[str] = None,
-    sandbox: bool = True,
+    testnet: bool = True,  # Thay đổi từ sandbox thành testnet
     is_futures: bool = False,
     max_workers: int = 4
 ) -> HistoricalDataCollector:
@@ -964,7 +964,7 @@ async def create_data_collector(
         exchange_id: ID của sàn giao dịch
         api_key: Khóa API
         api_secret: Mật khẩu API
-        sandbox: Sử dụng môi trường testnet
+        testnet: Sử dụng môi trường testnet
         is_futures: Sử dụng tài khoản futures
         max_workers: Số luồng tối đa cho việc thu thập song song
         
@@ -978,14 +978,14 @@ async def create_data_collector(
         exchange_connector = BinanceConnector(
             api_key=api_key,
             api_secret=api_secret,
-            sandbox=sandbox,
-            futures=is_futures
+            testnet=testnet,  # Sử dụng testnet thay vì sandbox
+            is_futures=is_futures
         )
     elif exchange_id.lower() == 'bybit':
         exchange_connector = BybitConnector(
             api_key=api_key,
             api_secret=api_secret,
-            sandbox=sandbox,
+            testnet=testnet,  # Sử dụng testnet thay vì sandbox
             category='linear' if is_futures else 'spot'
         )
     else:
@@ -994,7 +994,7 @@ async def create_data_collector(
             exchange_id=exchange_id,
             api_key=api_key,
             api_secret=api_secret,
-            sandbox=sandbox
+            testnet=testnet  # Sử dụng testnet thay vì sandbox
         )
     
     # Khởi tạo connector

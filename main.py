@@ -149,112 +149,111 @@ class AutomatedTradingSystem:
             # Nếu không thể tạo connector, vẫn raise lỗi để hàm gọi xử lý
             raise
     
-async def collect_historical_data(self, exchange_id: str, symbols: List[str], 
-                                 timeframes: List[str], days_back: int = 30,
-                                 is_futures: bool = False) -> None:
-    """
-    Thu thập dữ liệu lịch sử từ sàn giao dịch.
-    
-    Args:
-        exchange_id: ID của sàn giao dịch
-        symbols: Danh sách cặp giao dịch
-        timeframes: Danh sách timeframe
-        days_back: Số ngày lấy dữ liệu
-        is_futures: True để sử dụng thị trường futures
-    """
-    try:
-        # Khởi tạo connector với cơ chế retry
-        max_retries = int(get_env('MAX_RETRIES', '5'))
-        retry_count = 0
-        connector = None
+    async def collect_historical_data(self, exchange_id: str, symbols: List[str], 
+                                     timeframes: List[str], days_back: int = 30,
+                                     is_futures: bool = False) -> None:
+        """
+        Thu thập dữ liệu lịch sử từ sàn giao dịch.
         
-        while retry_count < max_retries:
-            try:
-                # Khởi tạo connector
-                connector = await self.init_exchange_connector(
-                    exchange_id=exchange_id,
-                    is_futures=is_futures,
-                    testnet=False  # Sử dụng mainnet để lấy dữ liệu thực
-                )
-                break
-            except Exception as e:
-                retry_count += 1
-                wait_time = 2 ** retry_count  # exponential backoff
-                
-                if retry_count >= max_retries:
-                    logger.error(f"Đã vượt quá số lần thử lại ({max_retries}) khi kết nối {exchange_id}")
-                    raise
-                
-                logger.warning(f"Lỗi khi kết nối {exchange_id}, thử lại sau {wait_time}s (lần {retry_count}/{max_retries})")
-                await asyncio.sleep(wait_time)
-        
-        if connector is None:
-            raise Exception(f"Không thể khởi tạo kết nối với {exchange_id} sau {max_retries} lần thử")
-        
-        # Khởi tạo collector
-        collector = await create_data_collector(
-            exchange_id=exchange_id,
-            api_key=connector.api_key,
-            api_secret=connector.api_secret,
-            testnet=False,  # Sử dụng testnet thay vì sandbox để phù hợp với interface mới
-            is_futures=is_futures
-        )
-        
-        # Lưu vào cache
-        collector_key = f"{exchange_id}_{'futures' if is_futures else 'spot'}"
-        self.collectors[collector_key] = collector
-        
-        # Thời gian bắt đầu và kết thúc
-        end_time = datetime.datetime.now()
-        start_time = end_time - datetime.timedelta(days=days_back)
-        
-        logger.info(f"Bắt đầu thu thập dữ liệu từ {start_time} đến {end_time}")
-        logger.info(f"Cặp giao dịch: {symbols}")
-        logger.info(f"Timeframes: {timeframes}")
-        
-        # Thu thập dữ liệu cho mỗi cặp và timeframe
-        for symbol in symbols:
-            for timeframe in timeframes:
-                logger.info(f"Thu thập dữ liệu {symbol} - {timeframe}")
-                
+        Args:
+            exchange_id: ID của sàn giao dịch
+            symbols: Danh sách cặp giao dịch
+            timeframes: Danh sách timeframe
+            days_back: Số ngày lấy dữ liệu
+            is_futures: True để sử dụng thị trường futures
+        """
+        try:
+            # Khởi tạo connector với cơ chế retry
+            max_retries = int(get_env('MAX_RETRIES', '5'))
+            retry_count = 0
+            connector = None
+            
+            while retry_count < max_retries:
                 try:
-                    # Thu thập OHLCV với cơ chế retry
-                    for attempt in range(max_retries):
-                        try:
-                            # Thu thập OHLCV
-                            df = await collector.collect_ohlcv(
-                                symbol=symbol,
-                                timeframe=timeframe,
-                                start_time=start_time,
-                                end_time=end_time
-                            )
-                            
-                            logger.info(f"Đã thu thập {len(df) if df is not None else 0} bản ghi cho {symbol} - {timeframe}")
-                            break
-                        except Exception as e:
-                            if attempt == max_retries - 1:
-                                logger.error(f"Không thể thu thập dữ liệu cho {symbol} - {timeframe} sau {max_retries} lần thử: {str(e)}")
-                                raise
-                            
-                            wait_time = 2 ** (attempt + 1)
-                            logger.warning(f"Lỗi khi thu thập dữ liệu {symbol} - {timeframe}, thử lại sau {wait_time}s (lần {attempt+1}/{max_retries})")
-                            await asyncio.sleep(wait_time)
-                    
+                    # Khởi tạo connector
+                    connector = await self.init_exchange_connector(
+                        exchange_id=exchange_id,
+                        is_futures=is_futures,
+                        testnet=False  # Sử dụng mainnet để lấy dữ liệu thực
+                    )
+                    break
                 except Exception as e:
-                    logger.error(f"Lỗi khi thu thập dữ liệu {symbol} - {timeframe}: {str(e)}")
-                    logger.info(f"Tiếp tục với cặp/timeframe tiếp theo")
-                    continue
-        
-        logger.info(f"Đã hoàn thành thu thập dữ liệu lịch sử cho {exchange_id}")
-        
-    except Exception as e:
-        logger.error(f"Lỗi khi thu thập dữ liệu lịch sử: {str(e)}")
-        if "timeout" in str(e).lower():
-            logger.warning("Lỗi timeout có thể do kết nối mạng không ổn định hoặc sàn giao dịch không phản hồi")
-            logger.warning("Giải pháp: Tăng REQUEST_TIMEOUT, kiểm tra kết nối mạng hoặc sử dụng proxy")
-        elif "testnet" in str(e).lower() or "sandbox" in str(e).lower():
-            logger.warning("Lỗi liên quan đến tham số testnet/sandbox. Đảm bảo các API connector sử dụng tham số thống nhất.")
-        raise    
+                    retry_count += 1
+                    wait_time = 2 ** retry_count  # exponential backoff
+                    
+                    if retry_count >= max_retries:
+                        logger.error(f"Đã vượt quá số lần thử lại ({max_retries}) khi kết nối {exchange_id}")
+                        raise
+                    
+                    logger.warning(f"Lỗi khi kết nối {exchange_id}, thử lại sau {wait_time}s (lần {retry_count}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+            
+            if connector is None:
+                raise Exception(f"Không thể khởi tạo kết nối với {exchange_id} sau {max_retries} lần thử")
+            
+            # Khởi tạo collector
+            collector = await create_data_collector(
+                exchange_id=exchange_id,
+                api_key=connector.api_key,
+                api_secret=connector.api_secret,
+                testnet=False,  # Sửa: Sử dụng testnet thay vì sandbox
+                is_futures=is_futures
+            )
+            
+            # Lưu vào cache
+            collector_key = f"{exchange_id}_{'futures' if is_futures else 'spot'}"
+            self.collectors[collector_key] = collector
+            
+            # Thời gian bắt đầu và kết thúc
+            end_time = datetime.datetime.now()
+            start_time = end_time - datetime.timedelta(days=days_back)
+            
+            logger.info(f"Bắt đầu thu thập dữ liệu từ {start_time} đến {end_time}")
+            logger.info(f"Cặp giao dịch: {symbols}")
+            logger.info(f"Timeframes: {timeframes}")
+            
+            # Thu thập dữ liệu cho mỗi cặp và timeframe
+            for symbol in symbols:
+                for timeframe in timeframes:
+                    logger.info(f"Thu thập dữ liệu {symbol} - {timeframe}")
+                    
+                    try:
+                        # Thu thập OHLCV với cơ chế retry
+                        for attempt in range(max_retries):
+                            try:
+                                # Thu thập OHLCV
+                                df = await collector.collect_ohlcv(
+                                    symbol=symbol,
+                                    timeframe=timeframe,
+                                    start_time=start_time,
+                                    end_time=end_time
+                                )
+                                
+                                logger.info(f"Đã thu thập {len(df) if df is not None else 0} bản ghi cho {symbol} - {timeframe}")
+                                break
+                            except Exception as e:
+                                if attempt == max_retries - 1:
+                                    logger.error(f"Không thể thu thập dữ liệu cho {symbol} - {timeframe} sau {max_retries} lần thử: {str(e)}")
+                                    raise
+                                
+                                wait_time = 2 ** (attempt + 1)
+                                logger.warning(f"Lỗi khi thu thập dữ liệu {symbol} - {timeframe}, thử lại sau {wait_time}s (lần {attempt+1}/{max_retries})")
+                                await asyncio.sleep(wait_time)
+                        
+                    except Exception as e:
+                        logger.error(f"Lỗi khi thu thập dữ liệu {symbol} - {timeframe}: {str(e)}")
+                        logger.info(f"Tiếp tục với cặp/timeframe tiếp theo")
+                        continue
+            
+            logger.info(f"Đã hoàn thành thu thập dữ liệu lịch sử cho {exchange_id}")
+            
+        except Exception as e:
+            logger.error(f"Lỗi khi thu thập dữ liệu lịch sử: {str(e)}")
+            if "timeout" in str(e).lower():
+                logger.warning("Lỗi timeout có thể do kết nối mạng không ổn định hoặc sàn giao dịch không phản hồi")
+                logger.warning("Giải pháp: Tăng REQUEST_TIMEOUT, kiểm tra kết nối mạng hoặc sử dụng proxy")
+            raise
+    
     async def process_data(self, command: str, **kwargs) -> None:
         """
         Xử lý dữ liệu lịch sử.
