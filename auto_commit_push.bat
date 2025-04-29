@@ -1,5 +1,5 @@
 @echo off
-echo ===== Tự động commit và push =====
+echo ===== Tu Dong commit va push =====
 
 REM Kiểm tra xem .gitignore có tồn tại không, nếu không thì tạo một file để loại trừ các file nhạy cảm
 if not exist .gitignore (
@@ -19,12 +19,12 @@ set "HH=%dt:~8,2%"
 set "Min=%dt:~10,2%"
 set "commit_message=Cập nhật %YYYY%-%MM%-%DD% %HH%:%Min%"
 
-REM Thêm, commit và push
+REM Them, commit và push
 echo.
-echo Đang thêm các file đã thay đổi...
+echo Đang thêm các file da thay doi...
 git add .
 if %errorlevel% neq 0 (
-    echo Lỗi khi thêm file!
+    echo Loi khi them file!
     goto end
 )
 
