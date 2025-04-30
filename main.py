@@ -516,39 +516,42 @@ class AutomatedTradingSystem:
             logger.info(f"Đã tải cấu hình pipeline từ {pipeline_config}")
         
         # Chuyển đổi ngày thành datetime
+        start_datetime = None
+        end_datetime = None
         if start_date:
-            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+            start_datetime = datetime.datetime.strptime(start_date, '%Y-%m-%d')
         if end_date:
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = datetime.datetime.strptime(end_date, '%Y-%m-%d')
         
         # Tạo thư mục đầu ra
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         
-        for symbol in symbols:
-            for timeframe in timeframes:
-                logger.info(f"Chạy pipeline cho {symbol} - {timeframe}")
+        # Thay đổi cách gọi để sử dụng run_pipeline thay vì run
+        for timeframe in timeframes:
+            try:
+                logger.info(f"Chạy pipeline với timeframe {timeframe} cho {len(symbols)} cặp giao dịch")
                 
-                # Thực hiện pipeline
-                result_df = await data_pipeline.run(
-                    symbol=symbol,
+                # Gọi run_pipeline thay vì run
+                results = await data_pipeline.run_pipeline(
+                    exchange_id=exchange,
+                    symbols=symbols,
                     timeframe=timeframe,
-                    exchange=exchange,
-                    start_date=start_date,
-                    end_date=end_date,
-                    config=config
+                    start_time=start_datetime,
+                    end_time=end_datetime,
+                    output_dir=output_path,
+                    save_results=True
                 )
                 
-                # Lưu kết quả
-                file_name = f"{symbol.replace('/', '_')}_{timeframe}"
-                if output_format == 'parquet':
-                    result_df.to_parquet(output_path / f"{file_name}.parquet", index=False)
-                elif output_format == 'csv':
-                    result_df.to_csv(output_path / f"{file_name}.csv", index=False)
-                elif output_format == 'json':
-                    result_df.to_json(output_path / f"{file_name}.json", orient='records')
+                # Không cần xử lý kết quả thêm vì run_pipeline đã lưu kết quả tự động
+                if results:
+                    logger.info(f"Đã hoàn thành pipeline cho {timeframe} với {len(results)} kết quả")
+                else:
+                    logger.warning(f"Không có kết quả cho timeframe {timeframe}")
                 
-                logger.info(f"Đã lưu kết quả pipeline cho {symbol} - {timeframe} tại {output_path / file_name}.{output_format}")
+            except Exception as e:
+                logger.error(f"Lỗi khi chạy pipeline cho timeframe {timeframe}: {str(e)}")
+                logger.error("Chi tiết lỗi:", exc_info=True)
         
         logger.info("Đã hoàn thành chạy pipeline xử lý dữ liệu")
 

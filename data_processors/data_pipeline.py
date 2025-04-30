@@ -311,7 +311,7 @@ class DataPipeline:
                     exchange_id=exchange_id,
                     api_key=api_key,
                     api_secret=api_secret,
-                    sandbox=False,
+                    testnet=False,
                     max_workers=self.max_workers
                 )
                 self.collectors["historical"] = historical_collector

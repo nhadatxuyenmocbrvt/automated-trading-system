@@ -1,0 +1,43 @@
+2025-04-30 14:59:02,842 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binance
+2025-04-30 14:59:04,899 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3623 thị trường
+2025-04-30 14:59:04,900 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
+2025-04-30 14:59:04,901 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
+2025-04-30 14:59:04,902 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 3623 thị trường từ cache
+2025-04-30 14:59:04,904 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binance
+2025-04-30 14:59:05,068 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:05,220 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:05,428 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:05,581 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:05,788 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:05,943 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:06,134 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:06,281 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:06,487 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:06,634 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:06,834 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:06,969 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:07,169 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:07,320 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:07,520 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:07,655 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:07,857 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:07,994 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:08,182 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:08,322 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:08,527 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:08,668 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:08,876 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:09,029 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:09,234 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:09,770 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:09,969 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:10,107 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:10,312 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:10,467 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:10,658 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:10,810 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:11,018 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:11,164 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:11,507 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 14:59:11,838 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 14:59:12,864 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binance

@@ -1,0 +1,29 @@
+{
+    "version": "1.0.0",
+    "last_updated": "2025-04-30T14:59:12.952462",
+    "features": {},
+    "preprocessors": {
+        "normalize": {
+            "apply_by_default": false,
+            "params": {
+                "method": "zscore"
+            },
+            "target_columns": []
+        },
+        "standardize": {
+            "apply_by_default": false,
+            "params": {},
+            "target_columns": []
+        },
+        "min_max_scale": {
+            "apply_by_default": false,
+            "params": {
+                "min_val": 0,
+                "max_val": 1
+            },
+            "target_columns": []
+        }
+    },
+    "transformers": {},
+    "feature_selectors": {}
+}
