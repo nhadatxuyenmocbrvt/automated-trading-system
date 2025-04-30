@@ -1,0 +1,2 @@
+2025-04-30 21:28:51,654 - trading_system.data_pipeline - ERROR - [data_pipeline.py:612] - Lỗi khi làm sạch dữ liệu cho BTC/USDT: local variable 'outlier_cols' referenced before assignment
+2025-04-30 21:28:51,683 - trading_system.data_pipeline - ERROR - [data_pipeline.py:612] - Lỗi khi làm sạch dữ liệu cho ETH/USDT: local variable 'outlier_cols' referenced before assignment
