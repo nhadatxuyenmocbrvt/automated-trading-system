@@ -1,89 +1,20 @@
-2025-04-30 16:03:33,508 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
-2025-04-30 16:03:33,509 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
-2025-04-30 16:03:33,509 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
-2025-04-30 16:03:33,510 - trading_system - INFO - [main.py:268] - Bắt đầu xử lý dữ liệu với lệnh: pipeline
-2025-04-30 16:03:33,510 - trading_system - INFO - [main.py:497] - Bắt đầu chạy pipeline xử lý dữ liệu
-2025-04-30 16:03:33,511 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp z-score
-2025-04-30 16:03:33,512 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
-2025-04-30 16:03:33,513 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
-2025-04-30 16:03:33,514 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
-2025-04-30 16:03:33,514 - trading_system.data_pipeline - INFO - [feature_generator.py:110] - Đã khởi tạo FeatureGenerator
-2025-04-30 16:03:33,515 - trading_system.data_pipeline - INFO - [feature_generator.py:329] - Đăng ký các đặc trưng mặc định
-2025-04-30 16:03:33,515 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: normalize
-2025-04-30 16:03:33,516 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: standardize
-2025-04-30 16:03:33,516 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: min_max_scale
-2025-04-30 16:03:33,517 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1322] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
-2025-04-30 16:03:33,517 - trading_system.data_pipeline - INFO - [data_pipeline.py:198] - Đã khởi tạo các collector dữ liệu cho binance
-2025-04-30 16:03:33,518 - trading_system.data_pipeline - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
-2025-04-30 16:03:33,519 - trading_system - INFO - [main.py:533] - Chạy pipeline với timeframe 1h cho 2 cặp giao dịch
-2025-04-30 16:03:33,520 - trading_system.data_pipeline - INFO - [data_pipeline.py:1165] - Chạy pipeline mặc định với 7 bước
-2025-04-30 16:03:33,520 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Thực hiện bước 'collect_data'
-2025-04-30 16:03:33,521 - trading_system.data_pipeline - INFO - [data_pipeline.py:303] - Thu thập dữ liệu từ binance cho 2 cặp giao dịch, khung thời gian 1h
-2025-04-30 16:03:33,522 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binance
-2025-04-30 16:03:35,678 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3623 thị trường
-2025-04-30 16:03:35,679 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
-2025-04-30 16:03:35,680 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
-2025-04-30 16:03:35,681 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 3623 thị trường từ cache
-2025-04-30 16:03:35,683 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binance
-2025-04-30 16:03:35,684 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:88] - Đã khởi tạo HistoricalDataCollector cho binance
-2025-04-30 16:03:35,685 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:750] - Thu thập OHLCV cho 2 cặp giao dịch với 1h
-2025-04-30 16:03:35,686 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:758] - Bắt đầu thu thập dữ liệu cho BTC/USDT
-2025-04-30 16:03:35,686 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
-2025-04-30 16:03:35,774 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:179] - Cập nhật dữ liệu từ 2024-01-20 16:00:00 (dữ liệu cuối 2024-01-20 17:00:00)
-2025-04-30 16:03:35,775 - trading_system.historical_data_collector_binance - WARNING - [historical_data_collector.py:262] - Không có dữ liệu mới cho BTC/USDT
-2025-04-30 16:03:35,775 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:758] - Bắt đầu thu thập dữ liệu cho ETH/USDT
-2025-04-30 16:03:35,776 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho ETH/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
-2025-04-30 16:03:35,783 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:179] - Cập nhật dữ liệu từ 2024-01-20 16:00:00 (dữ liệu cuối 2024-01-20 17:00:00)
-2025-04-30 16:03:35,783 - trading_system.historical_data_collector_binance - WARNING - [historical_data_collector.py:262] - Không có dữ liệu mới cho ETH/USDT
-2025-04-30 16:03:35,784 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:783] - Đã thu thập dữ liệu cho 2 cặp giao dịch
-2025-04-30 16:03:35,784 - trading_system.data_pipeline - INFO - [data_pipeline.py:334] - Đã thu thập 18000 dòng dữ liệu cho BTC/USDT
-2025-04-30 16:03:35,785 - trading_system.data_pipeline - INFO - [data_pipeline.py:334] - Đã thu thập 18000 dòng dữ liệu cho ETH/USDT
-2025-04-30 16:03:36,638 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1374] - Đã thu thập 0 bản ghi tâm lý từ Fear and Greed Index
-2025-04-30 16:03:36,639 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binance
-2025-04-30 16:03:36,640 - trading_system.data_pipeline - INFO - [data_pipeline.py:1180] - Bỏ qua bước 'load_data' (đã bị tắt)
-2025-04-30 16:03:36,641 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Thực hiện bước 'clean_data'
-2025-04-30 16:03:36,643 - trading_system.data_cleaner - INFO - [data_cleaner.py:353] - Bắt đầu làm sạch dữ liệu OHLCV với 18000 dòng
-2025-04-30 16:03:36,658 - trading_system.outlier_detector - INFO - [outlier_detector.py:140] - Bắt đầu phát hiện ngoại lệ cho 5 cột
-2025-04-30 16:03:36,676 - trading_system.outlier_detector - INFO - [outlier_detector.py:174] - Đã phát hiện 18000 ngoại lệ trong 18000 bản ghi
-2025-04-30 16:03:36,677 - trading_system.data_cleaner - WARNING - [data_cleaner.py:501] - Phát hiện 100.00% dữ liệu là ngoại lệ, quá cao để loại bỏ. Chuyển sang chế độ đánh dấu.
-2025-04-30 16:03:36,678 - trading_system.data_pipeline - ERROR - [data_pipeline.py:610] - Lỗi khi làm sạch dữ liệu cho BTC/USDT: local variable 'outlier_cols' referenced before assignment
-2025-04-30 16:03:36,679 - trading_system.data_cleaner - INFO - [data_cleaner.py:353] - Bắt đầu làm sạch dữ liệu OHLCV với 18000 dòng
-2025-04-30 16:03:36,689 - trading_system.outlier_detector - INFO - [outlier_detector.py:140] - Bắt đầu phát hiện ngoại lệ cho 5 cột
-2025-04-30 16:03:36,704 - trading_system.outlier_detector - INFO - [outlier_detector.py:174] - Đã phát hiện 18000 ngoại lệ trong 18000 bản ghi
-2025-04-30 16:03:36,705 - trading_system.data_cleaner - WARNING - [data_cleaner.py:501] - Phát hiện 100.00% dữ liệu là ngoại lệ, quá cao để loại bỏ. Chuyển sang chế độ đánh dấu.
-2025-04-30 16:03:36,706 - trading_system.data_pipeline - ERROR - [data_pipeline.py:610] - Lỗi khi làm sạch dữ liệu cho ETH/USDT: local variable 'outlier_cols' referenced before assignment
-2025-04-30 16:03:36,706 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Thực hiện bước 'generate_features'
-2025-04-30 16:03:36,707 - trading_system.data_pipeline - INFO - [feature_generator.py:891] - Đã tạo pipeline đặc trưng: BTC/USDT_pipeline_20250430_160336
-2025-04-30 16:03:36,708 - trading_system.data_pipeline - INFO - [feature_generator.py:320] - Đã lưu cấu hình đặc trưng vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_config.json
-2025-04-30 16:03:36,713 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột open bằng phương pháp zscore
-2025-04-30 16:03:36,716 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột high bằng phương pháp zscore
-2025-04-30 16:03:36,719 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột low bằng phương pháp zscore
-2025-04-30 16:03:36,722 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột close bằng phương pháp zscore
-2025-04-30 16:03:36,724 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột volume bằng phương pháp zscore
-2025-04-30 16:03:36,725 - trading_system.data_pipeline - DEBUG - [feature_generator.py:718] - Đã áp dụng bộ tiền xử lý normalize cho 5 cột
-2025-04-30 16:03:36,726 - trading_system.data_pipeline - WARNING - [feature_generator.py:818] - Bộ chọn lọc statistical_correlation không tồn tại
-2025-04-30 16:03:36,726 - trading_system.data_pipeline - INFO - [data_pipeline.py:740] - Đã tạo đặc trưng cho BTC/USDT: 6 -> 6 cột
-2025-04-30 16:03:36,727 - trading_system.data_pipeline - INFO - [feature_generator.py:891] - Đã tạo pipeline đặc trưng: ETH/USDT_pipeline_20250430_160336
-2025-04-30 16:03:36,728 - trading_system.data_pipeline - INFO - [feature_generator.py:320] - Đã lưu cấu hình đặc trưng vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_config.json
-2025-04-30 16:03:36,732 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột open bằng phương pháp zscore
-2025-04-30 16:03:36,735 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột high bằng phương pháp zscore
-2025-04-30 16:03:36,738 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột low bằng phương pháp zscore
-2025-04-30 16:03:36,741 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột close bằng phương pháp zscore
-2025-04-30 16:03:36,744 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột volume bằng phương pháp zscore
-2025-04-30 16:03:36,745 - trading_system.data_pipeline - DEBUG - [feature_generator.py:718] - Đã áp dụng bộ tiền xử lý normalize cho 5 cột
-2025-04-30 16:03:36,745 - trading_system.data_pipeline - WARNING - [feature_generator.py:818] - Bộ chọn lọc statistical_correlation không tồn tại
-2025-04-30 16:03:36,746 - trading_system.data_pipeline - INFO - [data_pipeline.py:740] - Đã tạo đặc trưng cho ETH/USDT: 6 -> 6 cột
-2025-04-30 16:03:36,746 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Thực hiện bước 'merge_sentiment'
-2025-04-30 16:03:36,747 - trading_system.data_pipeline - INFO - [data_pipeline.py:1243] - Không có dữ liệu tâm lý để kết hợp
-2025-04-30 16:03:36,747 - trading_system.data_pipeline - INFO - [data_pipeline.py:1180] - Bỏ qua bước 'prepare_training' (đã bị tắt)
-2025-04-30 16:03:36,748 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Thực hiện bước 'save_data'
-2025-04-30 16:03:36,770 - trading_system.data_pipeline - INFO - [data_pipeline.py:996] - Đã lưu 18000 dòng dữ liệu cho BTC/USDT vào data\pipeline\btc_usdt_20250430_160336.parquet
-2025-04-30 16:03:36,774 - trading_system.data_pipeline - DEBUG - [data_pipeline.py:1022] - Đã lưu metadata cho BTC/USDT vào data\pipeline\btc_usdt_20250430_160336_metadata.json
-2025-04-30 16:03:36,792 - trading_system.data_pipeline - INFO - [data_pipeline.py:996] - Đã lưu 18000 dòng dữ liệu cho ETH/USDT vào data\pipeline\eth_usdt_20250430_160336.parquet
-2025-04-30 16:03:36,798 - trading_system.data_pipeline - DEBUG - [data_pipeline.py:1022] - Đã lưu metadata cho ETH/USDT vào data\pipeline\eth_usdt_20250430_160336_metadata.json
-2025-04-30 16:03:36,800 - trading_system.data_pipeline - INFO - [feature_generator.py:1006] - Đã lưu trạng thái FeatureGenerator vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_generator_state.joblib
-2025-04-30 16:03:36,802 - trading_system.data_pipeline - INFO - [data_pipeline.py:1053] - Đã lưu trạng thái pipeline vào E:\AI_AGENT\automated-trading-system\data\processed\pipeline_state.joblib
-2025-04-30 16:03:36,803 - trading_system - INFO - [main.py:548] - Đã hoàn thành pipeline cho 1h với 2 kết quả
-2025-04-30 16:03:36,804 - trading_system - INFO - [main.py:556] - Đã hoàn thành chạy pipeline xử lý dữ liệu
-2025-04-30 16:03:36,846 - trading_system - INFO - [main.py:623] - Dọn dẹp tài nguyên hệ thống
-2025-04-30 16:03:36,847 - trading_system - INFO - [main.py:636] - Hệ thống đã dừng
+2025-04-30 18:46:31,055 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
+2025-04-30 18:46:31,056 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
+2025-04-30 18:46:31,057 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
+2025-04-30 18:46:31,057 - trading_system - INFO - [main.py:268] - Bắt đầu xử lý dữ liệu với lệnh: sentiment
+2025-04-30 18:46:31,058 - trading_system - INFO - [main.py:452] - Bắt đầu phân tích tâm lý thị trường
+2025-04-30 18:46:31,058 - trading_system - INFO - [main.py:464] - Phân tích tâm lý từ tin tức
+2025-04-30 18:46:31,059 - trading_system - INFO - [main.py:467] - Đã lưu kết quả phân tích tâm lý tin tức vào data\sentiment\sentiment_scores.csv
+2025-04-30 18:46:31,060 - trading_system - INFO - [main.py:482] - Đã hoàn thành phân tích tâm lý thị trường
+2025-04-30 18:46:31,061 - trading_system - INFO - [main.py:623] - Dọn dẹp tài nguyên hệ thống
+2025-04-30 18:46:31,061 - trading_system - INFO - [main.py:636] - Hệ thống đã dừng
+2025-04-30 18:47:02,446 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
+2025-04-30 18:47:02,446 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
+2025-04-30 18:47:02,447 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
+2025-04-30 18:47:02,447 - trading_system - INFO - [main.py:268] - Bắt đầu xử lý dữ liệu với lệnh: sentiment
+2025-04-30 18:47:02,448 - trading_system - INFO - [main.py:452] - Bắt đầu phân tích tâm lý thị trường
+2025-04-30 18:47:02,448 - trading_system - INFO - [main.py:473] - Phân tích tâm lý từ mạng xã hội: ['twitter', 'reddit']
+2025-04-30 18:47:02,449 - trading_system - INFO - [main.py:476] - Đã lưu kết quả phân tích tâm lý mạng xã hội vào data\sentiment\sentiment_scores.csv
+2025-04-30 18:47:02,449 - trading_system - INFO - [main.py:482] - Đã hoàn thành phân tích tâm lý thị trường
+2025-04-30 18:47:02,450 - trading_system - INFO - [main.py:623] - Dọn dẹp tài nguyên hệ thống
+2025-04-30 18:47:02,450 - trading_system - INFO - [main.py:636] - Hệ thống đã dừng

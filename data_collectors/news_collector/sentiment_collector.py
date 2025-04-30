@@ -21,6 +21,7 @@ from urllib.parse import urlencode
 from dataclasses import dataclass
 import requests
 from requests.exceptions import RequestException
+import hashlib
 
 # Import matplotlib có điều kiện để hỗ trợ type hints
 if TYPE_CHECKING:
@@ -1263,6 +1264,536 @@ class GlassNodeSentiment(SentimentSource):
         return results
 
 
+class SantimentDataCollector(SentimentSource):
+    """Lớp thu thập dữ liệu tâm lý từ Santiment API."""
+    
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        Khởi tạo collector Santiment.
+        
+        Args:
+            api_key: API key cho Santiment (tùy chọn)
+        """
+        super().__init__(
+            name="Santiment",
+            description="Dữ liệu tâm lý thị trường từ Santiment API"
+        )
+        self.api_key = api_key or get_env("SANTIMENT_API_KEY", "")
+        self.base_url = "https://api.santiment.net/graphql"
+        self.api_call_counter = 0
+        self.monthly_limit = 5000  # Giới hạn 5000 cuộc gọi/tháng
+        
+        # Tạo thư mục cache nếu chưa tồn tại
+        self.cache_dir = Path("data/cache/santiment")
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Thời gian cache (mặc định: 24 giờ)
+        self.cache_duration = 24 * 60 * 60  # seconds
+    
+    def _get_cache_key(self, query_type: str, params: Dict[str, Any]) -> str:
+        """
+        Tạo khóa cache từ loại truy vấn và tham số.
+        
+        Args:
+            query_type: Loại truy vấn (ví dụ: 'social_volume', 'news')
+            params: Tham số truy vấn
+            
+        Returns:
+            Khóa cache
+        """
+        # Tạo chuỗi đại diện cho tham số
+        param_str = json.dumps(params, sort_keys=True)
+        
+        # Tạo hash từ query_type và param_str
+        cache_key = hashlib.md5(f"{query_type}_{param_str}".encode()).hexdigest()
+        
+        return cache_key
+    
+    def _get_cache_path(self, cache_key: str) -> Path:
+        """
+        Lấy đường dẫn tệp cache.
+        
+        Args:
+            cache_key: Khóa cache
+            
+        Returns:
+            Đường dẫn tệp cache
+        """
+        return self.cache_dir / f"{cache_key}.json"
+    
+    def _save_to_cache(self, cache_key: str, data: Any) -> bool:
+        """
+        Lưu dữ liệu vào cache.
+        
+        Args:
+            cache_key: Khóa cache
+            data: Dữ liệu cần lưu
+            
+        Returns:
+            True nếu lưu thành công, False nếu có lỗi
+        """
+        try:
+            cache_path = self._get_cache_path(cache_key)
+            
+            # Thêm timestamp vào dữ liệu cache
+            cache_data = {
+                "timestamp": time.time(),
+                "data": data
+            }
+            
+            with open(cache_path, 'w') as f:
+                json.dump(cache_data, f)
+                
+            return True
+        except Exception as e:
+            logger.error(f"Lỗi khi lưu dữ liệu vào cache: {str(e)}")
+            return False
+    
+    def _load_from_cache(self, cache_key: str) -> Optional[Any]:
+        """
+        Tải dữ liệu từ cache.
+        
+        Args:
+            cache_key: Khóa cache
+            
+        Returns:
+            Dữ liệu từ cache hoặc None nếu không có cache hợp lệ
+        """
+        try:
+            cache_path = self._get_cache_path(cache_key)
+            
+            # Kiểm tra nếu cache tồn tại
+            if not cache_path.exists():
+                return None
+                
+            # Đọc dữ liệu cache
+            with open(cache_path, 'r') as f:
+                cache_data = json.load(f)
+            
+            # Kiểm tra xem cache còn hiệu lực không
+            if time.time() - cache_data["timestamp"] > self.cache_duration:
+                logger.debug(f"Cache cho {cache_key} đã hết hạn")
+                return None
+                
+            return cache_data["data"]
+        except Exception as e:
+            logger.error(f"Lỗi khi tải dữ liệu từ cache: {str(e)}")
+            return None
+    
+    async def execute_graphql(self, query: str, variables: Dict[str, Any] = None, use_cache: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        Thực thi truy vấn GraphQL.
+        
+        Args:
+            query: Truy vấn GraphQL
+            variables: Biến truy vấn
+            use_cache: Sử dụng cache hay không
+            
+        Returns:
+            Kết quả truy vấn hoặc None nếu có lỗi
+        """
+        if not self.api_key:
+            logger.error("Không tìm thấy Santiment API key")
+            return None
+        
+        # Tạo khóa cache
+        cache_key = self._get_cache_key(query[:50], variables or {})
+        
+        # Kiểm tra cache nếu được yêu cầu
+        if use_cache:
+            cached_data = self._load_from_cache(cache_key)
+            if cached_data is not None:
+                logger.debug(f"Đã tải dữ liệu từ cache cho truy vấn {cache_key}")
+                return cached_data
+        
+        # Kiểm tra giới hạn API
+        if self.api_call_counter >= self.monthly_limit:
+            logger.error(f"Đã đạt giới hạn {self.monthly_limit} cuộc gọi API Santiment trong tháng")
+            return None
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Apikey {self.api_key}"
+        }
+        
+        payload = {
+            "query": query,
+            "variables": variables or {}
+        }
+        
+        try:
+            # Sử dụng requests đồng bộ trên Windows
+            if IS_WINDOWS:
+                response = requests.post(
+                    self.base_url,
+                    json=payload,
+                    headers=headers
+                )
+                
+                self.api_call_counter += 1
+                
+                if response.status_code != 200:
+                    logger.error(f"Lỗi khi thực thi GraphQL: {response.status_code}, {response.text}")
+                    return None
+                
+                data = response.json()
+            else:
+                # Sử dụng aiohttp cho các hệ điều hành khác
+                await self.initialize_session()
+                
+                async with self.session.post(
+                    self.base_url,
+                    json=payload,
+                    headers=headers
+                ) as response:
+                    self.api_call_counter += 1
+                    
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"Lỗi khi thực thi GraphQL: {response.status}, {error_text}")
+                        return None
+                        
+                    data = await response.json()
+            
+            # Kiểm tra lỗi trong phản hồi
+            if "errors" in data:
+                errors = data["errors"]
+                logger.error(f"GraphQL trả về lỗi: {errors}")
+                return None
+                
+            # Lưu vào cache nếu được yêu cầu
+            if use_cache:
+                self._save_to_cache(cache_key, data)
+                
+            return data
+            
+        except Exception as e:
+            logger.error(f"Lỗi khi thực thi truy vấn GraphQL: {str(e)}")
+            return None
+    
+    async def get_social_volume(self, asset: str, from_date: str, to_date: str, 
+                              source: str = "telegram", use_cache: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        Lấy dữ liệu về khối lượng đề cập trên mạng xã hội.
+        
+        Args:
+            asset: Mã tài sản (ví dụ: "bitcoin", "ethereum")
+            from_date: Ngày bắt đầu (định dạng: "YYYY-MM-DD")
+            to_date: Ngày kết thúc (định dạng: "YYYY-MM-DD")
+            source: Nguồn dữ liệu ("telegram", "twitter", "reddit", "professional_traders_chat")
+            use_cache: Sử dụng cache hay không
+            
+        Returns:
+            Dữ liệu khối lượng mạng xã hội hoặc None nếu có lỗi
+        """
+        query = """
+        query socialVolume($slug: String!, $from: DateTime!, $to: DateTime!, $source: String!) {
+          socialVolume(slug: $slug, from: $from, to: $to, source: $source, interval: "1d") {
+            datetime
+            mentionsCount
+          }
+        }
+        """
+        
+        variables = {
+            "slug": asset.lower(),
+            "from": from_date,
+            "to": to_date,
+            "source": source
+        }
+        
+        result = await self.execute_graphql(query, variables, use_cache)
+        
+        if result and "data" in result and "socialVolume" in result["data"]:
+            return result["data"]["socialVolume"]
+        
+        return None
+    
+    async def get_social_sentiment(self, asset: str, from_date: str, to_date: str, 
+                                 source: str = "telegram", use_cache: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        Lấy dữ liệu về tâm lý mạng xã hội.
+        
+        Args:
+            asset: Mã tài sản (ví dụ: "bitcoin", "ethereum")
+            from_date: Ngày bắt đầu (định dạng: "YYYY-MM-DD")
+            to_date: Ngày kết thúc (định dạng: "YYYY-MM-DD")
+            source: Nguồn dữ liệu ("telegram", "twitter", "reddit", "professional_traders_chat")
+            use_cache: Sử dụng cache hay không
+            
+        Returns:
+            Dữ liệu tâm lý mạng xã hội hoặc None nếu có lỗi
+        """
+        query = """
+        query socialSentiment($slug: String!, $from: DateTime!, $to: DateTime!, $source: String!) {
+          socialSentiment(slug: $slug, from: $from, to: $to, source: $source, interval: "1d") {
+            datetime
+            sentiment
+            sentimentPositive
+            sentimentNegative
+            sentimentBearish
+            sentimentBullish
+            sentimentVolume
+          }
+        }
+        """
+        
+        variables = {
+            "slug": asset.lower(),
+            "from": from_date,
+            "to": to_date,
+            "source": source
+        }
+        
+        result = await self.execute_graphql(query, variables, use_cache)
+        
+        if result and "data" in result and "socialSentiment" in result["data"]:
+            return result["data"]["socialSentiment"]
+        
+        return None
+    
+    async def get_news_sentiment(self, asset: str, from_date: str, to_date: str, 
+                              use_cache: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        Lấy dữ liệu về tâm lý tin tức.
+        
+        Args:
+            asset: Mã tài sản (ví dụ: "bitcoin", "ethereum")
+            from_date: Ngày bắt đầu (định dạng: "YYYY-MM-DD")
+            to_date: Ngày kết thúc (định dạng: "YYYY-MM-DD")
+            use_cache: Sử dụng cache hay không
+            
+        Returns:
+            Dữ liệu tâm lý tin tức hoặc None nếu có lỗi
+        """
+        query = """
+        query newsSentiment($slug: String!, $from: DateTime!, $to: DateTime!) {
+          newsSentiment(slug: $slug, from: $from, to: $to, interval: "1d") {
+            datetime
+            sentiment
+            sentimentPositive
+            sentimentNegative
+            mentionsCount
+          }
+        }
+        """
+        
+        variables = {
+            "slug": asset.lower(),
+            "from": from_date,
+            "to": to_date
+        }
+        
+        result = await self.execute_graphql(query, variables, use_cache)
+        
+        if result and "data" in result and "newsSentiment" in result["data"]:
+            return result["data"]["newsSentiment"]
+        
+        return None
+    
+    async def get_price_sentiment(self, asset: str, from_date: str, to_date: str, 
+                                use_cache: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        Lấy dữ liệu về phân tích tâm lý giá.
+        
+        Args:
+            asset: Mã tài sản (ví dụ: "bitcoin", "ethereum")
+            from_date: Ngày bắt đầu (định dạng: "YYYY-MM-DD")
+            to_date: Ngày kết thúc (định dạng: "YYYY-MM-DD")
+            use_cache: Sử dụng cache hay không
+            
+        Returns:
+            Dữ liệu phân tích tâm lý giá hoặc None nếu có lỗi
+        """
+        query = """
+        query priceSentiment($slug: String!, $from: DateTime!, $to: DateTime!) {
+          priceSentiment(slug: $slug, from: $from, to: $to, interval: "1d") {
+            datetime
+            value
+          }
+        }
+        """
+        
+        variables = {
+            "slug": asset.lower(),
+            "from": from_date,
+            "to": to_date
+        }
+        
+        result = await self.execute_graphql(query, variables, use_cache)
+        
+        if result and "data" in result and "priceSentiment" in result["data"]:
+            return result["data"]["priceSentiment"]
+        
+        return None
+    
+    def _map_sentiment_to_label(self, sentiment: float) -> str:
+        """
+        Ánh xạ giá trị tâm lý thành nhãn.
+        
+        Args:
+            sentiment: Giá trị tâm lý (thang đo từ -1 đến 1)
+            
+        Returns:
+            Nhãn tâm lý
+        """
+        if sentiment <= -0.6:
+            return "Very Bearish"
+        elif sentiment <= -0.2:
+            return "Bearish"
+        elif sentiment <= 0.2:
+            return "Neutral"
+        elif sentiment <= 0.6:
+            return "Bullish"
+        else:
+            return "Very Bullish"
+    
+    def _parse_santiment_data(self, data: List[Dict[str, Any]], asset: str, source: str) -> List[SentimentData]:
+        """
+        Chuyển đổi dữ liệu Santiment sang SentimentData.
+        
+        Args:
+            data: Dữ liệu từ Santiment API
+            asset: Mã tài sản
+            source: Nguồn dữ liệu
+            
+        Returns:
+            Danh sách SentimentData
+        """
+        results = []
+        
+        for item in data:
+            try:
+                # Lấy timestamp
+                datetime_str = item.get("datetime")
+                if not datetime_str:
+                    continue
+                    
+                timestamp = datetime.datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
+                
+                # Lấy giá trị tâm lý
+                if "sentiment" in item:
+                    sentiment_value = item["sentiment"]
+                elif "value" in item:
+                    sentiment_value = item["value"]
+                else:
+                    # Tính tâm lý từ tỷ lệ positive/negative nếu có
+                    positive = item.get("sentimentPositive", 0)
+                    negative = item.get("sentimentNegative", 0)
+                    
+                    if positive != 0 or negative != 0:
+                        sentiment_value = (positive - negative) / (positive + negative)
+                    else:
+                        sentiment_value = 0
+                
+                # Ánh xạ giá trị thành nhãn
+                sentiment_label = self._map_sentiment_to_label(sentiment_value)
+                
+                # Tạo metadata
+                metadata = {}
+                for key, value in item.items():
+                    if key not in ["datetime", "sentiment", "value"]:
+                        metadata[key] = value
+                
+                # Tạo đối tượng SentimentData
+                sentiment_data = SentimentData(
+                    value=sentiment_value,
+                    label=sentiment_label,
+                    source=f"Santiment - {source}",
+                    timestamp=timestamp,
+                    asset=asset,
+                    timeframe="1d",
+                    metadata=metadata
+                )
+                
+                results.append(sentiment_data)
+                
+            except Exception as e:
+                logger.error(f"Lỗi khi xử lý dữ liệu Santiment: {str(e)}")
+        
+        return results
+    
+    async def get_sentiment(self, asset: str = "bitcoin", days: int = 30, 
+                          data_source: str = "all", **kwargs) -> List[SentimentData]:
+        """
+        Lấy dữ liệu tâm lý từ Santiment.
+        
+        Args:
+            asset: Mã tài sản (mặc định: "bitcoin")
+            days: Số ngày lịch sử (mặc định: 30)
+            data_source: Nguồn dữ liệu ("social", "news", "price", "all")
+            
+        Returns:
+            Danh sách dữ liệu tâm lý
+        """
+        if not self.api_key:
+            logger.error("Không tìm thấy Santiment API key. Không thể tiếp tục.")
+            return []
+        
+        await self.initialize_session()
+        
+        # Tính toán khoảng thời gian
+        to_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        from_date = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime("%Y-%m-%d")
+        
+        results = []
+        
+        # Xác định các nguồn dữ liệu cần lấy
+        if data_source in ["social", "all"]:
+            # Lấy dữ liệu tâm lý từ Telegram
+            telegram_data = await self.get_social_sentiment(asset, from_date, to_date, "telegram")
+            if telegram_data:
+                results.extend(self._parse_santiment_data(telegram_data, asset, "Telegram"))
+            
+            # Lấy dữ liệu tâm lý từ Twitter/X
+            twitter_data = await self.get_social_sentiment(asset, from_date, to_date, "twitter")
+            if twitter_data:
+                results.extend(self._parse_santiment_data(twitter_data, asset, "Twitter"))
+            
+            # Lấy dữ liệu tâm lý từ Reddit
+            reddit_data = await self.get_social_sentiment(asset, from_date, to_date, "reddit")
+            if reddit_data:
+                results.extend(self._parse_santiment_data(reddit_data, asset, "Reddit"))
+        
+        # Lấy dữ liệu tâm lý từ tin tức
+        if data_source in ["news", "all"]:
+            news_data = await self.get_news_sentiment(asset, from_date, to_date)
+            if news_data:
+                results.extend(self._parse_santiment_data(news_data, asset, "News"))
+        
+        # Lấy dữ liệu phân tích tâm lý giá
+        if data_source in ["price", "all"]:
+            price_data = await self.get_price_sentiment(asset, from_date, to_date)
+            if price_data:
+                results.extend(self._parse_santiment_data(price_data, asset, "Price Analysis"))
+        
+        # Tính toán tâm lý tổng thể từ tất cả nguồn
+        if results:
+            avg_sentiment = sum(result.value for result in results) / len(results)
+            
+            # Ánh xạ giá trị thành nhãn
+            overall_label = self._map_sentiment_to_label(avg_sentiment)
+            
+            # Thêm kết quả tổng thể vào danh sách
+            overall_sentiment = SentimentData(
+                value=avg_sentiment,
+                label=overall_label,
+                source="Santiment (Overall)",
+                timestamp=datetime.datetime.now(),
+                asset=asset,
+                timeframe="1d",
+                metadata={
+                    'data_sources': data_source,
+                    'days': days,
+                    'data_points': len(results)
+                }
+            )
+            
+            results.append(overall_sentiment)
+        
+        return results
+
+
 class SentimentCollector:
     """Lớp chính để thu thập và quản lý dữ liệu tâm lý thị trường từ nhiều nguồn."""
     
@@ -1294,6 +1825,11 @@ class SentimentCollector:
         """Khởi tạo các nguồn dữ liệu tâm lý mặc định."""
         # Thêm Fear & Greed Index
         self.add_source(FearAndGreedIndex())
+        
+        # Thêm Santiment nếu có API key
+        santiment_api_key = get_env("SANTIMENT_API_KEY", "")
+        if santiment_api_key:
+            self.add_source(SantimentDataCollector(api_key=santiment_api_key))
         
         # Thêm Twitter Sentiment nếu có API key
         twitter_bearer_token = get_env("TWITTER_BEARER_TOKEN", "")
@@ -1380,6 +1916,62 @@ class SentimentCollector:
             # Đảm bảo đóng session
             await source.close_session()
     
+    async def collect_specific_sentiment(self, data_source: str, **kwargs) -> List[SentimentData]:
+        """
+        Thu thập dữ liệu tâm lý từ nguồn cụ thể dựa vào loại dữ liệu.
+        
+        Args:
+            data_source: Loại nguồn dữ liệu ('news', 'social')
+            **kwargs: Tham số bổ sung cho nguồn
+            
+        Returns:
+            Danh sách dữ liệu tâm lý thu thập được
+        """
+        results = []
+        
+        # Ưu tiên sử dụng Santiment API nếu có
+        if "Santiment" in self.sources:
+            # Chuẩn bị tham số cho Santiment
+            source_params = kwargs.copy()
+            
+            # Chuyển đổi mã tài sản nếu cần
+            if "asset" in source_params and source_params["asset"] in ["BTC", "ETH"]:
+                asset_map = {"BTC": "bitcoin", "ETH": "ethereum"}
+                source_params["asset"] = asset_map.get(source_params["asset"], source_params["asset"])
+            
+            # Thiết lập data_source phù hợp
+            source_params["data_source"] = data_source
+            
+            # Thu thập dữ liệu từ Santiment
+            santiment_data = await self.collect_from_source("Santiment", **source_params)
+            results.extend(santiment_data)
+            
+            if results:
+                self.logger.info(f"Đã thu thập {len(results)} bản ghi tâm lý từ Santiment với loại dữ liệu {data_source}")
+                return results
+        
+        # Fallback về các nguồn khác nếu không có dữ liệu từ Santiment
+        if data_source == "news":
+            # Thu thập dữ liệu tâm lý tin tức từ các nguồn khác
+            # Hiện tại chúng ta chưa có nguồn tin tức khác trong danh sách
+            self.logger.warning("Không tìm thấy Santiment API hoặc nguồn tin tức khác")
+        
+        elif data_source == "social":
+            # Thu thập dữ liệu từ Twitter nếu có
+            if "Twitter Sentiment" in self.sources:
+                twitter_data = await self.collect_from_source("Twitter Sentiment", **kwargs)
+                results.extend(twitter_data)
+            
+            # Thu thập dữ liệu từ Reddit nếu có
+            if "Reddit Sentiment" in self.sources:
+                reddit_data = await self.collect_from_source("Reddit Sentiment", **kwargs)
+                results.extend(reddit_data)
+            
+            if not results:
+                self.logger.warning("Không tìm thấy Santiment API hoặc nguồn mạng xã hội khác")
+        
+        return results
+    
     async def collect_from_all_sources(self, **kwargs) -> Dict[str, List[SentimentData]]:
         """
         Thu thập dữ liệu tâm lý từ tất cả các nguồn.
@@ -1461,6 +2053,40 @@ class SentimentCollector:
             self.logger.error(f"Lỗi khi lưu dữ liệu tâm lý vào file JSON: {str(e)}")
             return ""
     
+    def save_to_csv(self, data: List[SentimentData], filename: Optional[str] = None) -> str:
+        """
+        Lưu dữ liệu tâm lý vào file CSV.
+        
+        Args:
+            data: Danh sách dữ liệu tâm lý cần lưu
+            filename: Tên file (tùy chọn)
+            
+        Returns:
+            Đường dẫn đến file đã lưu
+        """
+        if not filename:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"crypto_sentiment_{timestamp}.csv"
+        
+        if not filename.endswith('.csv'):
+            filename += '.csv'
+        
+        file_path = self.data_dir / filename
+        
+        try:
+            # Chuyển đổi thành DataFrame
+            df = self.convert_to_dataframe(data)
+            
+            # Lưu vào CSV
+            df.to_csv(file_path, index=False)
+            
+            self.logger.info(f"Đã lưu {len(data)} bản ghi tâm lý vào {file_path}")
+            return str(file_path)
+        
+        except Exception as e:
+            self.logger.error(f"Lỗi khi lưu dữ liệu tâm lý vào file CSV: {str(e)}")
+            return ""
+    
     def load_from_json(self, file_path: Union[str, Path]) -> List[SentimentData]:
         """
         Tải dữ liệu tâm lý từ file JSON.
@@ -1488,12 +2114,13 @@ class SentimentCollector:
             self.logger.error(f"Lỗi khi tải dữ liệu tâm lý từ file JSON: {str(e)}")
             return []
     
-    async def collect_and_save(self, filename: Optional[str] = None, **kwargs) -> str:
+    async def collect_and_save(self, filename: Optional[str] = None, format: str = "json", **kwargs) -> str:
         """
         Thu thập dữ liệu tâm lý từ tất cả các nguồn và lưu vào file.
         
         Args:
             filename: Tên file (tùy chọn)
+            format: Định dạng file ('json' hoặc 'csv')
             **kwargs: Tham số bổ sung cho các nguồn
             
         Returns:
@@ -1513,7 +2140,101 @@ class SentimentCollector:
             reverse=True
         )
         
-        return self.save_to_json(sorted_data, filename)
+        # Lưu theo định dạng tương ứng
+        if format.lower() == 'csv':
+            return self.save_to_csv(sorted_data, filename)
+        else:
+            return self.save_to_json(sorted_data, filename)
+    
+    async def collect_news_sentiment(self, asset: Optional[str] = None, days: int = 30, 
+                                   output_file: Optional[str] = None) -> str:
+        """
+        Thu thập và lưu dữ liệu tâm lý từ tin tức.
+        
+        Args:
+            asset: Mã tài sản (tùy chọn)
+            days: Số ngày lịch sử
+            output_file: Tên file đầu ra (tùy chọn)
+            
+        Returns:
+            Đường dẫn đến file đã lưu
+        """
+        # Chuẩn bị tham số
+        params = {
+            "days": days
+        }
+        
+        if asset:
+            params["asset"] = asset
+        
+        # Thu thập dữ liệu tâm lý tin tức
+        results = await self.collect_specific_sentiment("news", **params)
+        
+        # Xác định tên file nếu không được chỉ định
+        if not output_file:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            if asset:
+                output_file = f"news_sentiment_{asset}_{timestamp}.csv"
+            else:
+                output_file = f"news_sentiment_{timestamp}.csv"
+        
+        # Lưu kết quả
+        if not results:
+            self.logger.warning("Không có dữ liệu tâm lý tin tức để lưu")
+            return ""
+        
+        return self.save_to_csv(results, output_file)
+    
+    async def collect_social_sentiment(self, asset: Optional[str] = None, days: int = 30, 
+                                     platforms: Optional[List[str]] = None,
+                                     output_file: Optional[str] = None) -> str:
+        """
+        Thu thập và lưu dữ liệu tâm lý từ mạng xã hội.
+        
+        Args:
+            asset: Mã tài sản (tùy chọn)
+            days: Số ngày lịch sử
+            platforms: Danh sách nền tảng mạng xã hội ('twitter', 'reddit', 'telegram')
+            output_file: Tên file đầu ra (tùy chọn)
+            
+        Returns:
+            Đường dẫn đến file đã lưu
+        """
+        # Chuẩn bị tham số
+        params = {
+            "days": days
+        }
+        
+        if asset:
+            params["asset"] = asset
+        
+        # Thu thập dữ liệu tâm lý mạng xã hội
+        results = await self.collect_specific_sentiment("social", **params)
+        
+        # Lọc theo nền tảng nếu được chỉ định
+        if platforms and results:
+            filtered_results = []
+            for item in results:
+                source_lower = item.source.lower()
+                if any(platform.lower() in source_lower for platform in platforms):
+                    filtered_results.append(item)
+            
+            results = filtered_results
+        
+        # Xác định tên file nếu không được chỉ định
+        if not output_file:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            if asset:
+                output_file = f"social_sentiment_{asset}_{timestamp}.csv"
+            else:
+                output_file = f"social_sentiment_{timestamp}.csv"
+        
+        # Lưu kết quả
+        if not results:
+            self.logger.warning("Không có dữ liệu tâm lý mạng xã hội để lưu")
+            return ""
+        
+        return self.save_to_csv(results, output_file)
     
     def convert_to_dataframe(self, data: List[SentimentData]) -> pd.DataFrame:
         """
