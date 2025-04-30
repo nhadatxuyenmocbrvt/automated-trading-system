@@ -120,6 +120,7 @@ class DataPipeline:
                 "handle_missing_values": True,
                 "remove_duplicates": True,
                 "outlier_method": OutlierDetectionMethod.Z_SCORE,
+                "outlier_threshold": 10.0,  # Tăng từ 5.0 lên 10.0 cho dữ liệu đã chuẩn hóa
                 "missing_value_method": MissingValueMethod.INTERPOLATE
             },
             "feature_engineering": {
@@ -155,7 +156,7 @@ class DataPipeline:
             normalize_method=self.config.get("feature_engineering", {}).get("normalize_method", "z-score"),
             outlier_detector_kwargs={
                 "method": cleaning_config.get("outlier_method", OutlierDetectionMethod.Z_SCORE),
-                "threshold": cleaning_config.get("outlier_threshold", 3.0)
+                "threshold": cleaning_config.get("outlier_threshold", 10.0)  # Sử dụng ngưỡng 10.0 cho dữ liệu chuẩn hóa
             },
             missing_data_handler_kwargs={
                 "method": cleaning_config.get("missing_value_method", MissingValueMethod.INTERPOLATE)
@@ -304,6 +305,7 @@ class DataPipeline:
         self.logger.info(f"Thu thập dữ liệu từ {exchange_id} cho {len(symbols)} cặp giao dịch, khung thời gian {timeframe}")
         
         results = {}
+        historical_collector = None
         
         try:
             # Khởi tạo collector cho dữ liệu lịch sử nếu chưa có
@@ -499,6 +501,22 @@ class DataPipeline:
         if not self.config.get("data_cleaning", {}).get("enabled", True):
             self.logger.info("Bỏ qua bước làm sạch dữ liệu (đã bị tắt trong cấu hình)")
             return data
+        
+        # Kiểm tra xem dữ liệu có vẻ đã được chuẩn hóa chưa trước khi làm sạch
+        for symbol, df in data.items():
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            
+            for col in numeric_cols:
+                col_data = df[col].dropna()
+                if len(col_data) > 0:
+                    mean = col_data.mean()
+                    std = col_data.std()
+                    
+                    # Nếu mean gần 0 và variance không quá lớn, có thể dữ liệu đã được chuẩn hóa
+                    if abs(mean) < 0.01 and -2.0 < col_data.min() < 0 and 0 < col_data.max() < 5.0:
+                        self.logger.warning(f"Dữ liệu {symbol}, cột {col} có vẻ đã được chuẩn hóa (mean={mean:.4f}). " 
+                                           f"Hãy cân nhắc bỏ qua bước làm sạch hoặc điều chỉnh ngưỡng phát hiện ngoại lệ.")
+                        break
         
         # Cấu hình mặc định
         default_configs = {
@@ -1142,6 +1160,7 @@ class DataPipeline:
             end_time: Thời gian kết thúc (dùng để thu thập dữ liệu)
             output_dir: Thư mục đầu ra
             save_results: Lưu kết quả hay không
+            is_futures: Là thị trường futures hay không
             
         Returns:
             Dict với key là symbol và value là DataFrame kết quả
