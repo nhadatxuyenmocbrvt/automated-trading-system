@@ -252,7 +252,8 @@ class DataPipeline:
         end_time: Optional[datetime] = None,
         include_sentiment: Optional[bool] = None,
         api_key: Optional[str] = None,
-        api_secret: Optional[str] = None
+        api_secret: Optional[str] = None,
+        is_futures: bool = False
     ) -> Dict[str, pd.DataFrame]:
         """
         Thu thập dữ liệu từ các nguồn.
@@ -312,7 +313,8 @@ class DataPipeline:
                     api_key=api_key,
                     api_secret=api_secret,
                     testnet=False,
-                    max_workers=self.max_workers
+                    max_workers=self.max_workers,
+                    is_futures=is_futures
                 )
                 self.collectors["historical"] = historical_collector
             else:
@@ -1123,7 +1125,8 @@ class DataPipeline:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         output_dir: Optional[Path] = None,
-        save_results: bool = True
+        save_results: bool = True,
+        is_futures: bool = False
     ) -> Dict[str, pd.DataFrame]:
         """
         Chạy pipeline xử lý dữ liệu đầy đủ.
@@ -1191,6 +1194,7 @@ class DataPipeline:
                         timeframe=timeframe,
                         start_time=start_time,
                         end_time=end_time,
+                        is_futures=is_futures,
                         **step_params
                     )
                     
