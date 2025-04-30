@@ -497,10 +497,12 @@ class DataCleaner:
                 outlier_count = outlier_df['is_outlier'].sum()
                 outlier_ratio = outlier_count / len(cleaned_df)
                 
+                # Khởi tạo biến outlier_cols ở đây để tránh lỗi tham chiếu trước khi gán giá trị
+                outlier_cols = [col for col in outlier_df.columns if col.endswith('_is_outlier') or col == 'is_outlier']
+                
                 if outlier_ratio > 0.5:
                     self.logger.warning(f"Phát hiện {outlier_ratio:.2%} dữ liệu là ngoại lệ, quá cao để loại bỏ. Chuyển sang chế độ đánh dấu.")
                     # Chỉ đánh dấu thay vì loại bỏ
-                    outlier_cols = [col for col in outlier_df.columns if col.endswith('_is_outlier') or col == 'is_outlier']
                     for col in outlier_cols:
                         cleaned_df[col] = outlier_df[col]
                     
