@@ -7,7 +7,13 @@
         "high",
         "low",
         "close",
-        "volume"
+        "volume",
+        "is_outlier",
+        "open_is_outlier",
+        "high_is_outlier",
+        "low_is_outlier",
+        "close_is_outlier",
+        "volume_is_outlier"
     ],
     "dtypes": {
         "timestamp": "datetime64[ns]",
@@ -15,11 +21,17 @@
         "high": "float64",
         "low": "float64",
         "close": "float64",
-        "volume": "float64"
+        "volume": "float64",
+        "is_outlier": "bool",
+        "open_is_outlier": "bool",
+        "high_is_outlier": "bool",
+        "low_is_outlier": "bool",
+        "close_is_outlier": "bool",
+        "volume_is_outlier": "bool"
     },
-    "saved_at": "2025-04-30T21:28:51.773397",
+    "saved_at": "2025-04-30T23:36:59.893875",
     "file_format": "parquet",
-    "file_path": "data\\pipeline\\eth_usdt_20250430_212851.parquet",
+    "file_path": "data\\pipeline\\eth_usdt_20250430_233659.parquet",
     "data_stats": {
         "open": {
             "min": -1.7305645511269214,

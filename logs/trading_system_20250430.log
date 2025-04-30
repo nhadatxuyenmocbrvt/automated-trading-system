@@ -1,159 +1,163 @@
-2025-04-30 21:28:42,264 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
-2025-04-30 21:28:42,265 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
-2025-04-30 21:28:42,265 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
-2025-04-30 21:28:42,266 - trading_system - INFO - [main.py:285] - Bắt đầu xử lý dữ liệu với lệnh: pipeline
-2025-04-30 21:28:42,266 - trading_system - INFO - [main.py:514] - Bắt đầu chạy pipeline xử lý dữ liệu
-2025-04-30 21:28:42,267 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp z-score
-2025-04-30 21:28:42,268 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
-2025-04-30 21:28:42,269 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
-2025-04-30 21:28:42,269 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
-2025-04-30 21:28:42,270 - trading_system.data_pipeline - INFO - [feature_generator.py:110] - Đã khởi tạo FeatureGenerator
-2025-04-30 21:28:42,270 - trading_system.data_pipeline - INFO - [feature_generator.py:329] - Đăng ký các đặc trưng mặc định
-2025-04-30 21:28:42,271 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: normalize
-2025-04-30 21:28:42,271 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: standardize
-2025-04-30 21:28:42,272 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: min_max_scale
-2025-04-30 21:28:42,272 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
-2025-04-30 21:28:42,273 - trading_system.data_pipeline - INFO - [data_pipeline.py:198] - Đã khởi tạo các collector dữ liệu cho binance
-2025-04-30 21:28:42,273 - trading_system.data_pipeline - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
-2025-04-30 21:28:42,274 - trading_system - INFO - [main.py:550] - Chạy pipeline với timeframe 1h cho 2 cặp giao dịch
-2025-04-30 21:28:42,274 - trading_system.data_pipeline - INFO - [data_pipeline.py:1168] - Chạy pipeline mặc định với 7 bước
-2025-04-30 21:28:42,275 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'collect_data'
-2025-04-30 21:28:42,275 - trading_system.data_pipeline - INFO - [data_pipeline.py:304] - Thu thập dữ liệu từ binance cho 2 cặp giao dịch, khung thời gian 1h
-2025-04-30 21:28:42,276 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binance
-2025-04-30 21:28:44,365 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3625 thị trường
-2025-04-30 21:28:44,366 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
-2025-04-30 21:28:44,367 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
-2025-04-30 21:28:44,368 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 3625 thị trường từ cache
-2025-04-30 21:28:44,370 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binance
-2025-04-30 21:28:44,372 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:88] - Đã khởi tạo HistoricalDataCollector cho binance
-2025-04-30 21:28:44,372 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:750] - Thu thập OHLCV cho 2 cặp giao dịch với 1h
-2025-04-30 21:28:44,374 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:758] - Bắt đầu thu thập dữ liệu cho BTC/USDT
-2025-04-30 21:28:44,374 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
-2025-04-30 21:28:44,501 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:44,502 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:758] - Bắt đầu thu thập dữ liệu cho ETH/USDT
-2025-04-30 21:28:44,503 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho ETH/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
-2025-04-30 21:28:44,731 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:44,732 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-01-01 00:00:00
-2025-04-30 21:28:44,774 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-01-01 00:00:00
-2025-04-30 21:28:44,909 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:45,040 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:45,041 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-02-11 15:00:00.001000
-2025-04-30 21:28:45,088 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-02-11 15:00:00.001000
-2025-04-30 21:28:45,218 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:45,360 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:45,361 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-03-25 07:00:00.001000
-2025-04-30 21:28:45,414 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-03-25 07:00:00.001000
-2025-04-30 21:28:45,549 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:45,671 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:45,672 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-05-05 23:00:00.001000
-2025-04-30 21:28:45,724 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-05-05 23:00:00.001000
-2025-04-30 21:28:45,851 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:45,992 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:45,993 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-06-16 15:00:00.001000
-2025-04-30 21:28:46,038 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-06-16 15:00:00.001000
-2025-04-30 21:28:46,159 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:46,292 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:46,294 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-07-28 07:00:00.001000
-2025-04-30 21:28:46,349 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-07-28 07:00:00.001000
-2025-04-30 21:28:46,479 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:46,615 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:46,616 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-09-07 23:00:00.001000
-2025-04-30 21:28:46,659 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-09-07 23:00:00.001000
-2025-04-30 21:28:46,800 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:46,930 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:46,931 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-10-19 15:00:00.001000
-2025-04-30 21:28:46,971 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-10-19 15:00:00.001000
-2025-04-30 21:28:47,104 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:47,230 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:47,231 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-11-30 07:00:00.001000
-2025-04-30 21:28:47,283 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-11-30 07:00:00.001000
-2025-04-30 21:28:47,462 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:47,594 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:47,595 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-01-10 23:00:00.001000
-2025-04-30 21:28:47,640 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-01-10 23:00:00.001000
-2025-04-30 21:28:47,770 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:47,907 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:47,909 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-02-21 15:00:00.001000
-2025-04-30 21:28:47,967 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-02-21 15:00:00.001000
-2025-04-30 21:28:48,096 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:48,234 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:48,235 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-04-04 08:00:00.001000
-2025-04-30 21:28:48,279 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-04-04 08:00:00.001000
-2025-04-30 21:28:48,420 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:48,550 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:48,551 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-05-16 00:00:00.001000
-2025-04-30 21:28:48,606 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-05-16 00:00:00.001000
-2025-04-30 21:28:48,744 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:48,877 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:48,878 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-06-26 16:00:00.001000
-2025-04-30 21:28:48,933 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-06-26 16:00:00.001000
-2025-04-30 21:28:49,060 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:49,291 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:49,292 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-08-07 08:00:00.001000
-2025-04-30 21:28:49,335 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-08-07 08:00:00.001000
-2025-04-30 21:28:49,472 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:49,600 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:49,602 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-09-18 00:00:00.001000
-2025-04-30 21:28:49,647 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-09-18 00:00:00.001000
-2025-04-30 21:28:49,878 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:50,013 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:50,014 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-10-29 16:00:00.001000
-2025-04-30 21:28:50,062 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-10-29 16:00:00.001000
-2025-04-30 21:28:50,427 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
-2025-04-30 21:28:50,557 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
-2025-04-30 21:28:50,558 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-12-10 08:00:00.001000
-2025-04-30 21:28:50,608 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-12-10 08:00:00.001000
-2025-04-30 21:28:50,701 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 18000 bản ghi OHLCV cho BTC/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\btc_usdt_1h.parquet
-2025-04-30 21:28:50,744 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 18000 bản ghi OHLCV cho ETH/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\eth_usdt_1h.parquet
-2025-04-30 21:28:50,748 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:783] - Đã thu thập dữ liệu cho 2 cặp giao dịch
-2025-04-30 21:28:50,748 - trading_system.data_pipeline - INFO - [data_pipeline.py:336] - Đã thu thập 18000 dòng dữ liệu cho BTC/USDT
-2025-04-30 21:28:50,749 - trading_system.data_pipeline - INFO - [data_pipeline.py:336] - Đã thu thập 18000 dòng dữ liệu cho ETH/USDT
-2025-04-30 21:28:51,606 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1910] - Đã thu thập 0 bản ghi tâm lý từ Fear and Greed Index
-2025-04-30 21:28:51,608 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binance
-2025-04-30 21:28:51,609 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Bỏ qua bước 'load_data' (đã bị tắt)
-2025-04-30 21:28:51,610 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'clean_data'
-2025-04-30 21:28:51,612 - trading_system.data_cleaner - INFO - [data_cleaner.py:353] - Bắt đầu làm sạch dữ liệu OHLCV với 18000 dòng
-2025-04-30 21:28:51,634 - trading_system.outlier_detector - INFO - [outlier_detector.py:140] - Bắt đầu phát hiện ngoại lệ cho 5 cột
-2025-04-30 21:28:51,652 - trading_system.outlier_detector - INFO - [outlier_detector.py:174] - Đã phát hiện 18000 ngoại lệ trong 18000 bản ghi
-2025-04-30 21:28:51,653 - trading_system.data_cleaner - WARNING - [data_cleaner.py:501] - Phát hiện 100.00% dữ liệu là ngoại lệ, quá cao để loại bỏ. Chuyển sang chế độ đánh dấu.
-2025-04-30 21:28:51,654 - trading_system.data_pipeline - ERROR - [data_pipeline.py:612] - Lỗi khi làm sạch dữ liệu cho BTC/USDT: local variable 'outlier_cols' referenced before assignment
-2025-04-30 21:28:51,655 - trading_system.data_cleaner - INFO - [data_cleaner.py:353] - Bắt đầu làm sạch dữ liệu OHLCV với 18000 dòng
-2025-04-30 21:28:51,665 - trading_system.outlier_detector - INFO - [outlier_detector.py:140] - Bắt đầu phát hiện ngoại lệ cho 5 cột
-2025-04-30 21:28:51,681 - trading_system.outlier_detector - INFO - [outlier_detector.py:174] - Đã phát hiện 18000 ngoại lệ trong 18000 bản ghi
-2025-04-30 21:28:51,682 - trading_system.data_cleaner - WARNING - [data_cleaner.py:501] - Phát hiện 100.00% dữ liệu là ngoại lệ, quá cao để loại bỏ. Chuyển sang chế độ đánh dấu.
-2025-04-30 21:28:51,683 - trading_system.data_pipeline - ERROR - [data_pipeline.py:612] - Lỗi khi làm sạch dữ liệu cho ETH/USDT: local variable 'outlier_cols' referenced before assignment
-2025-04-30 21:28:51,684 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'generate_features'
-2025-04-30 21:28:51,684 - trading_system.data_pipeline - INFO - [feature_generator.py:891] - Đã tạo pipeline đặc trưng: BTC/USDT_pipeline_20250430_212851
-2025-04-30 21:28:51,685 - trading_system.data_pipeline - INFO - [feature_generator.py:320] - Đã lưu cấu hình đặc trưng vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_config.json
-2025-04-30 21:28:51,690 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột open bằng phương pháp zscore
-2025-04-30 21:28:51,693 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột high bằng phương pháp zscore
-2025-04-30 21:28:51,696 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột low bằng phương pháp zscore
-2025-04-30 21:28:51,699 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột close bằng phương pháp zscore
-2025-04-30 21:28:51,702 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột volume bằng phương pháp zscore
-2025-04-30 21:28:51,703 - trading_system.data_pipeline - DEBUG - [feature_generator.py:718] - Đã áp dụng bộ tiền xử lý normalize cho 5 cột
-2025-04-30 21:28:51,703 - trading_system.data_pipeline - WARNING - [feature_generator.py:818] - Bộ chọn lọc statistical_correlation không tồn tại
-2025-04-30 21:28:51,704 - trading_system.data_pipeline - INFO - [data_pipeline.py:742] - Đã tạo đặc trưng cho BTC/USDT: 6 -> 6 cột
-2025-04-30 21:28:51,705 - trading_system.data_pipeline - INFO - [feature_generator.py:891] - Đã tạo pipeline đặc trưng: ETH/USDT_pipeline_20250430_212851
-2025-04-30 21:28:51,706 - trading_system.data_pipeline - INFO - [feature_generator.py:320] - Đã lưu cấu hình đặc trưng vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_config.json
-2025-04-30 21:28:51,710 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột open bằng phương pháp zscore
-2025-04-30 21:28:51,713 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột high bằng phương pháp zscore
-2025-04-30 21:28:51,717 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột low bằng phương pháp zscore
-2025-04-30 21:28:51,721 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột close bằng phương pháp zscore
-2025-04-30 21:28:51,724 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột volume bằng phương pháp zscore
-2025-04-30 21:28:51,725 - trading_system.data_pipeline - DEBUG - [feature_generator.py:718] - Đã áp dụng bộ tiền xử lý normalize cho 5 cột
-2025-04-30 21:28:51,726 - trading_system.data_pipeline - WARNING - [feature_generator.py:818] - Bộ chọn lọc statistical_correlation không tồn tại
-2025-04-30 21:28:51,727 - trading_system.data_pipeline - INFO - [data_pipeline.py:742] - Đã tạo đặc trưng cho ETH/USDT: 6 -> 6 cột
-2025-04-30 21:28:51,727 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'merge_sentiment'
-2025-04-30 21:28:51,728 - trading_system.data_pipeline - INFO - [data_pipeline.py:1247] - Không có dữ liệu tâm lý để kết hợp
-2025-04-30 21:28:51,729 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Bỏ qua bước 'prepare_training' (đã bị tắt)
-2025-04-30 21:28:51,730 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'save_data'
-2025-04-30 21:28:51,750 - trading_system.data_pipeline - INFO - [data_pipeline.py:998] - Đã lưu 18000 dòng dữ liệu cho BTC/USDT vào data\pipeline\btc_usdt_20250430_212851.parquet
-2025-04-30 21:28:51,755 - trading_system.data_pipeline - DEBUG - [data_pipeline.py:1024] - Đã lưu metadata cho BTC/USDT vào data\pipeline\btc_usdt_20250430_212851_metadata.json
-2025-04-30 21:28:51,772 - trading_system.data_pipeline - INFO - [data_pipeline.py:998] - Đã lưu 18000 dòng dữ liệu cho ETH/USDT vào data\pipeline\eth_usdt_20250430_212851.parquet
-2025-04-30 21:28:51,777 - trading_system.data_pipeline - DEBUG - [data_pipeline.py:1024] - Đã lưu metadata cho ETH/USDT vào data\pipeline\eth_usdt_20250430_212851_metadata.json
-2025-04-30 21:28:51,778 - trading_system.data_pipeline - INFO - [feature_generator.py:1006] - Đã lưu trạng thái FeatureGenerator vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_generator_state.joblib
-2025-04-30 21:28:51,780 - trading_system.data_pipeline - INFO - [data_pipeline.py:1055] - Đã lưu trạng thái pipeline vào E:\AI_AGENT\automated-trading-system\data\processed\pipeline_state.joblib
-2025-04-30 21:28:51,781 - trading_system - INFO - [main.py:565] - Đã hoàn thành pipeline cho 1h với 2 kết quả
-2025-04-30 21:28:51,781 - trading_system - INFO - [main.py:573] - Đã hoàn thành chạy pipeline xử lý dữ liệu
-2025-04-30 21:28:51,823 - trading_system - INFO - [main.py:640] - Dọn dẹp tài nguyên hệ thống
-2025-04-30 21:28:51,824 - trading_system - INFO - [main.py:653] - Hệ thống đã dừng
+2025-04-30 23:36:50,154 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
+2025-04-30 23:36:50,155 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
+2025-04-30 23:36:50,155 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
+2025-04-30 23:36:50,156 - trading_system - INFO - [main.py:285] - Bắt đầu xử lý dữ liệu với lệnh: pipeline
+2025-04-30 23:36:50,156 - trading_system - INFO - [main.py:514] - Bắt đầu chạy pipeline xử lý dữ liệu
+2025-04-30 23:36:50,157 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp z-score
+2025-04-30 23:36:50,158 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-04-30 23:36:50,159 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-04-30 23:36:50,159 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-04-30 23:36:50,160 - trading_system.data_pipeline - INFO - [feature_generator.py:110] - Đã khởi tạo FeatureGenerator
+2025-04-30 23:36:50,160 - trading_system.data_pipeline - INFO - [feature_generator.py:329] - Đăng ký các đặc trưng mặc định
+2025-04-30 23:36:50,161 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: normalize
+2025-04-30 23:36:50,161 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: standardize
+2025-04-30 23:36:50,161 - trading_system.data_pipeline - DEBUG - [feature_generator.py:173] - Đã đăng ký bộ tiền xử lý: min_max_scale
+2025-04-30 23:36:50,163 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-04-30 23:36:50,163 - trading_system.data_pipeline - INFO - [data_pipeline.py:198] - Đã khởi tạo các collector dữ liệu cho binance
+2025-04-30 23:36:50,164 - trading_system.data_pipeline - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-04-30 23:36:50,165 - trading_system - INFO - [main.py:550] - Chạy pipeline với timeframe 1h cho 2 cặp giao dịch
+2025-04-30 23:36:50,165 - trading_system.data_pipeline - INFO - [data_pipeline.py:1168] - Chạy pipeline mặc định với 7 bước
+2025-04-30 23:36:50,166 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'collect_data'
+2025-04-30 23:36:50,166 - trading_system.data_pipeline - INFO - [data_pipeline.py:304] - Thu thập dữ liệu từ binance cho 2 cặp giao dịch, khung thời gian 1h
+2025-04-30 23:36:50,167 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binance
+2025-04-30 23:36:52,115 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3625 thị trường
+2025-04-30 23:36:52,116 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
+2025-04-30 23:36:52,117 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
+2025-04-30 23:36:52,118 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 3625 thị trường từ cache
+2025-04-30 23:36:52,119 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binance
+2025-04-30 23:36:52,121 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:88] - Đã khởi tạo HistoricalDataCollector cho binance
+2025-04-30 23:36:52,122 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:750] - Thu thập OHLCV cho 2 cặp giao dịch với 1h
+2025-04-30 23:36:52,123 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:758] - Bắt đầu thu thập dữ liệu cho BTC/USDT
+2025-04-30 23:36:52,124 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
+2025-04-30 23:36:52,277 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:52,279 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:758] - Bắt đầu thu thập dữ liệu cho ETH/USDT
+2025-04-30 23:36:52,280 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho ETH/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
+2025-04-30 23:36:52,431 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:52,433 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-01-01 00:00:00
+2025-04-30 23:36:52,487 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-01-01 00:00:00
+2025-04-30 23:36:52,646 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:52,795 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:52,797 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-02-11 15:00:00.001000
+2025-04-30 23:36:52,844 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-02-11 15:00:00.001000
+2025-04-30 23:36:52,999 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:53,152 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:53,153 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-03-25 07:00:00.001000
+2025-04-30 23:36:53,202 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-03-25 07:00:00.001000
+2025-04-30 23:36:53,342 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:53,487 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:53,489 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-05-05 23:00:00.001000
+2025-04-30 23:36:53,546 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-05-05 23:00:00.001000
+2025-04-30 23:36:53,702 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:53,847 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:53,848 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-06-16 15:00:00.001000
+2025-04-30 23:36:53,904 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-06-16 15:00:00.001000
+2025-04-30 23:36:54,053 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:54,203 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:54,205 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-07-28 07:00:00.001000
+2025-04-30 23:36:54,246 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-07-28 07:00:00.001000
+2025-04-30 23:36:54,388 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:54,534 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:54,535 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-09-07 23:00:00.001000
+2025-04-30 23:36:54,588 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-09-07 23:00:00.001000
+2025-04-30 23:36:54,741 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:54,892 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:54,893 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-10-19 15:00:00.001000
+2025-04-30 23:36:54,950 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-10-19 15:00:00.001000
+2025-04-30 23:36:55,102 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:55,241 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:55,242 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-11-30 07:00:00.001000
+2025-04-30 23:36:55,289 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2022-11-30 07:00:00.001000
+2025-04-30 23:36:55,440 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:55,600 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:55,602 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-01-10 23:00:00.001000
+2025-04-30 23:36:55,658 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-01-10 23:00:00.001000
+2025-04-30 23:36:55,795 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:55,945 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:55,946 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-02-21 15:00:00.001000
+2025-04-30 23:36:55,997 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-02-21 15:00:00.001000
+2025-04-30 23:36:56,149 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:56,300 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:56,302 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-04-04 08:00:00.001000
+2025-04-30 23:36:56,351 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-04-04 08:00:00.001000
+2025-04-30 23:36:56,507 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:56,660 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:56,661 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-05-16 00:00:00.001000
+2025-04-30 23:36:56,708 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-05-16 00:00:00.001000
+2025-04-30 23:36:56,865 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:57,018 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:57,020 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-06-26 16:00:00.001000
+2025-04-30 23:36:57,064 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-06-26 16:00:00.001000
+2025-04-30 23:36:57,219 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:57,373 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:57,375 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-08-07 08:00:00.001000
+2025-04-30 23:36:57,419 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-08-07 08:00:00.001000
+2025-04-30 23:36:57,563 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:57,714 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:57,716 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-09-18 00:00:00.001000
+2025-04-30 23:36:57,762 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-09-18 00:00:00.001000
+2025-04-30 23:36:57,916 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:58,214 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:58,216 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-10-29 16:00:00.001000
+2025-04-30 23:36:58,242 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-10-29 16:00:00.001000
+2025-04-30 23:36:58,427 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT
+2025-04-30 23:36:58,579 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT
+2025-04-30 23:36:58,581 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-12-10 08:00:00.001000
+2025-04-30 23:36:58,630 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 1000 nến từ 2023-12-10 08:00:00.001000
+2025-04-30 23:36:58,752 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 18000 bản ghi OHLCV cho BTC/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\btc_usdt_1h.parquet
+2025-04-30 23:36:58,795 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 18000 bản ghi OHLCV cho ETH/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\eth_usdt_1h.parquet
+2025-04-30 23:36:58,798 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:783] - Đã thu thập dữ liệu cho 2 cặp giao dịch
+2025-04-30 23:36:58,799 - trading_system.data_pipeline - INFO - [data_pipeline.py:336] - Đã thu thập 18000 dòng dữ liệu cho BTC/USDT
+2025-04-30 23:36:58,800 - trading_system.data_pipeline - INFO - [data_pipeline.py:336] - Đã thu thập 18000 dòng dữ liệu cho ETH/USDT
+2025-04-30 23:36:59,700 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1910] - Đã thu thập 0 bản ghi tâm lý từ Fear and Greed Index
+2025-04-30 23:36:59,702 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binance
+2025-04-30 23:36:59,704 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Bỏ qua bước 'load_data' (đã bị tắt)
+2025-04-30 23:36:59,705 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'clean_data'
+2025-04-30 23:36:59,706 - trading_system.data_cleaner - INFO - [data_cleaner.py:353] - Bắt đầu làm sạch dữ liệu OHLCV với 18000 dòng
+2025-04-30 23:36:59,724 - trading_system.outlier_detector - INFO - [outlier_detector.py:140] - Bắt đầu phát hiện ngoại lệ cho 5 cột
+2025-04-30 23:36:59,745 - trading_system.outlier_detector - INFO - [outlier_detector.py:174] - Đã phát hiện 18000 ngoại lệ trong 18000 bản ghi
+2025-04-30 23:36:59,746 - trading_system.data_cleaner - WARNING - [data_cleaner.py:501] - Phát hiện 100.00% dữ liệu là ngoại lệ, quá cao để loại bỏ. Chuyển sang chế độ đánh dấu.
+2025-04-30 23:36:59,749 - trading_system.data_cleaner - INFO - [data_cleaner.py:507] - Đã đánh dấu 18000 dòng có ngoại lệ (không loại bỏ)
+2025-04-30 23:36:59,751 - trading_system.data_cleaner - INFO - [data_cleaner.py:529] - Đã hoàn thành làm sạch dữ liệu OHLCV, kết quả có 18000 dòng
+2025-04-30 23:36:59,752 - trading_system.data_pipeline - INFO - [data_pipeline.py:568] - Đã làm sạch 18000 -> 18000 dòng dữ liệu OHLCV cho BTC/USDT
+2025-04-30 23:36:59,753 - trading_system.data_cleaner - INFO - [data_cleaner.py:353] - Bắt đầu làm sạch dữ liệu OHLCV với 18000 dòng
+2025-04-30 23:36:59,769 - trading_system.outlier_detector - INFO - [outlier_detector.py:140] - Bắt đầu phát hiện ngoại lệ cho 5 cột
+2025-04-30 23:36:59,787 - trading_system.outlier_detector - INFO - [outlier_detector.py:174] - Đã phát hiện 18000 ngoại lệ trong 18000 bản ghi
+2025-04-30 23:36:59,788 - trading_system.data_cleaner - WARNING - [data_cleaner.py:501] - Phát hiện 100.00% dữ liệu là ngoại lệ, quá cao để loại bỏ. Chuyển sang chế độ đánh dấu.
+2025-04-30 23:36:59,791 - trading_system.data_cleaner - INFO - [data_cleaner.py:507] - Đã đánh dấu 18000 dòng có ngoại lệ (không loại bỏ)
+2025-04-30 23:36:59,793 - trading_system.data_cleaner - INFO - [data_cleaner.py:529] - Đã hoàn thành làm sạch dữ liệu OHLCV, kết quả có 18000 dòng
+2025-04-30 23:36:59,794 - trading_system.data_pipeline - INFO - [data_pipeline.py:568] - Đã làm sạch 18000 -> 18000 dòng dữ liệu OHLCV cho ETH/USDT
+2025-04-30 23:36:59,795 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'generate_features'
+2025-04-30 23:36:59,795 - trading_system.data_pipeline - INFO - [feature_generator.py:891] - Đã tạo pipeline đặc trưng: BTC/USDT_pipeline_20250430_233659
+2025-04-30 23:36:59,797 - trading_system.data_pipeline - INFO - [feature_generator.py:320] - Đã lưu cấu hình đặc trưng vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_config.json
+2025-04-30 23:36:59,805 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột open bằng phương pháp zscore
+2025-04-30 23:36:59,808 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột high bằng phương pháp zscore
+2025-04-30 23:36:59,811 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột low bằng phương pháp zscore
+2025-04-30 23:36:59,814 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột close bằng phương pháp zscore
+2025-04-30 23:36:59,817 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột volume bằng phương pháp zscore
+2025-04-30 23:36:59,818 - trading_system.data_pipeline - DEBUG - [feature_generator.py:718] - Đã áp dụng bộ tiền xử lý normalize cho 5 cột
+2025-04-30 23:36:59,819 - trading_system.data_pipeline - WARNING - [feature_generator.py:818] - Bộ chọn lọc statistical_correlation không tồn tại
+2025-04-30 23:36:59,820 - trading_system.data_pipeline - INFO - [data_pipeline.py:742] - Đã tạo đặc trưng cho BTC/USDT: 12 -> 12 cột
+2025-04-30 23:36:59,820 - trading_system.data_pipeline - INFO - [feature_generator.py:891] - Đã tạo pipeline đặc trưng: ETH/USDT_pipeline_20250430_233659
+2025-04-30 23:36:59,822 - trading_system.data_pipeline - INFO - [feature_generator.py:320] - Đã lưu cấu hình đặc trưng vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_config.json
+2025-04-30 23:36:59,826 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột open bằng phương pháp zscore
+2025-04-30 23:36:59,829 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột high bằng phương pháp zscore
+2025-04-30 23:36:59,832 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột low bằng phương pháp zscore
+2025-04-30 23:36:59,835 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột close bằng phương pháp zscore
+2025-04-30 23:36:59,838 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột volume bằng phương pháp zscore
+2025-04-30 23:36:59,839 - trading_system.data_pipeline - DEBUG - [feature_generator.py:718] - Đã áp dụng bộ tiền xử lý normalize cho 5 cột
+2025-04-30 23:36:59,839 - trading_system.data_pipeline - WARNING - [feature_generator.py:818] - Bộ chọn lọc statistical_correlation không tồn tại
+2025-04-30 23:36:59,840 - trading_system.data_pipeline - INFO - [data_pipeline.py:742] - Đã tạo đặc trưng cho ETH/USDT: 12 -> 12 cột
+2025-04-30 23:36:59,841 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'merge_sentiment'
+2025-04-30 23:36:59,842 - trading_system.data_pipeline - INFO - [data_pipeline.py:1247] - Không có dữ liệu tâm lý để kết hợp
+2025-04-30 23:36:59,842 - trading_system.data_pipeline - INFO - [data_pipeline.py:1183] - Bỏ qua bước 'prepare_training' (đã bị tắt)
+2025-04-30 23:36:59,843 - trading_system.data_pipeline - INFO - [data_pipeline.py:1186] - Thực hiện bước 'save_data'
+2025-04-30 23:36:59,866 - trading_system.data_pipeline - INFO - [data_pipeline.py:998] - Đã lưu 18000 dòng dữ liệu cho BTC/USDT vào data\pipeline\btc_usdt_20250430_233659.parquet
+2025-04-30 23:36:59,870 - trading_system.data_pipeline - DEBUG - [data_pipeline.py:1024] - Đã lưu metadata cho BTC/USDT vào data\pipeline\btc_usdt_20250430_233659_metadata.json
+2025-04-30 23:36:59,892 - trading_system.data_pipeline - INFO - [data_pipeline.py:998] - Đã lưu 18000 dòng dữ liệu cho ETH/USDT vào data\pipeline\eth_usdt_20250430_233659.parquet
+2025-04-30 23:36:59,897 - trading_system.data_pipeline - DEBUG - [data_pipeline.py:1024] - Đã lưu metadata cho ETH/USDT vào data\pipeline\eth_usdt_20250430_233659_metadata.json
+2025-04-30 23:36:59,899 - trading_system.data_pipeline - INFO - [feature_generator.py:1006] - Đã lưu trạng thái FeatureGenerator vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_generator_state.joblib
+2025-04-30 23:36:59,900 - trading_system.data_pipeline - INFO - [data_pipeline.py:1055] - Đã lưu trạng thái pipeline vào E:\AI_AGENT\automated-trading-system\data\processed\pipeline_state.joblib
+2025-04-30 23:36:59,902 - trading_system - INFO - [main.py:565] - Đã hoàn thành pipeline cho 1h với 2 kết quả
+2025-04-30 23:36:59,902 - trading_system - INFO - [main.py:573] - Đã hoàn thành chạy pipeline xử lý dữ liệu
+2025-04-30 23:36:59,943 - trading_system - INFO - [main.py:640] - Dọn dẹp tài nguyên hệ thống
+2025-04-30 23:36:59,944 - trading_system - INFO - [main.py:653] - Hệ thống đã dừng
