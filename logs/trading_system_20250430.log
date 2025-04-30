@@ -14,3 +14,27 @@
 2025-04-30 12:41:41,260 - trading_system - INFO - [main.py:349] - Đã hoàn thành làm sạch dữ liệu
 2025-04-30 12:41:41,261 - trading_system - INFO - [main.py:620] - Dọn dẹp tài nguyên hệ thống
 2025-04-30 12:41:41,261 - trading_system - INFO - [main.py:633] - Hệ thống đã dừng
+2025-04-30 12:52:54,407 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
+2025-04-30 12:52:54,408 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
+2025-04-30 12:52:54,408 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
+2025-04-30 12:52:54,408 - trading_system - INFO - [main.py:268] - Bắt đầu xử lý dữ liệu với lệnh: clean
+2025-04-30 12:52:54,408 - trading_system - INFO - [main.py:302] - Bắt đầu làm sạch dữ liệu
+2025-04-30 12:52:54,410 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp z-score
+2025-04-30 12:52:54,411 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-04-30 12:52:54,411 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-04-30 12:52:54,412 - trading_system.data_cleaner - INFO - [data_cleaner.py:63] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-04-30 12:52:54,413 - trading_system - INFO - [main.py:323] - Đang làm sạch dữ liệu cho BTC/USDT - 1h
+2025-04-30 12:52:54,490 - trading_system.data_cleaner - INFO - [data_cleaner.py:80] - Đã tải 720 dòng dữ liệu từ data\historical\binance\ohlcv\BTC_USDT_1h.parquet
+2025-04-30 12:52:54,498 - trading_system.data_cleaner - INFO - [data_cleaner.py:109] - Đã lưu 720 dòng dữ liệu vào data\processed\binance\ohlcv\BTC_USDT_1h.parquet
+2025-04-30 12:52:54,499 - trading_system - INFO - [main.py:347] - Đã lưu dữ liệu đã làm sạch cho BTC/USDT - 1h tại data\processed\binance\ohlcv\BTC_USDT_1h.parquet
+2025-04-30 12:52:54,500 - trading_system - INFO - [main.py:323] - Đang làm sạch dữ liệu cho BTC/USDT - 4h
+2025-04-30 12:52:54,513 - trading_system.data_cleaner - INFO - [data_cleaner.py:80] - Đã tải 180 dòng dữ liệu từ data\historical\binance\ohlcv\BTC_USDT_4h.parquet
+2025-04-30 12:52:54,517 - trading_system.data_cleaner - INFO - [data_cleaner.py:109] - Đã lưu 180 dòng dữ liệu vào data\processed\binance\ohlcv\BTC_USDT_4h.parquet
+2025-04-30 12:52:54,518 - trading_system - INFO - [main.py:347] - Đã lưu dữ liệu đã làm sạch cho BTC/USDT - 4h tại data\processed\binance\ohlcv\BTC_USDT_4h.parquet
+2025-04-30 12:52:54,519 - trading_system - INFO - [main.py:323] - Đang làm sạch dữ liệu cho BTC/USDT - 1d
+2025-04-30 12:52:54,530 - trading_system.data_cleaner - INFO - [data_cleaner.py:80] - Đã tải 30 dòng dữ liệu từ data\historical\binance\ohlcv\BTC_USDT_1d.parquet
+2025-04-30 12:52:54,533 - trading_system.data_cleaner - INFO - [data_cleaner.py:109] - Đã lưu 30 dòng dữ liệu vào data\processed\binance\ohlcv\BTC_USDT_1d.parquet
+2025-04-30 12:52:54,534 - trading_system - INFO - [main.py:347] - Đã lưu dữ liệu đã làm sạch cho BTC/USDT - 1d tại data\processed\binance\ohlcv\BTC_USDT_1d.parquet
+2025-04-30 12:52:54,535 - trading_system - INFO - [main.py:349] - Đã hoàn thành làm sạch dữ liệu
+2025-04-30 12:52:54,535 - trading_system - INFO - [main.py:620] - Dọn dẹp tài nguyên hệ thống
+2025-04-30 12:52:54,536 - trading_system - INFO - [main.py:633] - Hệ thống đã dừng
