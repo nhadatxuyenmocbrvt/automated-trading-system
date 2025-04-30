@@ -1,15 +1,21 @@
-2025-04-29 22:53:12,875 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3623 thị trường
-2025-04-29 22:53:12,876 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
-2025-04-29 22:53:12,877 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
-2025-04-29 22:53:14,587 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3623 thị trường
-2025-04-29 22:53:14,588 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
-2025-04-29 22:53:14,589 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
-2025-04-29 22:53:14,590 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 3623 thị trường từ cache
-2025-04-29 22:53:14,591 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binance
-2025-04-29 22:53:14,725 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 720 candles 1h cho BTC/USDT
-2025-04-29 22:53:14,927 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 180 candles 4h cho BTC/USDT
-2025-04-29 22:53:15,135 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 30 candles 1d cho BTC/USDT
-2025-04-29 22:53:15,373 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 720 candles 1h cho ETH/USDT
-2025-04-29 22:53:15,578 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 180 candles 4h cho ETH/USDT
-2025-04-29 22:53:15,790 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 30 candles 1d cho ETH/USDT
-2025-04-29 22:53:15,885 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binance
+2025-04-30 11:31:59,384 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3623 thị trường
+2025-04-30 11:31:59,386 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
+2025-04-30 11:31:59,387 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
+2025-04-30 11:32:01,252 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3623 thị trường
+2025-04-30 11:32:01,253 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
+2025-04-30 11:32:01,254 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
+2025-04-30 11:32:01,255 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 3623 thị trường từ cache
+2025-04-30 11:32:01,256 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binance
+2025-04-30 11:32:01,394 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 720 candles 1h cho BTC/USDT
+2025-04-30 11:32:01,603 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 1h cho BTC/USDT
+2025-04-30 11:32:01,864 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 180 candles 4h cho BTC/USDT
+2025-04-30 11:32:02,064 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 4h cho BTC/USDT
+2025-04-30 11:32:02,241 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 30 candles 1d cho BTC/USDT
+2025-04-30 11:32:02,452 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 1d cho BTC/USDT
+2025-04-30 11:32:02,665 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 720 candles 1h cho ETH/USDT
+2025-04-30 11:32:02,873 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 1h cho ETH/USDT
+2025-04-30 11:32:03,072 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 180 candles 4h cho ETH/USDT
+2025-04-30 11:32:03,279 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 4h cho ETH/USDT
+2025-04-30 11:32:03,448 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 30 candles 1d cho ETH/USDT
+2025-04-30 11:32:03,646 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 1d cho ETH/USDT
+2025-04-30 11:32:03,708 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binance

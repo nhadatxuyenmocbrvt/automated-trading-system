@@ -1,0 +1,68 @@
+2025-04-30 11:31:57,259 - trading_system - INFO - [main.py:56] - Khởi tạo Hệ thống Giao dịch Tự động
+2025-04-30 11:31:57,260 - trading_system - INFO - [main.py:63] - Đã tải cấu hình hệ thống - Môi trường: development
+2025-04-30 11:31:57,260 - trading_system - INFO - [main.py:79] - Hệ thống đã sẵn sàng
+2025-04-30 11:31:59,384 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3623 thị trường
+2025-04-30 11:31:59,386 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
+2025-04-30 11:31:59,387 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
+2025-04-30 11:31:59,388 - trading_system - INFO - [main.py:121] - Đã tạo kết nối Binance Spot
+2025-04-30 11:32:01,252 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:143] - Đã tải thành công 3623 thị trường
+2025-04-30 11:32:01,253 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binance mainnet
+2025-04-30 11:32:01,254 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Spot
+2025-04-30 11:32:01,255 - trading_system.exchange.binance_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 3623 thị trường từ cache
+2025-04-30 11:32:01,256 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binance
+2025-04-30 11:32:01,258 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:88] - Đã khởi tạo HistoricalDataCollector cho binance
+2025-04-30 11:32:01,258 - trading_system - INFO - [main.py:210] - Bắt đầu thu thập dữ liệu từ 2025-03-31 11:32:01.258837 đến 2025-04-30 11:32:01.258837
+2025-04-30 11:32:01,259 - trading_system - INFO - [main.py:211] - Cặp giao dịch: ['BTC/USDT', 'ETH/USDT']
+2025-04-30 11:32:01,259 - trading_system - INFO - [main.py:212] - Timeframes: ['1h', '4h', '1d']
+2025-04-30 11:32:01,260 - trading_system - INFO - [main.py:217] - Thu thập dữ liệu BTC/USDT - 1h
+2025-04-30 11:32:01,261 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (1h) từ 2025-03-31 11:32:01.258837 đến 2025-04-30 11:32:01.258837
+2025-04-30 11:32:01,394 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 720 candles 1h cho BTC/USDT
+2025-04-30 11:32:01,444 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 720 nến từ 2025-03-31 11:32:01.258000
+2025-04-30 11:32:01,603 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 1h cho BTC/USDT
+2025-04-30 11:32:01,648 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:202] - Không có dữ liệu mới từ 2025-04-30 11:00:00.001000
+2025-04-30 11:32:01,736 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 720 bản ghi OHLCV cho BTC/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\btc_usdt_1h.parquet
+2025-04-30 11:32:01,737 - trading_system - INFO - [main.py:231] - Đã thu thập 720 bản ghi cho BTC/USDT - 1h
+2025-04-30 11:32:01,738 - trading_system - INFO - [main.py:217] - Thu thập dữ liệu BTC/USDT - 4h
+2025-04-30 11:32:01,739 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (4h) từ 2025-03-31 11:32:01.258837 đến 2025-04-30 11:32:01.258837
+2025-04-30 11:32:01,864 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 180 candles 4h cho BTC/USDT
+2025-04-30 11:32:01,909 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 180 nến từ 2025-03-31 11:32:01.258000
+2025-04-30 11:32:02,064 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 4h cho BTC/USDT
+2025-04-30 11:32:02,112 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:202] - Không có dữ liệu mới từ 2025-04-30 11:00:00.001000
+2025-04-30 11:32:02,123 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 180 bản ghi OHLCV cho BTC/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\btc_usdt_4h.parquet
+2025-04-30 11:32:02,125 - trading_system - INFO - [main.py:231] - Đã thu thập 180 bản ghi cho BTC/USDT - 4h
+2025-04-30 11:32:02,126 - trading_system - INFO - [main.py:217] - Thu thập dữ liệu BTC/USDT - 1d
+2025-04-30 11:32:02,127 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho BTC/USDT (1d) từ 2025-03-31 11:32:01.258837 đến 2025-04-30 11:32:01.258837
+2025-04-30 11:32:02,241 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 30 candles 1d cho BTC/USDT
+2025-04-30 11:32:02,297 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 30 nến từ 2025-03-31 11:32:01.258000
+2025-04-30 11:32:02,452 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 1d cho BTC/USDT
+2025-04-30 11:32:02,498 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:202] - Không có dữ liệu mới từ 2025-04-30 07:00:00.001000
+2025-04-30 11:32:02,509 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 30 bản ghi OHLCV cho BTC/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\btc_usdt_1d.parquet
+2025-04-30 11:32:02,510 - trading_system - INFO - [main.py:231] - Đã thu thập 30 bản ghi cho BTC/USDT - 1d
+2025-04-30 11:32:02,511 - trading_system - INFO - [main.py:217] - Thu thập dữ liệu ETH/USDT - 1h
+2025-04-30 11:32:02,512 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho ETH/USDT (1h) từ 2025-03-31 11:32:01.258837 đến 2025-04-30 11:32:01.258837
+2025-04-30 11:32:02,665 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 720 candles 1h cho ETH/USDT
+2025-04-30 11:32:02,717 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 720 nến từ 2025-03-31 11:32:01.258000
+2025-04-30 11:32:02,873 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 1h cho ETH/USDT
+2025-04-30 11:32:02,932 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:202] - Không có dữ liệu mới từ 2025-04-30 11:00:00.001000
+2025-04-30 11:32:02,949 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 720 bản ghi OHLCV cho ETH/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\eth_usdt_1h.parquet
+2025-04-30 11:32:02,951 - trading_system - INFO - [main.py:231] - Đã thu thập 720 bản ghi cho ETH/USDT - 1h
+2025-04-30 11:32:02,952 - trading_system - INFO - [main.py:217] - Thu thập dữ liệu ETH/USDT - 4h
+2025-04-30 11:32:02,953 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho ETH/USDT (4h) từ 2025-03-31 11:32:01.258837 đến 2025-04-30 11:32:01.258837
+2025-04-30 11:32:03,072 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 180 candles 4h cho ETH/USDT
+2025-04-30 11:32:03,120 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 180 nến từ 2025-03-31 11:32:01.258000
+2025-04-30 11:32:03,279 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 4h cho ETH/USDT
+2025-04-30 11:32:03,321 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:202] - Không có dữ liệu mới từ 2025-04-30 11:00:00.001000
+2025-04-30 11:32:03,332 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 180 bản ghi OHLCV cho ETH/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\eth_usdt_4h.parquet
+2025-04-30 11:32:03,333 - trading_system - INFO - [main.py:231] - Đã thu thập 180 bản ghi cho ETH/USDT - 4h
+2025-04-30 11:32:03,334 - trading_system - INFO - [main.py:217] - Thu thập dữ liệu ETH/USDT - 1d
+2025-04-30 11:32:03,335 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:125] - Thu thập OHLCV cho ETH/USDT (1d) từ 2025-03-31 11:32:01.258837 đến 2025-04-30 11:32:01.258837
+2025-04-30 11:32:03,448 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 30 candles 1d cho ETH/USDT
+2025-04-30 11:32:03,491 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:206] - Đã lấy 30 nến từ 2025-03-31 11:32:01.258000
+2025-04-30 11:32:03,646 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:369] - Đã lấy 0 candles 1d cho ETH/USDT
+2025-04-30 11:32:03,693 - trading_system.historical_data_collector_binance - DEBUG - [historical_data_collector.py:202] - Không có dữ liệu mới từ 2025-04-30 07:00:00.001000
+2025-04-30 11:32:03,704 - trading_system.historical_data_collector_binance - INFO - [historical_data_collector.py:255] - Đã lưu 30 bản ghi OHLCV cho ETH/USDT vào E:\AI_AGENT\automated-trading-system\data\historical\binance\ohlcv\eth_usdt_1d.parquet
+2025-04-30 11:32:03,705 - trading_system - INFO - [main.py:231] - Đã thu thập 30 bản ghi cho ETH/USDT - 1d
+2025-04-30 11:32:03,706 - trading_system - INFO - [main.py:247] - Đã hoàn thành thu thập dữ liệu lịch sử cho binance
+2025-04-30 11:32:03,707 - trading_system - INFO - [main.py:620] - Dọn dẹp tài nguyên hệ thống
+2025-04-30 11:32:03,708 - trading_system.exchange.binance_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binance
+2025-04-30 11:32:03,710 - trading_system - INFO - [main.py:633] - Hệ thống đã dừng

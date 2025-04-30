@@ -193,7 +193,7 @@ class HistoricalDataCollector:
             try:
                 # Gọi API với giới hạn rate
                 async with self.semaphore:
-                    candles = await self.exchange_connector.fetch_ohlcv(
+                    candles = self.exchange_connector.fetch_ohlcv(
                         symbol, timeframe, current_start_ts, limit
                     )
                     await asyncio.sleep(self.rate_limit_sleep)

@@ -1,6 +1,0 @@
-2025-04-29 22:53:14,726 - trading_system.historical_data_collector_binance - ERROR - [historical_data_collector.py:221] - Lỗi khi thu thập OHLCV cho BTC/USDT: object list can't be used in 'await' expression
-2025-04-29 22:53:14,929 - trading_system.historical_data_collector_binance - ERROR - [historical_data_collector.py:221] - Lỗi khi thu thập OHLCV cho BTC/USDT: object list can't be used in 'await' expression
-2025-04-29 22:53:15,137 - trading_system.historical_data_collector_binance - ERROR - [historical_data_collector.py:221] - Lỗi khi thu thập OHLCV cho BTC/USDT: object list can't be used in 'await' expression
-2025-04-29 22:53:15,374 - trading_system.historical_data_collector_binance - ERROR - [historical_data_collector.py:221] - Lỗi khi thu thập OHLCV cho ETH/USDT: object list can't be used in 'await' expression
-2025-04-29 22:53:15,579 - trading_system.historical_data_collector_binance - ERROR - [historical_data_collector.py:221] - Lỗi khi thu thập OHLCV cho ETH/USDT: object list can't be used in 'await' expression
-2025-04-29 22:53:15,792 - trading_system.historical_data_collector_binance - ERROR - [historical_data_collector.py:221] - Lỗi khi thu thập OHLCV cho ETH/USDT: object list can't be used in 'await' expression
