@@ -314,6 +314,15 @@ python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timefram
 
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
+
+# Làm sạch dữ liệu
+python main.py process clean --data-type ohlcv --symbols BTC/USDT --timeframes 1h
+
+# Tạo đặc trưng kỹ thuật
+python main.py process features --data-type ohlcv --symbols BTC/USDT ETH/USDT --all-indicators
+
+# Chạy toàn bộ pipeline xử lý dữ liệu
+python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2023-01-01 --end-date 2023-12-31
 ```
 
 ## 3. Chạy backtest (chưa triển khai đầy đủ)
