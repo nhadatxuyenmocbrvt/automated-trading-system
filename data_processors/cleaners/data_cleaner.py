@@ -53,8 +53,15 @@ class DataCleaner:
         self.normalize_method = normalize_method
         
         if self.use_outlier_detection:
-            outlier_kwargs = outlier_detector_kwargs or {}
-            self.outlier_detector = OutlierDetector(**outlier_kwargs)
+            # Thiết lập ngưỡng cao hơn cho dữ liệu tài chính
+            default_outlier_kwargs = {'threshold': 5.0}
+            if outlier_kwargs := outlier_detector_kwargs or {}:
+                # Nếu không chỉ định ngưỡng, sử dụng giá trị mặc định
+                if 'threshold' not in outlier_kwargs:
+                    outlier_kwargs['threshold'] = default_outlier_kwargs['threshold']
+                self.outlier_detector = OutlierDetector(**outlier_kwargs)
+            else:
+                self.outlier_detector = OutlierDetector(**default_outlier_kwargs)
             
         if self.use_missing_data_handler:
             missing_kwargs = missing_data_handler_kwargs or {}
@@ -312,7 +319,7 @@ class DataCleaner:
         handle_negative_values: bool = True,
         verify_high_low: bool = True,
         verify_open_close: bool = True,
-        flag_outliers_only: bool = False  # Flag outliers without removing them
+        flag_outliers_only: bool = True  # Mặc định chỉ đánh dấu ngoại lệ mà không loại bỏ
     ) -> pd.DataFrame:
         """
         Làm sạch dữ liệu OHLCV (Open, High, Low, Close, Volume).
@@ -482,15 +489,31 @@ class DataCleaner:
                 outlier_count = outlier_df['is_outlier'].sum()
                 self.logger.info(f"Đã đánh dấu {outlier_count} dòng có ngoại lệ trong dữ liệu OHLCV (không loại bỏ)")
             else:
-                # Loại bỏ ngoại lệ
-                original_len = len(cleaned_df)
-                cleaned_df = self.outlier_detector.remove_outliers(
-                    cleaned_df, columns=cols_to_check
+                # Loại bỏ ngoại lệ nhưng kiểm tra tỷ lệ
+                outlier_df = self.outlier_detector.detect_outliers(
+                    cleaned_df, columns=cols_to_check, per_column=True
                 )
-                new_len = len(cleaned_df)
                 
-                if original_len > new_len:
-                    self.logger.info(f"Đã loại bỏ {original_len - new_len} dòng chứa ngoại lệ ({original_len} -> {new_len})")
+                outlier_count = outlier_df['is_outlier'].sum()
+                outlier_ratio = outlier_count / len(cleaned_df)
+                
+                if outlier_ratio > 0.5:
+                    self.logger.warning(f"Phát hiện {outlier_ratio:.2%} dữ liệu là ngoại lệ, quá cao để loại bỏ. Chuyển sang chế độ đánh dấu.")
+                    # Chỉ đánh dấu thay vì loại bỏ
+                    for col in outlier_cols:
+                        cleaned_df[col] = outlier_df[col]
+                    
+                    self.logger.info(f"Đã đánh dấu {outlier_count} dòng có ngoại lệ (không loại bỏ)")
+                else:
+                    # Loại bỏ ngoại lệ
+                    original_len = len(cleaned_df)
+                    cleaned_df = self.outlier_detector.remove_outliers(
+                        cleaned_df, columns=cols_to_check
+                    )
+                    new_len = len(cleaned_df)
+                    
+                    if original_len > new_len:
+                        self.logger.info(f"Đã loại bỏ {original_len - new_len} dòng chứa ngoại lệ ({original_len} -> {new_len})")
         
         # Xử lý giá trị NA nếu có
         if self.use_missing_data_handler:
@@ -842,35 +865,52 @@ class DataCleaner:
                     outlier_count = outlier_df['is_outlier'].sum()
                     self.logger.info(f"Đã đánh dấu {outlier_count} ngoại lệ (không loại bỏ)")
             else:
-                # Loại bỏ ngoại lệ
-                if 'side' in cleaned_df.columns:
-                    # Phân tích riêng cho mỗi bên (buy/sell) nếu có thông tin side
-                    for side in cleaned_df['side'].unique():
-                        side_mask = cleaned_df['side'] == side
-                        side_df = cleaned_df[side_mask].copy()
-                        
-                        if len(side_df) > 10:  # Cần đủ dữ liệu để phát hiện ngoại lệ
-                            original_len = len(side_df)
-                            side_df_no_outliers = self.outlier_detector.remove_outliers(
-                                side_df, columns=cols_to_check
-                            )
-                            new_len = len(side_df_no_outliers)
-                            
-                            if original_len > new_len:
-                                self.logger.info(f"Đã loại bỏ {original_len - new_len} ngoại lệ từ dữ liệu {side}")
-                                # Cập nhật lại cleaned_df bằng cách loại bỏ các dòng chứa ngoại lệ
-                                outlier_indices = set(side_df.index) - set(side_df_no_outliers.index)
-                                cleaned_df = cleaned_df.drop(outlier_indices)
-                else:
-                    # Nếu không có thông tin side, phân tích toàn bộ dữ liệu
-                    original_len = len(cleaned_df)
-                    cleaned_df = self.outlier_detector.remove_outliers(
-                        cleaned_df, columns=cols_to_check
-                    )
-                    new_len = len(cleaned_df)
+                # Kiểm tra tỷ lệ ngoại lệ trước khi loại bỏ
+                outlier_df = self.outlier_detector.detect_outliers(
+                    cleaned_df, columns=cols_to_check, per_column=True
+                )
+                
+                outlier_count = outlier_df['is_outlier'].sum()
+                outlier_ratio = outlier_count / len(cleaned_df) if len(cleaned_df) > 0 else 0
+                
+                if outlier_ratio > 0.3:  # Nếu hơn 30% dữ liệu là ngoại lệ
+                    self.logger.warning(f"Phát hiện {outlier_ratio:.2%} dữ liệu là ngoại lệ, cao hơn ngưỡng 30%. Chuyển sang chế độ đánh dấu.")
+                    # Chỉ đánh dấu thay vì loại bỏ
+                    outlier_cols = [col for col in outlier_df.columns if col.endswith('_is_outlier') or col == 'is_outlier']
+                    for col in outlier_cols:
+                        cleaned_df[col] = outlier_df[col]
                     
-                    if original_len > new_len:
-                        self.logger.info(f"Đã loại bỏ {original_len - new_len} dòng chứa ngoại lệ ({original_len} -> {new_len})")
+                    self.logger.info(f"Đã đánh dấu {outlier_count} ngoại lệ (không loại bỏ)")
+                else:
+                    # Loại bỏ ngoại lệ
+                    if 'side' in cleaned_df.columns:
+                        # Phân tích riêng cho mỗi bên (buy/sell) nếu có thông tin side
+                        for side in cleaned_df['side'].unique():
+                            side_mask = cleaned_df['side'] == side
+                            side_df = cleaned_df[side_mask].copy()
+                            
+                            if len(side_df) > 10:  # Cần đủ dữ liệu để phát hiện ngoại lệ
+                                original_len = len(side_df)
+                                side_df_no_outliers = self.outlier_detector.remove_outliers(
+                                    side_df, columns=cols_to_check
+                                )
+                                new_len = len(side_df_no_outliers)
+                                
+                                if original_len > new_len:
+                                    self.logger.info(f"Đã loại bỏ {original_len - new_len} ngoại lệ từ dữ liệu {side}")
+                                    # Cập nhật lại cleaned_df bằng cách loại bỏ các dòng chứa ngoại lệ
+                                    outlier_indices = set(side_df.index) - set(side_df_no_outliers.index)
+                                    cleaned_df = cleaned_df.drop(outlier_indices)
+                    else:
+                        # Nếu không có thông tin side, phân tích toàn bộ dữ liệu
+                        original_len = len(cleaned_df)
+                        cleaned_df = self.outlier_detector.remove_outliers(
+                            cleaned_df, columns=cols_to_check
+                        )
+                        new_len = len(cleaned_df)
+                        
+                        if original_len > new_len:
+                            self.logger.info(f"Đã loại bỏ {original_len - new_len} dòng chứa ngoại lệ ({original_len} -> {new_len})")
         
         # Thống kê cuối cùng
         result_stats = {

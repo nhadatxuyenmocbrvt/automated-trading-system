@@ -27,7 +27,7 @@ class OutlierDetector:
     def __init__(
         self,
         method: str = 'z-score',
-        threshold: float = 3.0,
+        threshold: float = 5.0,
         use_robust: bool = False,
         contamination: float = 0.05,
         eps: float = 0.5,
