@@ -745,9 +745,8 @@ async def main():
             kwargs = vars(args)
             # Loại bỏ các tham số không cần thiết
             kwargs.pop('command', None)
-            kwargs.pop('process_command', None)
-            
-            await system.process_data(args.process_command, **kwargs)
+            command = kwargs.pop('process_command', None)
+            await system.process_data(command, **kwargs)
             
         elif args.command == 'backtest':
             await system.run_backtest()

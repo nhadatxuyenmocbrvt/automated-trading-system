@@ -62,6 +62,60 @@ class DataCleaner:
         
         self.logger.info(f"Đã khởi tạo DataCleaner với normalize_method={normalize_method}")
         
+    def load_data(self, file_path: Union[str, Path]) -> pd.DataFrame:
+        """
+        Tải dữ liệu từ file.
+        
+        Args:
+            file_path: Đường dẫn đến file dữ liệu (hỗ trợ CSV, Parquet)
+        
+        Returns:
+            DataFrame chứa dữ liệu
+        """
+        file_path = Path(file_path)
+        
+        try:
+            if file_path.suffix.lower() == '.parquet':
+                df = pd.read_parquet(file_path)
+                self.logger.info(f"Đã tải {len(df)} dòng dữ liệu từ {file_path}")
+            elif file_path.suffix.lower() == '.csv':
+                df = pd.read_csv(file_path)
+                self.logger.info(f"Đã tải {len(df)} dòng dữ liệu từ {file_path}")
+            else:
+                raise ValueError(f"Định dạng file không được hỗ trợ: {file_path.suffix}")
+            
+            return df
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi tải dữ liệu từ {file_path}: {e}")
+            raise
+
+    def save_data(self, df: pd.DataFrame, file_path: Union[str, Path]) -> None:
+        """
+        Lưu DataFrame vào file.
+        
+        Args:
+            df: DataFrame cần lưu
+            file_path: Đường dẫn file đầu ra (hỗ trợ CSV, Parquet)
+        """
+        file_path = Path(file_path)
+        
+        try:
+            # Đảm bảo thư mục đầu ra tồn tại
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            if file_path.suffix.lower() == '.parquet':
+                df.to_parquet(file_path, index=False)
+                self.logger.info(f"Đã lưu {len(df)} dòng dữ liệu vào {file_path}")
+            elif file_path.suffix.lower() == '.csv':
+                df.to_csv(file_path, index=False)
+                self.logger.info(f"Đã lưu {len(df)} dòng dữ liệu vào {file_path}")
+            else:
+                raise ValueError(f"Định dạng file không được hỗ trợ: {file_path.suffix}")
+                
+        except Exception as e:
+            self.logger.error(f"Lỗi khi lưu dữ liệu vào {file_path}: {e}")
+            raise
     
     def clean_dataframe(
         self,
