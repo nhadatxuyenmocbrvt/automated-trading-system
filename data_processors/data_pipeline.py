@@ -135,7 +135,7 @@ class DataPipeline:
                 "default_exchange": self.system_config.get("default_exchange", "binance"),
                 "default_symbols": self.system_config.get("trading.default_symbol", "BTC/USDT").split(","),
                 "default_timeframe": self.system_config.get("trading.default_timeframe", "1h"),
-                "include_sentiment": True
+                "include_sentiment": False
             },
             "output": {
                 "format": "parquet",
@@ -1179,7 +1179,7 @@ class DataPipeline:
                 {"name": "load_data", "enabled": input_files is not None},
                 {"name": "clean_data", "enabled": True},
                 {"name": "generate_features", "enabled": self.config.get("feature_engineering", {}).get("enabled", True)},
-                {"name": "merge_sentiment", "enabled": self.config.get("collectors", {}).get("include_sentiment", True)},
+                {"name": "merge_sentiment", "False": self.config.get("collectors", {}).get("include_sentiment", True)},
                 {"name": "prepare_training", "enabled": False},  # Mặc định không chuẩn bị dữ liệu huấn luyện
                 {"name": "save_data", "enabled": save_results}
             ]
