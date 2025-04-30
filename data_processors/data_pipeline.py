@@ -120,7 +120,7 @@ class DataPipeline:
                 "handle_missing_values": True,
                 "remove_duplicates": True,
                 "outlier_method": OutlierDetectionMethod.Z_SCORE,
-                "outlier_threshold": 10.0,  # Tăng từ 5.0 lên 10.0 cho dữ liệu đã chuẩn hóa
+                "outlier_threshold": 15.0,  # Tăng từ 5.0 lên 10.0 cho dữ liệu đã chuẩn hóa
                 "missing_value_method": MissingValueMethod.INTERPOLATE
             },
             "feature_engineering": {
@@ -156,7 +156,7 @@ class DataPipeline:
             normalize_method=self.config.get("feature_engineering", {}).get("normalize_method", "z-score"),
             outlier_detector_kwargs={
                 "method": cleaning_config.get("outlier_method", OutlierDetectionMethod.Z_SCORE),
-                "threshold": cleaning_config.get("outlier_threshold", 10.0)  # Sử dụng ngưỡng 10.0 cho dữ liệu chuẩn hóa
+                "threshold": cleaning_config.get("outlier_threshold", 15.0)  # Sử dụng ngưỡng 10.0 cho dữ liệu chuẩn hóa
             },
             missing_data_handler_kwargs={
                 "method": cleaning_config.get("missing_value_method", MissingValueMethod.INTERPOLATE)
@@ -581,7 +581,7 @@ class DataPipeline:
                         verify_high_low=config.get("verify_high_low", True),
                         verify_open_close=config.get("verify_open_close", True),
                         flag_outliers_only=config.get("flag_outliers_only", False)
-                    )
+                        )
                     
                     self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu OHLCV cho {symbol}")
                     
