@@ -1,2 +1,2 @@
-2025-05-01 20:15:43,195 - trading_system.data_pipeline - ERROR - [feature_generator.py:859] - Lỗi khi áp dụng chọn lọc đặc trưng statistical_correlation: correlation_selector() missing 1 required positional argument: 'target_column'
-2025-05-01 20:15:43,220 - trading_system.data_pipeline - ERROR - [feature_generator.py:859] - Lỗi khi áp dụng chọn lọc đặc trưng statistical_correlation: correlation_selector() missing 1 required positional argument: 'target_column'
+2025-05-01 21:00:18,694 - trading_system.data_pipeline - ERROR - [feature_generator.py:859] - Lỗi khi áp dụng chọn lọc đặc trưng statistical_correlation: 'list' object has no attribute 'shape'
+2025-05-01 21:00:18,726 - trading_system.data_pipeline - ERROR - [feature_generator.py:859] - Lỗi khi áp dụng chọn lọc đặc trưng statistical_correlation: 'list' object has no attribute 'shape'

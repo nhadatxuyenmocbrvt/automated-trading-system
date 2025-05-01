@@ -114,32 +114,32 @@ def calculate_feature_correlation(
 
 def correlation_selector(
     df: pd.DataFrame,
-    target_column: str,
+    target_column: str = 'close',
     k: Optional[int] = None,
     threshold: float = 0.0,
     method: str = 'pearson',
     exclude_columns: List[str] = [],
     **kwargs    
-) -> List[str]:
+) -> Tuple[List[str], Dict[str, float]]:  # Thay đổi kiểu trả về thành tuple
     """
     Lựa chọn đặc trưng dựa trên tương quan với biến mục tiêu.
     
     Args:
         df: DataFrame chứa các đặc trưng và biến mục tiêu
-        target_column: Tên cột mục tiêu
+        target_column: Tên cột mục tiêu (mặc định là 'close')
         k: Số lượng đặc trưng cần chọn (None để chọn theo ngưỡng)
         threshold: Ngưỡng tối thiểu của tương quan tuyệt đối để chọn đặc trưng
         method: Phương pháp tính tương quan ('pearson', 'kendall', 'spearman')
         exclude_columns: Danh sách cột cần loại trừ khỏi việc lựa chọn
         
     Returns:
-        Danh sách tên các cột đặc trưng được chọn
+        Tuple chứa (danh sách tên đặc trưng được chọn, dict điểm tương quan)
     """
     try:
         # Kiểm tra dữ liệu đầu vào
         if target_column not in df.columns:
             logger.error(f"Cột mục tiêu '{target_column}' không tồn tại trong DataFrame")
-            return []
+            return [], {}
         
         # Loại bỏ các cột không muốn xem xét
         exclude_columns.append(target_column)  # Loại trừ cả cột mục tiêu
@@ -152,10 +152,11 @@ def correlation_selector(
         is_numeric_target = pd.api.types.is_numeric_dtype(target)
         if not is_numeric_target:
             logger.warning(f"Cột mục tiêu '{target_column}' không phải kiểu số, không thể tính tương quan")
-            return []
+            return [], {}
         
         # Tính tương quan với target
         correlation_data = []
+        correlation_scores = {}
         
         for col in feature_df.columns:
             # Chỉ xem xét các cột số
@@ -168,6 +169,7 @@ def correlation_selector(
             if len(valid_data) > 1:  # Cần ít nhất 2 điểm dữ liệu để tính tương quan
                 correlation = valid_data[col].corr(valid_data[target_column], method=method)
                 correlation_data.append((col, correlation, abs(correlation)))
+                correlation_scores[col] = correlation
         
         # Sắp xếp theo giá trị tuyệt đối của tương quan giảm dần
         correlation_data.sort(key=lambda x: x[2], reverse=True)
@@ -182,11 +184,11 @@ def correlation_selector(
             selected_features = [item[0] for item in correlation_data if item[2] >= threshold]
         
         logger.info(f"Đã chọn {len(selected_features)} đặc trưng dựa trên tương quan {method}")
-        return selected_features
+        return selected_features, correlation_scores  # Trả về tuple với 2 phần tử
     
     except Exception as e:
         logger.error(f"Lỗi khi chọn đặc trưng dựa trên tương quan: {str(e)}")
-        return []
+        return [], {}  # Trả về tuple rỗng trong trường hợp lỗi
 
 def chi_squared_selector(
     df: pd.DataFrame,
@@ -194,7 +196,7 @@ def chi_squared_selector(
     k: Optional[int] = None,
     threshold: float = 0.05,
     exclude_columns: List[str] = []
-) -> List[str]:
+) -> Tuple[List[str], Dict[str, float]]:  # Cập nhật kiểu trả về giống correlation_selector
     """
     Lựa chọn đặc trưng dựa trên kiểm định Chi-squared cho biến phân loại.
     
@@ -206,13 +208,13 @@ def chi_squared_selector(
         exclude_columns: Danh sách cột cần loại trừ khỏi việc lựa chọn
         
     Returns:
-        Danh sách tên các cột đặc trưng được chọn
+        Tuple chứa (danh sách tên đặc trưng được chọn, dict điểm p-value)
     """
     try:
         # Kiểm tra dữ liệu đầu vào
         if target_column not in df.columns:
             logger.error(f"Cột mục tiêu '{target_column}' không tồn tại trong DataFrame")
-            return []
+            return [], {}
         
         # Loại bỏ các cột không muốn xem xét
         exclude_columns.append(target_column)  # Loại trừ cả cột mục tiêu
@@ -222,7 +224,7 @@ def chi_squared_selector(
         numeric_cols = feature_df.select_dtypes(include=['number']).columns.tolist()
         if not numeric_cols:
             logger.warning("Không có cột số nào để thực hiện kiểm định Chi-squared")
-            return []
+            return [], {}
         
         X = feature_df[numeric_cols]
         y = df[target_column]
@@ -238,6 +240,9 @@ def chi_squared_selector(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             chi2_stats, p_values = chi2(X_non_negative, y)
+        
+        # Tạo dict với p-values
+        p_value_dict = {col: p_val for col, p_val in zip(numeric_cols, p_values)}
         
         # Tạo DataFrame kết quả
         result_df = pd.DataFrame({
@@ -259,11 +264,11 @@ def chi_squared_selector(
             selected_features = result_df[result_df['p_value'] < threshold]['feature'].tolist()
         
         logger.info(f"Đã chọn {len(selected_features)} đặc trưng dựa trên kiểm định Chi-squared")
-        return selected_features
+        return selected_features, p_value_dict
     
     except Exception as e:
         logger.error(f"Lỗi khi chọn đặc trưng dựa trên kiểm định Chi-squared: {str(e)}")
-        return []
+        return [], {}
 
 def anova_selector(
     df: pd.DataFrame,
@@ -271,7 +276,7 @@ def anova_selector(
     k: Optional[int] = None,
     threshold: float = 0.05,
     exclude_columns: List[str] = []
-) -> List[str]:
+) -> Tuple[List[str], Dict[str, float]]:  # Cập nhật kiểu trả về
     """
     Lựa chọn đặc trưng dựa trên kiểm định ANOVA (F-test).
     
@@ -283,13 +288,13 @@ def anova_selector(
         exclude_columns: Danh sách cột cần loại trừ khỏi việc lựa chọn
         
     Returns:
-        Danh sách tên các cột đặc trưng được chọn
+        Tuple chứa (danh sách tên đặc trưng được chọn, dict điểm p-value)
     """
     try:
         # Kiểm tra dữ liệu đầu vào
         if target_column not in df.columns:
             logger.error(f"Cột mục tiêu '{target_column}' không tồn tại trong DataFrame")
-            return []
+            return [], {}
         
         # Loại bỏ các cột không muốn xem xét
         exclude_columns.append(target_column)  # Loại trừ cả cột mục tiêu
@@ -299,13 +304,16 @@ def anova_selector(
         numeric_cols = feature_df.select_dtypes(include=['number']).columns.tolist()
         if not numeric_cols:
             logger.warning("Không có cột số nào để thực hiện kiểm định ANOVA")
-            return []
+            return [], {}
         
         X = feature_df[numeric_cols]
         y = df[target_column]
         
         # Thực hiện ANOVA F-test
         f_stats, p_values = f_classif(X, y)
+        
+        # Tạo dict với p-values
+        p_value_dict = {col: p_val for col, p_val in zip(numeric_cols, p_values)}
         
         # Tạo DataFrame kết quả
         result_df = pd.DataFrame({
@@ -327,11 +335,11 @@ def anova_selector(
             selected_features = result_df[result_df['p_value'] < threshold]['feature'].tolist()
         
         logger.info(f"Đã chọn {len(selected_features)} đặc trưng dựa trên kiểm định ANOVA")
-        return selected_features
+        return selected_features, p_value_dict
     
     except Exception as e:
         logger.error(f"Lỗi khi chọn đặc trưng dựa trên kiểm định ANOVA: {str(e)}")
-        return []
+        return [], {}
 
 def mutual_info_selector(
     df: pd.DataFrame,
@@ -340,7 +348,7 @@ def mutual_info_selector(
     threshold: float = 0.0,
     discrete_target: bool = None,
     exclude_columns: List[str] = []
-) -> List[str]:
+) -> Tuple[List[str], Dict[str, float]]:  # Cập nhật kiểu trả về
     """
     Lựa chọn đặc trưng dựa trên Mutual Information.
     
@@ -353,13 +361,13 @@ def mutual_info_selector(
         exclude_columns: Danh sách cột cần loại trừ khỏi việc lựa chọn
         
     Returns:
-        Danh sách tên các cột đặc trưng được chọn
+        Tuple chứa (danh sách tên đặc trưng được chọn, dict điểm mutual_info)
     """
     try:
         # Kiểm tra dữ liệu đầu vào
         if target_column not in df.columns:
             logger.error(f"Cột mục tiêu '{target_column}' không tồn tại trong DataFrame")
-            return []
+            return [], {}
         
         # Loại bỏ các cột không muốn xem xét
         exclude_columns.append(target_column)  # Loại trừ cả cột mục tiêu
@@ -369,7 +377,7 @@ def mutual_info_selector(
         numeric_cols = feature_df.select_dtypes(include=['number']).columns.tolist()
         if not numeric_cols:
             logger.warning("Không có cột số nào để tính Mutual Information")
-            return []
+            return [], {}
         
         X = feature_df[numeric_cols]
         y = df[target_column]
@@ -390,6 +398,9 @@ def mutual_info_selector(
             # Cho bài toán hồi quy
             mi_scores = mutual_info_regression(X, y, random_state=42)
         
+        # Tạo dict với mutual info scores
+        mi_score_dict = {col: mi_score for col, mi_score in zip(numeric_cols, mi_scores)}
+        
         # Tạo DataFrame kết quả
         result_df = pd.DataFrame({
             'feature': numeric_cols,
@@ -409,8 +420,8 @@ def mutual_info_selector(
             selected_features = result_df[result_df['mi_score'] >= threshold]['feature'].tolist()
         
         logger.info(f"Đã chọn {len(selected_features)} đặc trưng dựa trên Mutual Information")
-        return selected_features
+        return selected_features, mi_score_dict
     
     except Exception as e:
         logger.error(f"Lỗi khi chọn đặc trưng dựa trên Mutual Information: {str(e)}")
-        return []
+        return [], {}
