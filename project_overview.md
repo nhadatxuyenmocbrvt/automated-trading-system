@@ -103,9 +103,9 @@
 - **Đầu ra**: Môi trường huấn luyện cơ bản
 
 #### Sprint 9 - Hàm phần thưởng và mô phỏng
-- [ ] `environments/reward_functions/profit_reward.py`
-- [ ] `environments/reward_functions/risk_adjusted_reward.py`
-- [ ] `environments/reward_functions/custom_reward.py`
+- [x] `environments/reward_functions/profit_reward.py`
+- [x] `environments/reward_functions/risk_adjusted_reward.py`
+- [x] `environments/reward_functions/custom_reward.py`
 - **Đầu ra**: Bộ hàm phần thưởng đa dạng
 
 #### Sprint 10 - Mô phỏng thị trường
