@@ -1,0 +1,45 @@
+{
+    "symbol": "ETH/USDT",
+    "rows": 1000,
+    "columns": [
+        "high",
+        "low",
+        "open",
+        "close"
+    ],
+    "dtypes": {
+        "high": "float64",
+        "low": "float64",
+        "open": "float64",
+        "close": "float64"
+    },
+    "saved_at": "2025-05-02T00:00:27.958932",
+    "file_format": "parquet",
+    "file_path": "data\\pipeline\\eth_usdt_20250502_000027.parquet",
+    "data_stats": {
+        "high": {
+            "min": -1.707193366566146,
+            "max": 1.778733755345798,
+            "mean": 1.1368683772161603e-16,
+            "null_count": 0
+        },
+        "low": {
+            "min": -1.8758938276013848,
+            "max": 1.8361482833463028,
+            "mean": -4.547473508864641e-16,
+            "null_count": 0
+        },
+        "open": {
+            "min": -1.7460472225696748,
+            "max": 1.8009844884134125,
+            "mean": 7.105427357601002e-16,
+            "null_count": 0
+        },
+        "close": {
+            "min": -1.7498822827268878,
+            "max": 1.8001834897954934,
+            "mean": 1.1368683772161603e-16,
+            "null_count": 0
+        }
+    }
+}
