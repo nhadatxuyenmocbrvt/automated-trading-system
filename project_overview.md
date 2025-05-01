@@ -96,10 +96,10 @@
 ### Giai đoạn 4: Môi trường huấn luyện (6 tuần)
 
 #### Sprint 8 - Môi trường cơ bản
-- [ ] `environments/base_environment.py`
-- [ ] `environments/trading_gym/trading_env.py`
-- [ ] `environments/trading_gym/observation_space.py`
-- [ ] `environments/trading_gym/action_space.py`
+- [x] `environments/base_environment.py`
+- [x] `environments/trading_gym/trading_env.py`
+- [x] `environments/trading_gym/observation_space.py`
+- [x] `environments/trading_gym/action_space.py`
 - **Đầu ra**: Môi trường huấn luyện cơ bản
 
 #### Sprint 9 - Hàm phần thưởng và mô phỏng

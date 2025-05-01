@@ -323,6 +323,7 @@ class AutomatedTradingSystem:
                 logger.info(f"Đang làm sạch dữ liệu cho {symbol} - {timeframe}")
                 
                 # Thực hiện làm sạch dữ liệu
+                data_cleaner = DataCleaner()
                 df = data_cleaner.load_data(file_path)
                 
                 # Phát hiện và xử lý ngoại lệ nếu được yêu cầu
