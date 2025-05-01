@@ -1,2 +1,0 @@
-2025-05-01 21:05:55,695 - trading_system.data_pipeline - ERROR - [feature_generator.py:859] - Lỗi khi áp dụng chọn lọc đặc trưng statistical_correlation: tuple index out of range
-2025-05-01 21:05:55,728 - trading_system.data_pipeline - ERROR - [feature_generator.py:859] - Lỗi khi áp dụng chọn lọc đặc trưng statistical_correlation: tuple index out of range

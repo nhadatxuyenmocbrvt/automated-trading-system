@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "last_updated": "2025-05-01T21:05:55.698172",
+    "last_updated": "2025-05-01T21:17:11.981430",
     "features": {},
     "preprocessors": {
         "normalize": {
@@ -28,7 +28,8 @@
     "feature_selectors": {
         "statistical_correlation": {
             "params": {
-                "threshold": 0.95
+                "threshold": 0.1,
+                "k": 3
             },
             "feature_types": [
                 "technical",

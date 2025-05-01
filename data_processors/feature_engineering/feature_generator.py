@@ -408,14 +408,18 @@ class FeatureGenerator:
         """
         # Các biến đổi này sẽ được triển khai khi module cụ thể đã phát triển
         pass
+    
     def _register_default_feature_selectors(self) -> None:
         """
         Đăng ký các bộ chọn lọc đặc trưng mặc định.
         """
         self.register_feature_selector(
-            name="statistical_correlation",  # 👈 tên bạn đang gọi trong pipeline
+            name="statistical_correlation",  
             selector_func=correlation_selector,
-            params={"threshold": 0.95}  # 👈 bạn có thể đổi ngưỡng nếu muốn
+            params={
+                "threshold": 0.1,  # Ngưỡng tương quan thấp hơn để chọn nhiều đặc trưng hơn
+                "k": 3  # Chọn 3 đặc trưng tốt nhất nếu không có đủ đặc trưng vượt qua ngưỡng
+            }
         )
         # Các bộ chọn lọc này sẽ được triển khai khi module cụ thể đã phát triển
         pass
@@ -805,7 +809,7 @@ class FeatureGenerator:
         self,
         df: pd.DataFrame,
         selector_name: str,
-        target_column: Optional[str] = None,
+        target_column: str = 'close',  # Thêm giá trị mặc định là 'close'
         fit: bool = True
     ) -> pd.DataFrame:
         """
@@ -814,7 +818,7 @@ class FeatureGenerator:
         Args:
             df: DataFrame cần xử lý
             selector_name: Tên bộ chọn lọc
-            target_column: Cột mục tiêu (nếu cần)
+            target_column: Cột mục tiêu (mặc định là 'close')
             fit: Học các tham số mới hay không
             
         Returns:
@@ -831,24 +835,35 @@ class FeatureGenerator:
             selector_func = selector_info["function"]
             params = selector_info["params"].copy()
             
-            # Thêm tham số target_column nếu cần
-            if target_column is not None:
-                params["target_column"] = target_column
+            # Thêm tham số target_column
+            params["target_column"] = target_column
             
             # Áp dụng chọn lọc đặc trưng
             if fit:
                 # Học và áp dụng
-                result_df, selected_features = selector_func(
-                    df, fit=True, **params
-                )
+                selected_features, feature_scores = selector_func(df, **params)
+                
+                # Lưu danh sách tính năng đã chọn
                 self.feature_selectors[selector_name]["selected_features"] = selected_features
+                
+                # Tạo DataFrame kết quả với các tính năng đã chọn
+                if len(selected_features) > 0:
+                    # Luôn giữ lại cột target_column
+                    columns_to_keep = np.append(selected_features, target_column) if target_column not in selected_features else selected_features
+                    result_df = df[columns_to_keep].copy()
+                else:
+                    # Nếu không có tính năng nào được chọn, trả về DataFrame ban đầu
+                    result_df = df.copy()
             else:
                 # Áp dụng với các đặc trưng đã chọn
                 selected_features = self.feature_selectors[selector_name]["selected_features"]
-                if selected_features is not None:
-                    result_df = df[selected_features].copy()
+                
+                if selected_features is not None and len(selected_features) > 0:
+                    # Luôn giữ lại cột target_column
+                    columns_to_keep = np.append(selected_features, target_column) if target_column not in selected_features else selected_features
+                    result_df = df[columns_to_keep].copy()
                 else:
-                    self.logger.warning(f"Bộ chọn lọc {selector_name} chưa được fit")
+                    self.logger.warning(f"Bộ chọn lọc {selector_name} chưa được fit hoặc không chọn được tính năng nào")
                     result_df = df.copy()
             
             self.logger.info(f"Đã áp dụng chọn lọc đặc trưng {selector_name}, còn lại {result_df.shape[1]} đặc trưng")
@@ -856,7 +871,7 @@ class FeatureGenerator:
             return result_df
             
         except Exception as e:
-            self.logger.error(f"Lỗi khi áp dụng chọn lọc đặc trưng {selector_name}: {e}")
+            self.logger.error(f"Lỗi khi áp dụng chọn lọc đặc trưng {selector_name}: {str(e)}")
             return df
     
     def create_feature_pipeline(
