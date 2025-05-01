@@ -1,0 +1,42 @@
+{
+    "version": "1.0.0",
+    "last_updated": "2025-05-01T22:11:15.333581",
+    "features": {},
+    "preprocessors": {
+        "normalize": {
+            "apply_by_default": false,
+            "params": {
+                "method": "zscore"
+            },
+            "target_columns": []
+        },
+        "standardize": {
+            "apply_by_default": false,
+            "params": {},
+            "target_columns": []
+        },
+        "min_max_scale": {
+            "apply_by_default": false,
+            "params": {
+                "min_val": 0,
+                "max_val": 1
+            },
+            "target_columns": []
+        }
+    },
+    "transformers": {},
+    "feature_selectors": {
+        "statistical_correlation": {
+            "params": {
+                "threshold": 0.1,
+                "k": 3
+            },
+            "feature_types": [
+                "technical",
+                "market",
+                "sentiment"
+            ],
+            "max_features": null
+        }
+    }
+}
