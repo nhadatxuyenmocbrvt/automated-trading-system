@@ -1,3 +1,3 @@
 import pandas as pd
-df = pd.read_parquet("btc_usdt_1h.parquet")
-df.to_csv("btc_usdt_1h.csv", index=False)
+df = pd.read_parquet("btc_usdt_20250501_221115.parquet")
+df.to_csv("btc_usdt_20250501_221115.csv", index=False)
