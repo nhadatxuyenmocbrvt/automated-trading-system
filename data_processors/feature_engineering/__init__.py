@@ -48,5 +48,5 @@ __all__ = [
     'min_max_scale',
     'plot_feature_importance',
     'plot_feature_correlation',
-    'visualize_feature_distribution'
+    'visualize_feature_distribution',
 ]

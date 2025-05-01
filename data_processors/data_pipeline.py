@@ -116,7 +116,7 @@ class DataPipeline:
         return {
             "data_cleaning": {
                 "enabled": True,
-                "remove_outliers": True,
+                "remove_outliers": False,
                 "handle_missing_values": True,
                 "remove_duplicates": True,
                 "outlier_method": OutlierDetectionMethod.Z_SCORE,
@@ -155,7 +155,7 @@ class DataPipeline:
             normalize_method=self.config.get("feature_engineering", {}).get("normalize_method", "z-score"),
             outlier_detector_kwargs={
                 "method": cleaning_config.get("outlier_method", OutlierDetectionMethod.Z_SCORE),
-                "threshold": cleaning_config.get("outlier_threshold", 3.0)
+                "threshold": cleaning_config.get("outlier_threshold", 10.0)
             },
             missing_data_handler_kwargs={
                 "method": cleaning_config.get("missing_value_method", MissingValueMethod.INTERPOLATE)

@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "last_updated": "2025-05-01T18:41:04.167888",
+    "last_updated": "2025-05-01T20:15:43.199429",
     "features": {},
     "preprocessors": {
         "normalize": {
@@ -25,5 +25,17 @@
         }
     },
     "transformers": {},
-    "feature_selectors": {}
+    "feature_selectors": {
+        "statistical_correlation": {
+            "params": {
+                "threshold": 0.95
+            },
+            "feature_types": [
+                "technical",
+                "market",
+                "sentiment"
+            ],
+            "max_features": null
+        }
+    }
 }

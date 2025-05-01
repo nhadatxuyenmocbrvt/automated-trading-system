@@ -118,7 +118,8 @@ def correlation_selector(
     k: Optional[int] = None,
     threshold: float = 0.0,
     method: str = 'pearson',
-    exclude_columns: List[str] = []
+    exclude_columns: List[str] = [],
+    **kwargs    
 ) -> List[str]:
     """
     Lựa chọn đặc trưng dựa trên tương quan với biến mục tiêu.

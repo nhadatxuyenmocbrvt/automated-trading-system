@@ -1,2 +1,2 @@
-2025-05-01 18:41:04,106 - trading_system.data_pipeline - ERROR - [data_pipeline.py:612] - Lỗi khi làm sạch dữ liệu cho BTC/USDT: local variable 'outlier_cols' referenced before assignment
-2025-05-01 18:41:04,142 - trading_system.data_pipeline - ERROR - [data_pipeline.py:612] - Lỗi khi làm sạch dữ liệu cho ETH/USDT: local variable 'outlier_cols' referenced before assignment
+2025-05-01 20:15:43,195 - trading_system.data_pipeline - ERROR - [feature_generator.py:859] - Lỗi khi áp dụng chọn lọc đặc trưng statistical_correlation: correlation_selector() missing 1 required positional argument: 'target_column'
+2025-05-01 20:15:43,220 - trading_system.data_pipeline - ERROR - [feature_generator.py:859] - Lỗi khi áp dụng chọn lọc đặc trưng statistical_correlation: correlation_selector() missing 1 required positional argument: 'target_column'

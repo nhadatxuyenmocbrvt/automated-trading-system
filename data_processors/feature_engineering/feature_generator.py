@@ -26,6 +26,7 @@ from config.logging_config import setup_logger
 from config.system_config import BASE_DIR, MODEL_DIR
 from data_processors.feature_engineering.utils.validation import validate_features, check_feature_integrity
 from data_processors.feature_engineering.utils.preprocessing import normalize_features, standardize_features, min_max_scale
+from data_processors.feature_engineering.feature_selector.statistical_methods import correlation_selector
 
 # Các import mặc định khi các module đã được phát triển
 try:
@@ -108,6 +109,7 @@ class FeatureGenerator:
         self.feature_info = {}
         
         self.logger.info("Đã khởi tạo FeatureGenerator")
+        self.register_default_features()
     
     def register_feature(
         self,
@@ -406,11 +408,15 @@ class FeatureGenerator:
         """
         # Các biến đổi này sẽ được triển khai khi module cụ thể đã phát triển
         pass
-    
     def _register_default_feature_selectors(self) -> None:
         """
         Đăng ký các bộ chọn lọc đặc trưng mặc định.
         """
+        self.register_feature_selector(
+            name="statistical_correlation",  # 👈 tên bạn đang gọi trong pipeline
+            selector_func=correlation_selector,
+            params={"threshold": 0.95}  # 👈 bạn có thể đổi ngưỡng nếu muốn
+        )
         # Các bộ chọn lọc này sẽ được triển khai khi module cụ thể đã phát triển
         pass
     

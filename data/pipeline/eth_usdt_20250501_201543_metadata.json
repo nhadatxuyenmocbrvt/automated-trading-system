@@ -17,9 +17,9 @@
         "close": "float64",
         "volume": "float64"
     },
-    "saved_at": "2025-05-01T18:41:04.228018",
+    "saved_at": "2025-05-01T20:15:43.276400",
     "file_format": "parquet",
-    "file_path": "data\\pipeline\\eth_usdt_20250501_184104.parquet",
+    "file_path": "data\\pipeline\\eth_usdt_20250501_201543.parquet",
     "data_stats": {
         "open": {
             "min": -1.7305645511269214,
