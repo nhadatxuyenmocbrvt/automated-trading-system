@@ -1,184 +1,223 @@
 """
 Hàm phần thưởng theo lợi nhuận.
-File này cung cấp các hàm tính toán phần thưởng dựa trên lợi nhuận từ giao dịch.
+File này định nghĩa các hàm tính toán phần thưởng dựa trên lợi nhuận
+trong quá trình giao dịch, tập trung vào tối đa hóa lợi nhuận.
 """
 
 import numpy as np
-from typing import List, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Optional, Union, Tuple
 import pandas as pd
 import logging
 
-# Import các module từ hệ thống
 from config.logging_config import get_logger
-from config.constants import PositionSide
-
-# Thiết lập logger
-logger = get_logger("reward_functions")
 
 def calculate_profit_reward(
-    navs: List[float],
-    balances: List[float],
-    positions: List[List[Dict[str, Any]]],
+    nav_history: List[float],
+    balance_history: List[float],
+    position_history: List[List[Dict[str, Any]]],
     current_pnl: float,
-    use_log_returns: bool = False,
-    scaling_factor: float = 1.0,
-    penalize_inactivity: bool = False,
-    inactivity_penalty: float = 0.0001,
-    **kwargs
+    pnl_threshold: float = 0.0,
+    consecutive_factor: float = 0.1,
+    drawdown_penalty: float = 0.5,
+    logger: Optional[logging.Logger] = None
 ) -> float:
     """
     Tính toán phần thưởng dựa trên lợi nhuận.
     
     Args:
-        navs: Danh sách NAV (Net Asset Value) theo từng bước
-        balances: Danh sách số dư theo từng bước
-        positions: Danh sách vị thế theo từng bước
-        current_pnl: P&L (Profit and Loss) hiện tại
-        use_log_returns: Sử dụng lợi tức logarit thay vì lợi tức tuyệt đối
-        scaling_factor: Hệ số điều chỉnh phần thưởng (để tăng/giảm gradient)
-        penalize_inactivity: Phạt khi không hoạt động
-        inactivity_penalty: Mức phạt cho việc không hoạt động
-        **kwargs: Các tham số khác
+        nav_history: Lịch sử giá trị tài sản ròng
+        balance_history: Lịch sử số dư
+        position_history: Lịch sử vị thế
+        current_pnl: Lợi nhuận hiện tại
+        pnl_threshold: Ngưỡng lợi nhuận tối thiểu để có phần thưởng dương
+        consecutive_factor: Hệ số thưởng cho các lợi nhuận liên tiếp
+        drawdown_penalty: Hệ số phạt cho drawdown
+        logger: Logger tùy chỉnh
         
     Returns:
         Giá trị phần thưởng
     """
-    # Kiểm tra tham số
-    if len(navs) < 2:
+    # Thiết lập logger
+    logger = logger or get_logger("profit_reward")
+    
+    # Kiểm tra dữ liệu đầu vào
+    if len(nav_history) < 2:
+        logger.warning("Không đủ dữ liệu để tính toán phần thưởng")
         return 0.0
     
-    # Tính tỷ lệ thay đổi NAV
-    prev_nav = navs[-2]
-    current_nav = navs[-1]
+    # Lấy giá trị NAV hiện tại và trước đó
+    prev_nav = nav_history[-2]
+    current_nav = nav_history[-1]
     
+    # Tính phần thưởng cơ bản (% thay đổi NAV)
     if prev_nav <= 0:
         # Tránh chia cho 0
-        logger.warning("Giá trị NAV trước đó không hợp lệ (≤ 0)")
+        base_reward = 0.0
+    else:
+        base_reward = (current_nav - prev_nav) / prev_nav
+    
+    # Kiểm tra ngưỡng lợi nhuận
+    if current_pnl < pnl_threshold:
+        base_reward = min(base_reward, 0.0)  # Chỉ cho phần thưởng âm nếu dưới ngưỡng
+    
+    # Tính toán phần thưởng bổ sung cho các lợi nhuận liên tiếp
+    consecutive_reward = 0.0
+    if len(nav_history) >= 3:
+        # Đếm số lượt lợi nhuận liên tiếp
+        consecutive_profits = 0
+        for i in range(len(nav_history) - 2, 0, -1):
+            if nav_history[i] > nav_history[i-1]:
+                consecutive_profits += 1
+            else:
+                break
+        
+        # Thưởng cho các lợi nhuận liên tiếp
+        if consecutive_profits > 0 and base_reward > 0:
+            consecutive_reward = base_reward * consecutive_factor * min(consecutive_profits, 5)
+    
+    # Tính toán phạt cho drawdown
+    drawdown_reward = 0.0
+    if len(nav_history) >= 3:
+        # Tìm NAV cao nhất trong lịch sử
+        max_nav = max(nav_history[:-1])
+        
+        # Tính drawdown hiện tại
+        if max_nav > 0:
+            current_drawdown = max(0, (max_nav - current_nav) / max_nav)
+            
+            # Áp dụng phạt nếu đang trong drawdown
+            if current_drawdown > 0:
+                drawdown_reward = -current_drawdown * drawdown_penalty
+    
+    # Tổng hợp phần thưởng
+    total_reward = base_reward + consecutive_reward + drawdown_reward
+    
+    logger.debug(f"Phần thưởng: cơ bản={base_reward:.4f}, liên tiếp={consecutive_reward:.4f}, drawdown={drawdown_reward:.4f}, tổng={total_reward:.4f}")
+    
+    return total_reward
+
+def calculate_position_profit_reward(
+    positions: List[Dict[str, Any]],
+    current_price: float,
+    reward_scaling: float = 1.0
+) -> float:
+    """
+    Tính toán phần thưởng dựa trên lợi nhuận của từng vị thế.
+    
+    Args:
+        positions: Danh sách các vị thế hiện tại
+        current_price: Giá hiện tại
+        reward_scaling: Hệ số tỷ lệ phần thưởng
+        
+    Returns:
+        Giá trị phần thưởng
+    """
+    if not positions:
         return 0.0
     
-    # Tính phần thưởng dựa trên thay đổi tương đối của NAV
-    if use_log_returns:
-        # Sử dụng logarithmic returns (phù hợp hơn cho các mô hình)
-        # log(current_nav / prev_nav) tương đương với log(current_nav) - log(prev_nav)
-        # Điều này cho phép tập trung vào phần trăm thay đổi thay vì giá trị tuyệt đối
-        reward = np.log(current_nav / prev_nav)
-    else:
-        # Sử dụng phần trăm thay đổi đơn giản
-        reward = (current_nav - prev_nav) / prev_nav
+    total_pnl = 0.0
+    total_size = 0.0
     
-    # Áp dụng hệ số điều chỉnh
-    reward *= scaling_factor
-    
-    # Phạt khi không hoạt động (nếu được kích hoạt)
-    if penalize_inactivity:
-        # Kiểm tra xem có bất kỳ vị thế mở nào không
-        current_positions = positions[-1] if positions else []
+    for pos in positions:
+        # Lấy thông tin vị thế
+        side = pos.get('side', 'long')
+        size = pos.get('size', 0.0)
+        entry_price = pos.get('entry_price', current_price)
+        leverage = pos.get('leverage', 1.0)
         
-        if not current_positions:
-            # Không có vị thế mở nào -> áp dụng mức phạt
-            reward -= inactivity_penalty
+        # Tính P&L
+        if side.lower() == 'long':
+            pnl = size * (current_price - entry_price) / entry_price * leverage
+        else:  # short
+            pnl = size * (entry_price - current_price) / entry_price * leverage
+        
+        total_pnl += pnl
+        total_size += size
+    
+    # Tính phần thưởng
+    if total_size > 0:
+        # Phần thưởng là % lợi nhuận trên tổng kích thước vị thế
+        reward = (total_pnl / total_size) * reward_scaling
+    else:
+        reward = 0.0
     
     return reward
 
-def calculate_profit_reward_with_risk_factor(
-    navs: List[float],
-    balances: List[float],
-    positions: List[List[Dict[str, Any]]],
-    current_pnl: float,
-    volatility_window: int = 20,
-    risk_aversion_factor: float = 1.0,
-    **kwargs
+def calculate_trade_completion_reward(
+    trade_history: List[Dict[str, Any]],
+    win_reward: float = 1.0,
+    loss_penalty: float = -1.0
 ) -> float:
     """
-    Tính toán phần thưởng theo lợi nhuận có điều chỉnh theo rủi ro đơn giản.
+    Tính toán phần thưởng dựa trên kết quả hoàn thành giao dịch.
     
     Args:
-        navs: Danh sách NAV (Net Asset Value) theo từng bước
-        balances: Danh sách số dư theo từng bước
-        positions: Danh sách vị thế theo từng bước
-        current_pnl: P&L (Profit and Loss) hiện tại
-        volatility_window: Cửa sổ để tính toán độ biến động
-        risk_aversion_factor: Hệ số ảnh hưởng của rủi ro (càng lớn càng né rủi ro)
-        **kwargs: Các tham số khác
-        
-    Returns:
-        Giá trị phần thưởng có điều chỉnh rủi ro
-    """
-    # Tính phần thưởng lợi nhuận cơ bản
-    base_reward = calculate_profit_reward(navs, balances, positions, current_pnl)
-    
-    # Nếu không đủ dữ liệu để tính toán độ biến động
-    if len(navs) < volatility_window + 1:
-        return base_reward
-    
-    # Tính toán lợi tức theo từng bước
-    returns = []
-    for i in range(1, min(volatility_window + 1, len(navs))):
-        prev = navs[-i-1]
-        curr = navs[-i]
-        if prev > 0:
-            returns.append((curr - prev) / prev)
-    
-    # Nếu không đủ dữ liệu lợi tức
-    if not returns:
-        return base_reward
-    
-    # Tính độ biến động (độ lệch chuẩn của lợi tức)
-    volatility = np.std(returns)
-    
-    # Điều chỉnh phần thưởng dựa trên rủi ro
-    # Công thức: reward / (1 + risk_aversion_factor * volatility)
-    if volatility > 0:
-        risk_adjusted_reward = base_reward / (1 + risk_aversion_factor * volatility)
-    else:
-        risk_adjusted_reward = base_reward
-    
-    return risk_adjusted_reward
-
-def calculate_trade_based_reward(
-    navs: List[float],
-    balances: List[float],
-    positions: List[List[Dict[str, Any]]],
-    current_pnl: float,
-    last_action: Optional[Dict[str, Any]] = None,
-    win_bonus: float = 0.1,
-    loss_penalty: float = 0.2,
-    **kwargs
-) -> float:
-    """
-    Tính toán phần thưởng dựa trên kết quả của giao dịch cụ thể.
-    
-    Args:
-        navs: Danh sách NAV (Net Asset Value) theo từng bước
-        balances: Danh sách số dư theo từng bước
-        positions: Danh sách vị thế theo từng bước
-        current_pnl: P&L (Profit and Loss) hiện tại
-        last_action: Thông tin về hành động cuối cùng
-        win_bonus: Phần thưởng thêm cho giao dịch thắng
-        loss_penalty: Phạt thêm cho giao dịch thua
-        **kwargs: Các tham số khác
+        trade_history: Lịch sử các giao dịch đã hoàn thành
+        win_reward: Phần thưởng cho giao dịch thắng
+        loss_penalty: Phạt cho giao dịch thua
         
     Returns:
         Giá trị phần thưởng
     """
-    # Tính phần thưởng lợi nhuận cơ bản
-    base_reward = calculate_profit_reward(navs, balances, positions, current_pnl)
+    if not trade_history:
+        return 0.0
     
-    # Nếu không có thông tin về hành động cuối cùng
-    if last_action is None:
-        return base_reward
+    # Chỉ xem xét giao dịch mới nhất
+    latest_trade = trade_history[-1]
     
-    # Kiểm tra xem hành động cuối có phải là đóng vị thế không
-    if last_action.get('action_type') in ['close', 'close_all']:
-        # Lấy P&L từ hành động
-        action_pnl = last_action.get('pnl', 0.0)
+    # Lấy thông tin P&L
+    pnl = latest_trade.get('pnl', 0.0)
+    
+    # Tính phần thưởng
+    if pnl > 0:
+        reward = win_reward
+    else:
+        reward = loss_penalty
+    
+    return reward
+
+def calculate_profit_factor_reward(
+    trade_history: List[Dict[str, Any]],
+    window_size: int = 10,
+    min_trades: int = 3,
+    scaling_factor: float = 2.0
+) -> float:
+    """
+    Tính toán phần thưởng dựa trên profit factor (tổng lợi nhuận / tổng lỗ).
+    
+    Args:
+        trade_history: Lịch sử các giao dịch đã hoàn thành
+        window_size: Số lượng giao dịch gần nhất để tính toán
+        min_trades: Số lượng giao dịch tối thiểu để tính toán
+        scaling_factor: Hệ số tỷ lệ phần thưởng
         
-        # Điều chỉnh phần thưởng dựa trên kết quả giao dịch
-        if action_pnl > 0:
-            # Giao dịch thắng -> thêm thưởng
-            base_reward += win_bonus
-        elif action_pnl < 0:
-            # Giao dịch thua -> thêm phạt
-            base_reward -= loss_penalty
+    Returns:
+        Giá trị phần thưởng
+    """
+    if len(trade_history) < min_trades:
+        return 0.0
     
-    return base_reward
+    # Lấy giao dịch trong cửa sổ
+    recent_trades = trade_history[-window_size:]
+    
+    # Tính tổng lợi nhuận và tổng lỗ
+    total_profit = sum(trade['pnl'] for trade in recent_trades if trade.get('pnl', 0) > 0)
+    total_loss = sum(abs(trade['pnl']) for trade in recent_trades if trade.get('pnl', 0) < 0)
+    
+    # Tính profit factor
+    if total_loss == 0:
+        if total_profit > 0:
+            profit_factor = scaling_factor  # Giá trị tối đa nếu không có lỗ
+        else:
+            profit_factor = 1.0  # Trung tính nếu không có lợi nhuận và không có lỗ
+    else:
+        profit_factor = total_profit / total_loss
+    
+    # Ánh xạ profit factor vào khoảng [0, scaling_factor]
+    reward = min(profit_factor, scaling_factor)
+    
+    # Điều chỉnh: profit factor < 1 sẽ cho phần thưởng âm
+    if profit_factor < 1.0:
+        reward = profit_factor - 1.0  # Dải từ -1.0 đến 0.0
+    
+    return reward

@@ -1,328 +1,335 @@
 """
 Hàm phần thưởng điều chỉnh theo rủi ro.
-File này cung cấp các hàm tính toán phần thưởng có điều chỉnh theo các chỉ số rủi ro.
+File này định nghĩa các hàm tính toán phần thưởng có điều chỉnh theo
+các thông số rủi ro như volatility, drawdown, hoặc Sharpe ratio.
 """
 
 import numpy as np
-from typing import List, Dict, Any, Union, Optional
 import pandas as pd
+from typing import List, Dict, Any, Optional, Union, Tuple
 import logging
-import math
+from math import sqrt
 
-# Import các module từ hệ thống
 from config.logging_config import get_logger
-from config.constants import PositionSide
-
-# Thiết lập logger
-logger = get_logger("reward_functions")
 
 def calculate_risk_adjusted_reward(
-    navs: List[float],
-    balances: List[float],
-    positions: List[List[Dict[str, Any]]],
+    nav_history: List[float],
+    balance_history: List[float],
+    position_history: List[List[Dict[str, Any]]],
     current_pnl: float,
     risk_free_rate: float = 0.0,
-    window_size: int = 30,
-    annualization_factor: int = 252,  # 252 trading days in a year
-    **kwargs
+    window_size: int = 20,
+    min_window_size: int = 5,
+    volatility_penalty: float = 1.0,
+    logger: Optional[logging.Logger] = None
 ) -> float:
     """
-    Tính toán phần thưởng điều chỉnh theo rủi ro (Sharpe Ratio).
+    Tính toán phần thưởng điều chỉnh theo rủi ro dựa trên các chỉ số như Sharpe ratio.
     
     Args:
-        navs: Danh sách NAV (Net Asset Value) theo từng bước
-        balances: Danh sách số dư theo từng bước
-        positions: Danh sách vị thế theo từng bước
-        current_pnl: P&L (Profit and Loss) hiện tại
-        risk_free_rate: Lãi suất phi rủi ro hàng ngày
+        nav_history: Lịch sử giá trị tài sản ròng
+        balance_history: Lịch sử số dư
+        position_history: Lịch sử vị thế
+        current_pnl: Lợi nhuận hiện tại
+        risk_free_rate: Lãi suất phi rủi ro (hàng ngày)
         window_size: Kích thước cửa sổ để tính toán
-        annualization_factor: Hệ số quy đổi năm
-        **kwargs: Các tham số khác
+        min_window_size: Kích thước cửa sổ tối thiểu
+        volatility_penalty: Hệ số phạt cho biến động
+        logger: Logger tùy chỉnh
         
     Returns:
-        Giá trị phần thưởng điều chỉnh theo rủi ro
+        Giá trị phần thưởng
     """
-    # Kiểm tra tham số
-    if len(navs) < 2:
+    # Thiết lập logger
+    logger = logger or get_logger("risk_adjusted_reward")
+    
+    # Kiểm tra dữ liệu đầu vào
+    if len(nav_history) < max(2, min_window_size):
+        logger.warning(f"Không đủ dữ liệu để tính toán phần thưởng điều chỉnh theo rủi ro, cần ít nhất {max(2, min_window_size)} điểm dữ liệu")
         return 0.0
     
-    # Lấy NAV hiện tại và NAV trước đó
-    prev_nav = navs[-2]
-    current_nav = navs[-1]
+    # Lấy cửa sổ dữ liệu NAV
+    window_size = min(window_size, len(nav_history))
+    nav_window = nav_history[-window_size:]
     
-    # Tính lợi tức cơ bản
+    # Tính toán phần thưởng lợi nhuận cơ bản (% thay đổi NAV)
+    prev_nav = nav_history[-2]
+    current_nav = nav_history[-1]
+    
     if prev_nav <= 0:
-        logger.warning("Giá trị NAV trước đó không hợp lệ (≤ 0)")
-        return 0.0
+        # Tránh chia cho 0
+        base_reward = 0.0
+    else:
+        base_reward = (current_nav - prev_nav) / prev_nav
     
-    current_return = (current_nav - prev_nav) / prev_nav
-    
-    # Số lượng dữ liệu lịch sử cần sử dụng
-    history_size = min(window_size, len(navs) - 1)
-    
-    if history_size < 2:
-        # Không đủ dữ liệu lịch sử, trả về lợi tức hiện tại
-        return current_return
-    
-    # Tính toán lợi tức lịch sử
+    # Tính toán lợi nhuận trung bình
     returns = []
-    for i in range(1, history_size + 1):
-        if i + 1 < len(navs):
-            prev = navs[-i-1]
-            curr = navs[-i]
-            if prev > 0:
-                returns.append((curr - prev) / prev)
+    for i in range(1, len(nav_window)):
+        if nav_window[i-1] > 0:  # Tránh chia cho 0
+            ret = (nav_window[i] - nav_window[i-1]) / nav_window[i-1]
+            returns.append(ret)
     
-    # Nếu không đủ dữ liệu lợi tức
-    if len(returns) < 2:
-        return current_return
+    if not returns:
+        logger.warning("Không có dữ liệu lợi nhuận để tính toán")
+        return base_reward  # Trả về phần thưởng cơ bản nếu không có dữ liệu
     
-    # Tính toán thống kê
+    # Tính toán Sharpe ratio
     avg_return = np.mean(returns)
-    std_return = np.std(returns, ddof=1)  # ddof=1 for sample standard deviation
+    std_return = np.std(returns) if len(returns) > 1 else 0.0001  # Tránh chia cho 0
     
-    # Tránh chia cho 0
-    if std_return <= 0:
-        # Nếu độ lệch chuẩn bằng 0, trả về dấu của (avg_return - risk_free_rate)
-        if avg_return > risk_free_rate:
-            return 1.0  # Lợi tức tốt hơn lãi suất phi rủi ro, không có biến động
-        elif avg_return < risk_free_rate:
-            return -1.0  # Lợi tức kém hơn lãi suất phi rủi ro, không có biến động
-        else:
-            return 0.0  # Bằng lãi suất phi rủi ro, không có biến động
+    # Điều chỉnh theo kỳ hạn (giả sử dữ liệu theo ngày)
+    daily_risk_free = risk_free_rate / 365.0
     
-    # Tính toán Sharpe Ratio hàng ngày
-    daily_sharpe = (avg_return - risk_free_rate) / std_return
+    if std_return == 0:
+        sharpe_ratio = 0.0
+    else:
+        sharpe_ratio = (avg_return - daily_risk_free) / std_return
+        
+    # Điều chỉnh Sharpe ratio thành phần thưởng
+    if sharpe_ratio >= 0:
+        sharpe_reward = sharpe_ratio
+    else:
+        # Phần thưởng âm cho Sharpe âm, nhưng với penalty lớn hơn
+        sharpe_reward = sharpe_ratio * 2.0
     
-    # Điều chỉnh reward dựa trên Sharpe Ratio
-    # Sử dụng hàm tanh để giới hạn phần thưởng
-    reward = np.tanh(daily_sharpe)
+    # Tính toán drawdown
+    drawdown_penalty = 0.0
+    if len(nav_window) >= 3:
+        drawdowns = []
+        peak = nav_window[0]
+        
+        for nav in nav_window[1:]:
+            if nav > peak:
+                peak = nav
+            drawdown = (peak - nav) / peak if peak > 0 else 0
+            drawdowns.append(drawdown)
+        
+        max_drawdown = max(drawdowns) if drawdowns else 0
+        drawdown_penalty = -max_drawdown * volatility_penalty
     
-    return reward
+    # Tính toán phần thưởng cuối cùng
+    # Trọng số: 40% base_reward, 40% sharpe_reward, 20% drawdown_penalty
+    total_reward = 0.4 * base_reward + 0.4 * sharpe_reward + 0.2 * drawdown_penalty
+    
+    logger.debug(f"Phần thưởng điều chỉnh theo rủi ro: cơ bản={base_reward:.4f}, sharpe={sharpe_reward:.4f}, drawdown={drawdown_penalty:.4f}, tổng={total_reward:.4f}")
+    
+    return total_reward
 
 def calculate_sortino_reward(
-    navs: List[float],
-    balances: List[float],
-    positions: List[List[Dict[str, Any]]],
-    current_pnl: float,
+    nav_history: List[float],
     risk_free_rate: float = 0.0,
-    window_size: int = 30,
-    **kwargs
+    window_size: int = 20,
+    min_window_size: int = 5,
+    scaling_factor: float = 2.0
 ) -> float:
     """
-    Tính toán phần thưởng dựa trên Sortino Ratio (chỉ xem xét downside risk).
+    Tính toán phần thưởng dựa trên tỷ số Sortino (chỉ tính downside risk).
     
     Args:
-        navs: Danh sách NAV (Net Asset Value) theo từng bước
-        balances: Danh sách số dư theo từng bước
-        positions: Danh sách vị thế theo từng bước
-        current_pnl: P&L (Profit and Loss) hiện tại
-        risk_free_rate: Lãi suất phi rủi ro hàng ngày
+        nav_history: Lịch sử giá trị tài sản ròng
+        risk_free_rate: Lãi suất phi rủi ro (hàng ngày)
         window_size: Kích thước cửa sổ để tính toán
-        **kwargs: Các tham số khác
+        min_window_size: Kích thước cửa sổ tối thiểu
+        scaling_factor: Hệ số tỷ lệ phần thưởng
         
     Returns:
-        Giá trị phần thưởng dựa trên Sortino Ratio
+        Giá trị phần thưởng
     """
-    # Kiểm tra tham số
-    if len(navs) < 2:
+    if len(nav_history) < max(2, min_window_size):
         return 0.0
     
-    # Lấy NAV hiện tại và NAV trước đó
-    prev_nav = navs[-2]
-    current_nav = navs[-1]
+    # Lấy cửa sổ dữ liệu NAV
+    window_size = min(window_size, len(nav_history))
+    nav_window = nav_history[-window_size:]
     
-    # Tính lợi tức cơ bản
-    if prev_nav <= 0:
-        logger.warning("Giá trị NAV trước đó không hợp lệ (≤ 0)")
-        return 0.0
-    
-    current_return = (current_nav - prev_nav) / prev_nav
-    
-    # Số lượng dữ liệu lịch sử cần sử dụng
-    history_size = min(window_size, len(navs) - 1)
-    
-    if history_size < 2:
-        # Không đủ dữ liệu lịch sử, trả về lợi tức hiện tại
-        return current_return
-    
-    # Tính toán lợi tức lịch sử
+    # Tính toán lợi nhuận
     returns = []
-    for i in range(1, history_size + 1):
-        if i + 1 < len(navs):
-            prev = navs[-i-1]
-            curr = navs[-i]
-            if prev > 0:
-                returns.append((curr - prev) / prev)
+    for i in range(1, len(nav_window)):
+        if nav_window[i-1] > 0:  # Tránh chia cho 0
+            ret = (nav_window[i] - nav_window[i-1]) / nav_window[i-1]
+            returns.append(ret)
     
-    # Nếu không đủ dữ liệu lợi tức
-    if len(returns) < 2:
-        return current_return
+    if not returns:
+        return 0.0
     
-    # Tính toán thống kê
+    # Tính toán Sortino ratio
     avg_return = np.mean(returns)
     
-    # Tính downside deviation (chỉ xem xét lợi tức âm)
-    # Lấy các lợi tức thấp hơn MAR (Minimum Acceptable Return, thường là risk_free_rate)
-    downside_returns = [r - risk_free_rate for r in returns if r < risk_free_rate]
+    # Tính downside deviation (chỉ tính các lợi nhuận âm)
+    negative_returns = [ret for ret in returns if ret < 0]
     
-    if not downside_returns:
-        # Không có lợi tức âm, trả về giá trị lớn
-        return 1.0
+    if not negative_returns:
+        # Nếu không có lợi nhuận âm, giả định một downside deviation nhỏ
+        downside_deviation = 0.0001
+    else:
+        downside_deviation = sqrt(sum(ret**2 for ret in negative_returns) / len(negative_returns))
     
-    # Tính downside deviation
-    downside_deviation = np.sqrt(np.mean(np.square(downside_returns)))
+    # Điều chỉnh theo kỳ hạn (giả sử dữ liệu theo ngày)
+    daily_risk_free = risk_free_rate / 365.0
     
-    # Tránh chia cho 0
-    if downside_deviation <= 0:
-        if avg_return > risk_free_rate:
-            return 1.0
-        elif avg_return < risk_free_rate:
-            return -1.0
-        else:
-            return 0.0
+    if downside_deviation == 0:
+        sortino_ratio = scaling_factor if avg_return > daily_risk_free else 0.0
+    else:
+        sortino_ratio = (avg_return - daily_risk_free) / downside_deviation
     
-    # Tính toán Sortino Ratio
-    sortino_ratio = (avg_return - risk_free_rate) / downside_deviation
-    
-    # Điều chỉnh reward dựa trên Sortino Ratio
-    # Sử dụng hàm tanh để giới hạn phần thưởng
-    reward = np.tanh(sortino_ratio)
+    # Điều chỉnh Sortino ratio thành phần thưởng
+    if sortino_ratio >= 0:
+        reward = min(sortino_ratio, scaling_factor)
+    else:
+        # Phần thưởng âm cho Sortino âm
+        reward = max(sortino_ratio, -scaling_factor)
     
     return reward
 
 def calculate_calmar_reward(
-    navs: List[float],
-    balances: List[float],
-    positions: List[List[Dict[str, Any]]],
-    current_pnl: float,
-    window_size: int = 100,
-    **kwargs
+    nav_history: List[float],
+    annualization_factor: float = 252.0,  # Số ngày giao dịch trong năm
+    window_size: int = 60,
+    min_window_size: int = 10,
+    scaling_factor: float = 2.0
 ) -> float:
     """
-    Tính toán phần thưởng dựa trên Calmar Ratio (tỷ lệ lợi tức trung bình trên drawdown tối đa).
+    Tính toán phần thưởng dựa trên tỷ số Calmar (lợi nhuận trung bình / max drawdown).
     
     Args:
-        navs: Danh sách NAV (Net Asset Value) theo từng bước
-        balances: Danh sách số dư theo từng bước
-        positions: Danh sách vị thế theo từng bước
-        current_pnl: P&L (Profit and Loss) hiện tại
+        nav_history: Lịch sử giá trị tài sản ròng
+        annualization_factor: Hệ số annualization
         window_size: Kích thước cửa sổ để tính toán
-        **kwargs: Các tham số khác
+        min_window_size: Kích thước cửa sổ tối thiểu
+        scaling_factor: Hệ số tỷ lệ phần thưởng
         
     Returns:
-        Giá trị phần thưởng dựa trên Calmar Ratio
+        Giá trị phần thưởng
     """
-    # Kiểm tra tham số
-    if len(navs) < 2:
+    if len(nav_history) < max(2, min_window_size):
         return 0.0
     
-    # Lấy NAV hiện tại và NAV trước đó
-    prev_nav = navs[-2]
-    current_nav = navs[-1]
+    # Lấy cửa sổ dữ liệu NAV
+    window_size = min(window_size, len(nav_history))
+    nav_window = nav_history[-window_size:]
     
-    # Tính lợi tức cơ bản
-    if prev_nav <= 0:
-        logger.warning("Giá trị NAV trước đó không hợp lệ (≤ 0)")
+    # Tính tổng lợi nhuận
+    first_nav = nav_window[0]
+    last_nav = nav_window[-1]
+    
+    if first_nav <= 0:
         return 0.0
     
-    current_return = (current_nav - prev_nav) / prev_nav
+    total_return = (last_nav - first_nav) / first_nav
     
-    # Số lượng dữ liệu lịch sử cần sử dụng
-    history_size = min(window_size, len(navs))
-    
-    if history_size < 10:  # Yêu cầu ít nhất 10 điểm dữ liệu
-        return current_return
-    
-    # Lấy dữ liệu NAV trong cửa sổ
-    nav_window = navs[-history_size:]
-    
-    # Tính toán lợi tức trung bình
-    returns = []
-    for i in range(1, len(nav_window)):
-        prev = nav_window[i-1]
-        curr = nav_window[i]
-        if prev > 0:
-            returns.append((curr - prev) / prev)
-    
-    avg_return = np.mean(returns) if returns else 0.0
+    # Annualize return
+    period = window_size / annualization_factor
+    annual_return = (1 + total_return) ** (1 / period) - 1 if period > 0 else 0
     
     # Tính toán maximum drawdown
-    # Maximum drawdown là sự sụt giảm tối đa từ đỉnh đến đáy trong một khoảng thời gian
-    max_drawdown = 0.0
     peak = nav_window[0]
+    max_drawdown = 0.0
     
-    for nav in nav_window:
+    for nav in nav_window[1:]:
         if nav > peak:
             peak = nav
-        drawdown = (peak - nav) / peak if peak > 0 else 0.0
-        if drawdown > max_drawdown:
-            max_drawdown = drawdown
-    
-    # Tránh chia cho 0
-    if max_drawdown <= 0:
-        if avg_return > 0:
-            return 1.0
-        elif avg_return < 0:
-            return -1.0
         else:
-            return 0.0
+            drawdown = (peak - nav) / peak if peak > 0 else 0
+            max_drawdown = max(max_drawdown, drawdown)
     
-    # Tính toán Calmar Ratio
-    calmar_ratio = avg_return / max_drawdown
+    # Tính Calmar ratio
+    if max_drawdown == 0:
+        calmar_ratio = scaling_factor if annual_return > 0 else 0.0
+    else:
+        calmar_ratio = annual_return / max_drawdown
     
-    # Điều chỉnh reward dựa trên Calmar Ratio
-    # Sử dụng hàm tanh để giới hạn phần thưởng
-    reward = np.tanh(calmar_ratio)
+    # Điều chỉnh Calmar ratio thành phần thưởng
+    if calmar_ratio >= 0:
+        reward = min(calmar_ratio, scaling_factor)
+    else:
+        # Phần thưởng âm cho Calmar âm, nhưng với penalty lớn hơn
+        reward = max(calmar_ratio * 1.5, -scaling_factor)
     
     return reward
 
-def calculate_combined_risk_reward(
-    navs: List[float],
-    balances: List[float],
-    positions: List[List[Dict[str, Any]]],
-    current_pnl: float,
-    risk_free_rate: float = 0.0,
-    sharpe_weight: float = 0.4,
-    sortino_weight: float = 0.4,
-    calmar_weight: float = 0.2,
-    **kwargs
+def calculate_risk_reward_profile_reward(
+    nav_history: List[float],
+    position_history: List[List[Dict[str, Any]]],
+    win_rate_weight: float = 0.3,
+    profit_factor_weight: float = 0.3,
+    drawdown_weight: float = 0.4,
+    window_size: int = 30,
+    min_trades: int = 3
 ) -> float:
     """
-    Tính toán phần thưởng kết hợp từ nhiều chỉ số rủi ro.
+    Tính toán phần thưởng dựa trên hồ sơ lợi nhuận-rủi ro tổng hợp.
     
     Args:
-        navs: Danh sách NAV (Net Asset Value) theo từng bước
-        balances: Danh sách số dư theo từng bước
-        positions: Danh sách vị thế theo từng bước
-        current_pnl: P&L (Profit and Loss) hiện tại
-        risk_free_rate: Lãi suất phi rủi ro hàng ngày
-        sharpe_weight: Trọng số cho Sharpe Ratio
-        sortino_weight: Trọng số cho Sortino Ratio
-        calmar_weight: Trọng số cho Calmar Ratio
-        **kwargs: Các tham số khác
+        nav_history: Lịch sử giá trị tài sản ròng
+        position_history: Lịch sử vị thế
+        win_rate_weight: Trọng số cho tỷ lệ thắng
+        profit_factor_weight: Trọng số cho profit factor
+        drawdown_weight: Trọng số cho drawdown
+        window_size: Kích thước cửa sổ để tính toán
+        min_trades: Số lượng giao dịch tối thiểu
         
     Returns:
-        Giá trị phần thưởng kết hợp
+        Giá trị phần thưởng
     """
-    # Tính toán từng loại reward
-    sharpe_reward = calculate_risk_adjusted_reward(
-        navs, balances, positions, current_pnl, risk_free_rate, **kwargs
+    if len(nav_history) < 2 or len(position_history) < min_trades:
+        return 0.0
+    
+    # Lấy dữ liệu trong cửa sổ
+    window_size = min(window_size, len(nav_history))
+    nav_window = nav_history[-window_size:]
+    pos_window = position_history[-window_size:]
+    
+    # Tính tỷ lệ thắng
+    win_count = 0
+    loss_count = 0
+    total_profit = 0.0
+    total_loss = 0.0
+    
+    for positions in pos_window:
+        for pos in positions:
+            if 'closed' in pos and pos['closed']:
+                pnl = pos.get('pnl', 0.0)
+                if pnl > 0:
+                    win_count += 1
+                    total_profit += pnl
+                else:
+                    loss_count += 1
+                    total_loss += abs(pnl)
+    
+    total_trades = win_count + loss_count
+    
+    if total_trades < min_trades:
+        return 0.0
+    
+    # Tính các thành phần
+    win_rate = win_count / total_trades if total_trades > 0 else 0.0
+    
+    profit_factor = total_profit / total_loss if total_loss > 0 else (2.0 if total_profit > 0 else 1.0)
+    # Chuẩn hóa profit factor vào khoảng [0, 1]
+    normalized_profit_factor = min(profit_factor / 2.0, 1.0)
+    
+    # Tính maximum drawdown
+    peak = nav_window[0]
+    max_drawdown = 0.0
+    
+    for nav in nav_window[1:]:
+        if nav > peak:
+            peak = nav
+        else:
+            drawdown = (peak - nav) / peak if peak > 0 else 0
+            max_drawdown = max(max_drawdown, drawdown)
+    
+    # Điểm drawdown (thấp hơn là tốt hơn)
+    drawdown_score = 1.0 - min(max_drawdown * 2.0, 1.0)
+    
+    # Tính toán phần thưởng tổng hợp
+    reward = (
+        win_rate * win_rate_weight +
+        normalized_profit_factor * profit_factor_weight +
+        drawdown_score * drawdown_weight
     )
     
-    sortino_reward = calculate_sortino_reward(
-        navs, balances, positions, current_pnl, risk_free_rate, **kwargs
-    )
+    # Điều chỉnh khoảng phần thưởng
+    adjusted_reward = (reward * 2.0) - 1.0  # Ánh xạ [0, 1] thành [-1, 1]
     
-    calmar_reward = calculate_calmar_reward(
-        navs, balances, positions, current_pnl, **kwargs
-    )
-    
-    # Tính toán reward kết hợp có trọng số
-    combined_reward = (
-        sharpe_weight * sharpe_reward +
-        sortino_weight * sortino_reward +
-        calmar_weight * calmar_reward
-    )
-    
-    return combined_reward
+    return adjusted_reward
