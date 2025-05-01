@@ -151,8 +151,7 @@ class AutomatedTradingSystem:
     
     async def collect_historical_data(self, exchange_id: str, symbols: List[str], 
                                      timeframes: List[str], days_back: int = 30,
-                                     is_futures: bool = False,
-                                     start_date: str = None, end_date: str = None) -> None:
+                                     is_futures: bool = False) -> None:
         """
         Thu thập dữ liệu lịch sử từ sàn giao dịch.
         
@@ -162,8 +161,6 @@ class AutomatedTradingSystem:
             timeframes: Danh sách timeframe
             days_back: Số ngày lấy dữ liệu
             is_futures: True để sử dụng thị trường futures
-            start_date: Ngày bắt đầu thu thập dữ liệu (format YYYY-MM-DD)
-            end_date: Ngày kết thúc thu thập dữ liệu (format YYYY-MM-DD)
         """
         try:
             # Khởi tạo connector với cơ chế retry
@@ -206,23 +203,9 @@ class AutomatedTradingSystem:
             collector_key = f"{exchange_id}_{'futures' if is_futures else 'spot'}"
             self.collectors[collector_key] = collector
             
-            # Xác định thời gian bắt đầu và kết thúc
+            # Thời gian bắt đầu và kết thúc
             end_time = datetime.datetime.now()
-            start_time = None
-            
-            # Nếu có start_date và end_date, sử dụng chúng
-            if start_date:
-                start_time = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-                logger.info(f"Sử dụng ngày bắt đầu từ tham số: {start_date}")
-            else:
-                start_time = end_time - datetime.timedelta(days=days_back)
-                logger.info(f"Sử dụng ngày bắt đầu tính từ days_back ({days_back} ngày)")
-            
-            if end_date:
-                end_time = datetime.datetime.strptime(end_date, '%Y-%m-%d')
-                logger.info(f"Sử dụng ngày kết thúc từ tham số: {end_date}")
-            else:
-                logger.info(f"Sử dụng ngày kết thúc mặc định: hiện tại ({end_time})")
+            start_time = end_time - datetime.timedelta(days=days_back)
             
             logger.info(f"Bắt đầu thu thập dữ liệu từ {start_time} đến {end_time}")
             logger.info(f"Cặp giao dịch: {symbols}")
@@ -669,8 +652,6 @@ async def main():
                                help='Danh sách timeframe')
     collect_parser.add_argument('--days', type=int, default=30, help='Số ngày lấy dữ liệu')
     collect_parser.add_argument('--futures', action='store_true', help='Sử dụng thị trường futures')
-    collect_parser.add_argument('--start-date', type=str, help='Ngày bắt đầu thu thập dữ liệu (format YYYY-MM-DD)')
-    collect_parser.add_argument('--end-date', type=str, help='Ngày kết thúc thu thập dữ liệu (format YYYY-MM-DD)')
     
     # Tạo subparser cho xử lý dữ liệu
     process_parser = subparsers.add_parser('process', help='Xử lý dữ liệu')
@@ -756,9 +737,7 @@ async def main():
                 symbols=args.symbols,
                 timeframes=args.timeframes,
                 days_back=args.days,
-                is_futures=args.futures,
-                start_date=args.start_date,
-                end_date=args.end_date
+                is_futures=args.futures
             )
         elif args.command == 'process':
             if not args.process_command:

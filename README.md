@@ -311,7 +311,7 @@ python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timefram
 
 # Thu thập dữ liệu thị trường futures
 python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2023-12-31 --futures
-python main.py process pipeline --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2023-12-31
+
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
 

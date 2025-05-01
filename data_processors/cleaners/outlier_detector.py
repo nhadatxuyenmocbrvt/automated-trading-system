@@ -6,7 +6,7 @@ ngoại lệ trong dữ liệu thị trường sử dụng nhiều phương phá
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Union, Any, Tuple, Callable, Set
+from typing import Dict, List, Optional, Union, Any, Tuple, Callable
 import logging
 from scipy import stats
 
@@ -198,19 +198,6 @@ class OutlierDetector:
             if len(col_data) == 0:
                 continue
             
-            # Kiểm tra xem dữ liệu có vẻ đã được chuẩn hóa chưa
-            # Nếu mean gần 0 và std gần 1, có thể dữ liệu đã chuẩn hóa
-            data_mean = col_data.mean()
-            data_std = col_data.std()
-            is_normalized = abs(data_mean) < 0.1 and abs(data_std - 1.0) < 0.5
-            
-            # Điều chỉnh ngưỡng nếu dữ liệu đã chuẩn hóa
-            threshold = self.threshold
-            if is_normalized:
-                # Sử dụng ngưỡng cao hơn cho dữ liệu đã chuẩn hóa
-                threshold = max(3.0, self.threshold)
-                self.logger.debug(f"Phát hiện dữ liệu cột {col} đã chuẩn hóa, sử dụng ngưỡng {threshold}")
-                
             if self.use_robust:
                 # Sử dụng median và MAD
                 median = col_data.median()
@@ -232,8 +219,8 @@ class OutlierDetector:
                 
                 z_scores = np.abs((col_data - mean) / std)
             
-            # Đánh dấu ngoại lệ sử dụng ngưỡng đã điều chỉnh
-            outliers = z_scores > threshold
+            # Đánh dấu ngoại lệ
+            outliers = z_scores > self.threshold
             
             # Cập nhật cột đánh dấu ngoại lệ riêng nếu cần
             if per_column:

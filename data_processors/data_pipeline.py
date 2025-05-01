@@ -120,7 +120,6 @@ class DataPipeline:
                 "handle_missing_values": True,
                 "remove_duplicates": True,
                 "outlier_method": OutlierDetectionMethod.Z_SCORE,
-                "outlier_threshold": 15.0,  # Tăng từ 5.0 lên 10.0 cho dữ liệu đã chuẩn hóa
                 "missing_value_method": MissingValueMethod.INTERPOLATE
             },
             "feature_engineering": {
@@ -135,7 +134,7 @@ class DataPipeline:
                 "default_exchange": self.system_config.get("default_exchange", "binance"),
                 "default_symbols": self.system_config.get("trading.default_symbol", "BTC/USDT").split(","),
                 "default_timeframe": self.system_config.get("trading.default_timeframe", "1h"),
-                "include_sentiment": False
+                "include_sentiment": True
             },
             "output": {
                 "format": "parquet",
@@ -156,7 +155,7 @@ class DataPipeline:
             normalize_method=self.config.get("feature_engineering", {}).get("normalize_method", "z-score"),
             outlier_detector_kwargs={
                 "method": cleaning_config.get("outlier_method", OutlierDetectionMethod.Z_SCORE),
-                "threshold": cleaning_config.get("outlier_threshold", 15.0)  # Sử dụng ngưỡng 10.0 cho dữ liệu chuẩn hóa
+                "threshold": cleaning_config.get("outlier_threshold", 3.0)
             },
             missing_data_handler_kwargs={
                 "method": cleaning_config.get("missing_value_method", MissingValueMethod.INTERPOLATE)
@@ -305,7 +304,6 @@ class DataPipeline:
         self.logger.info(f"Thu thập dữ liệu từ {exchange_id} cho {len(symbols)} cặp giao dịch, khung thời gian {timeframe}")
         
         results = {}
-        historical_collector = None
         
         try:
             # Khởi tạo collector cho dữ liệu lịch sử nếu chưa có
@@ -502,22 +500,6 @@ class DataPipeline:
             self.logger.info("Bỏ qua bước làm sạch dữ liệu (đã bị tắt trong cấu hình)")
             return data
         
-        # Kiểm tra xem dữ liệu có vẻ đã được chuẩn hóa chưa trước khi làm sạch
-        for symbol, df in data.items():
-            numeric_cols = df.select_dtypes(include=[np.number]).columns
-            
-            for col in numeric_cols:
-                col_data = df[col].dropna()
-                if len(col_data) > 0:
-                    mean = col_data.mean()
-                    std = col_data.std()
-                    
-                    # Nếu mean gần 0 và variance không quá lớn, có thể dữ liệu đã được chuẩn hóa
-                    if abs(mean) < 0.01 and -2.0 < col_data.min() < 0 and 0 < col_data.max() < 5.0:
-                        self.logger.warning(f"Dữ liệu {symbol}, cột {col} có vẻ đã được chuẩn hóa (mean={mean:.4f}). " 
-                                           f"Hãy cân nhắc bỏ qua bước làm sạch hoặc điều chỉnh ngưỡng phát hiện ngoại lệ.")
-                        break
-        
         # Cấu hình mặc định
         default_configs = {
             "ohlcv": {
@@ -581,7 +563,7 @@ class DataPipeline:
                         verify_high_low=config.get("verify_high_low", True),
                         verify_open_close=config.get("verify_open_close", True),
                         flag_outliers_only=config.get("flag_outliers_only", False)
-                        )
+                    )
                     
                     self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu OHLCV cho {symbol}")
                     
@@ -1160,7 +1142,6 @@ class DataPipeline:
             end_time: Thời gian kết thúc (dùng để thu thập dữ liệu)
             output_dir: Thư mục đầu ra
             save_results: Lưu kết quả hay không
-            is_futures: Là thị trường futures hay không
             
         Returns:
             Dict với key là symbol và value là DataFrame kết quả
@@ -1179,7 +1160,7 @@ class DataPipeline:
                 {"name": "load_data", "enabled": input_files is not None},
                 {"name": "clean_data", "enabled": True},
                 {"name": "generate_features", "enabled": self.config.get("feature_engineering", {}).get("enabled", True)},
-                {"name": "merge_sentiment", "False": self.config.get("collectors", {}).get("include_sentiment", True)},
+                {"name": "merge_sentiment", "enabled": self.config.get("collectors", {}).get("include_sentiment", True)},
                 {"name": "prepare_training", "enabled": False},  # Mặc định không chuẩn bị dữ liệu huấn luyện
                 {"name": "save_data", "enabled": save_results}
             ]
