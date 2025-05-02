@@ -325,7 +325,7 @@ pip install -r requirements.txt
 
 ```bash
 # Thu thập dữ liệu thị trường spot cho BTC/USDT và ETH/USDT
-python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 30
+python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --days 730
 
 # Thu thập dữ liệu thị trường futures
 python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2023-12-31 --futures
