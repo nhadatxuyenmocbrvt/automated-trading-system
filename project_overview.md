@@ -133,9 +133,9 @@
 - **Đầu ra**: Mô hình agent DQN hoạt động
 
 #### Sprint 12 - Xây dựng agent nâng cao
-- [ ] `models/networks/shared_network.py`
-- [ ] `models/agents/ppo_agent.py`
-- [ ] `models/agents/a2c_agent.py`
+- [x] `models/networks/shared_network.py`
+- [x] `models/agents/ppo_agent.py`
+- [x] `models/agents/a2c_agent.py`
 - **Đầu ra**: Các mô hình agent đa dạng
 
 #### Sprint 13 - Pipeline huấn luyện
