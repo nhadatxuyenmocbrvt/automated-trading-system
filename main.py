@@ -1,61 +1,96 @@
 #!/usr/bin/env python3
 """
-Điểm khởi chạy chính của Hệ thống Giao dịch Tự động.
-File này cung cấp giao diện dòng lệnh để khởi chạy các thành phần
-khác nhau của hệ thống, bao gồm thu thập dữ liệu, xử lý dữ liệu, huấn luyện agent,
-backtest, và triển khai giao dịch thực tế.
+Điểm khởi chạy chính cho hệ thống giao dịch tự động.
+File này cung cấp giao diện dòng lệnh đơn giản để sử dụng các chức năng
+chính của hệ thống.
 """
 
-import asyncio
+import os
 import sys
+import asyncio
+import logging
 from pathlib import Path
+from datetime import datetime
+import argparse
 
-# Thêm thư mục gốc vào sys.path để import các module
-sys.path.append(str(Path(__file__).parent))
+# Thêm thư mục gốc vào PATH để import các module
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.logging_config import setup_component_logger
+# Import các module cần thiết
 from cli.parser import create_parser
+from cli.commands import collect_commands, process_commands, backtest_commands, train_commands, trade_commands, dashboard_commands
+from config.logging_config import setup_logger
 from trading_system import AutomatedTradingSystem
 
-# Thiết lập logger cho main
-logger = setup_component_logger("main", "INFO")
+# Thiết lập logger
+logger = setup_logger("main")
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    """
+    Xử lý exception không được bắt.
+    """
+    if issubclass(exc_type, KeyboardInterrupt):
+        # Cho phép Ctrl+C thoát bình thường
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.critical("Lỗi không được xử lý:", exc_info=(exc_type, exc_value, exc_traceback))
+
+# Đặt handler cho các exception không được bắt
+sys.excepthook = handle_exception
 
 async def main():
     """
-    Hàm main chính của hệ thống.
+    Hàm main chính của ứng dụng.
     """
-    # Tạo parser và parse arguments
+    # Tạo parser lệnh
     parser = create_parser()
     args = parser.parse_args()
-    
-    # Nếu không có lệnh nào được cung cấp, hiển thị help
-    if not hasattr(args, 'command') or not args.command:
+
+    # Kiểm tra nếu không có lệnh nào được chỉ định
+    if not hasattr(args, 'command'):
         parser.print_help()
         return
     
+    # Tạo hệ thống giao dịch tự động
+    trading_system = AutomatedTradingSystem(
+        mode=args.mode,
+        verbose=args.verbose
+    )
+    
     # Khởi tạo hệ thống
-    system = AutomatedTradingSystem()
+    await trading_system.setup()
     
     try:
-        # Xử lý lệnh từ cli.commands
-        from cli.commands import process_command
-        await process_command(system, args)
-        
+        # Xử lý các lệnh
+        if args.command == 'collect':
+            await collect_commands.handle_collect_command(args, trading_system)
+        elif args.command == 'process':
+            await process_commands.handle_process_command(args, trading_system)
+        elif args.command == 'backtest':
+            await backtest_commands.handle_backtest_command(args, trading_system)
+        elif args.command == 'train':
+            await train_commands.handle_train_command(args, trading_system)
+        elif args.command == 'trade':
+            await trade_commands.handle_trade_command(args, trading_system)
+        elif args.command == 'dashboard':
+            await dashboard_commands.handle_dashboard_command(args, trading_system)
+        else:
+            logger.error(f"Lệnh không được hỗ trợ: {args.command}")
+            
     except KeyboardInterrupt:
-        logger.info("Nhận tín hiệu dừng từ người dùng")
+        logger.info("Đã nhận lệnh thoát từ người dùng (Ctrl+C)")
     except Exception as e:
-        logger.error(f"Lỗi không xử lý được: {str(e)}", exc_info=True)
-        
-        # Đưa ra gợi ý giải pháp dựa trên loại lỗi
-        if "timeout" in str(e).lower():
-            logger.warning("Lỗi timeout có thể do kết nối mạng không ổn định hoặc sàn giao dịch không phản hồi")
-            logger.warning("Giải pháp: Tăng REQUEST_TIMEOUT trong .env, kiểm tra kết nối mạng hoặc sử dụng proxy")
-        elif "headers" in str(e).lower():
-            logger.warning("Lỗi xử lý response từ sàn giao dịch. Có thể do cấu trúc response không đúng định dạng.")
-            logger.warning("Giải pháp: Cập nhật thư viện CCXT hoặc kiểm tra lại các connector")
+        logger.error(f"Lỗi khi thực hiện lệnh {args.command}: {str(e)}")
     finally:
-        # Dọn dẹp tài nguyên
-        await system.cleanup()
+        # Lưu trạng thái hệ thống
+        if args.save_state:
+            trading_system.save_system_state()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        # Chạy hàm main bất đồng bộ
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nChương trình đã bị dừng bởi người dùng")
+        sys.exit(0)
