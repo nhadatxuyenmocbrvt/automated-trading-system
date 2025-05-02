@@ -249,15 +249,15 @@
 - **Đầu ra**: Hệ thống giao dịch thời gian thực hoàn chỉnh
 
 #### Sprint 27.2 Vận hành hệ thống
-- [ ] `main.py`
-- [ ] `trading_system.py` 
-- [ ] `cli/parser.py`
-- [ ] `commands/collect_commands.py`
-- [ ] `commands/process_commands.py`
-- [ ] `commands/backtest_commands.py`
-- [ ] `commands/train_commands.py`
-- [ ] `commands/trade_commands.py`
-- [ ] `commands/dashboard_commands.py`
+- [x] `main.py`
+- [x] `trading_system.py` 
+- [x] `cli/parser.py`
+- [x] `commands/collect_commands.py`
+- [x] `commands/process_commands.py`
+- [x] `commands/backtest_commands.py`
+- [x] `commands/train_commands.py`
+- [x] `commands/trade_commands.py`
+- [x] `commands/dashboard_commands.py`
 
 ### Giai đoạn 9: Hoàn thiện & Tối ưu hóa (4 tuần)
 

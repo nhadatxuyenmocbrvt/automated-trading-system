@@ -164,4 +164,9 @@ def handle_collect_command(args: argparse.Namespace, system: AutomatedTradingSys
         return 130
     except Exception as e:
         logger.error(f"Lỗi khi thu thập dữ liệu: {str(e)}", exc_info=True)
+    if not result_paths:
+        logger.error("Không thu thập được dữ liệu nào")
+        # Thêm thông báo gợi ý nếu sử dụng futures
+        if futures and exchange_id.lower() == 'binance':
+            logger.info("Gợi ý: Đối với Binance Futures, cặp giao dịch nên sử dụng định dạng không có dấu '/'. Ví dụ: BTCUSDT thay vì BTC/USDT")
         return 1
