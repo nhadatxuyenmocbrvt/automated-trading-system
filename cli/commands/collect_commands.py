@@ -1,101 +1,167 @@
 """
 Xử lý lệnh thu thập dữ liệu.
-File này cung cấp hàm xử lý lệnh 'collect' từ CLI.
+File này định nghĩa các tham số và xử lý cho lệnh 'collect' trên CLI.
 """
 
-import asyncio
 import os
 import sys
+import argparse
+import asyncio
 from datetime import datetime
+from typing import Dict, List, Any, Optional
 from pathlib import Path
-import logging
-import pandas as pd
 
+# Thêm thư mục gốc vào path để import các module
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Import các module cần thiết
 from config.logging_config import get_logger
-from config.env import get_env
 from trading_system import AutomatedTradingSystem
 
-# Thiết lập logger
-logger = get_logger("collect_commands")
-
-async def handle_collect_command(args, trading_system):
+def setup_collect_parser(subparsers) -> None:
     """
-    Xử lý lệnh collect từ CLI.
+    Thiết lập parser cho lệnh 'collect'.
     
     Args:
-        args: Đối tượng ArgumentParser đã parse
-        trading_system: Instance của AutomatedTradingSystem
+        subparsers: Subparsers object từ argparse
     """
-    logger.info(f"Đang thu thập dữ liệu từ {args.exchange} cho {args.symbols}")
+    collect_parser = subparsers.add_parser(
+        'collect',
+        help='Thu thập dữ liệu thị trường',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     
-    # Lấy API key và secret
-    api_key = args.api_key
-    api_secret = args.api_secret
+    # Tham số bắt buộc
+    collect_parser.add_argument(
+        '--exchange', 
+        type=str, 
+        required=True,
+        help='Sàn giao dịch (binance, bybit, ...)'
+    )
     
-    if api_key is None or api_secret is None:
-        # Thử lấy từ biến môi trường
-        env = get_env()
-        exchange_upper = args.exchange.upper()
-        api_key = api_key or env.get(f"{exchange_upper}_API_KEY")
-        api_secret = api_secret or env.get(f"{exchange_upper}_API_SECRET")
+    collect_parser.add_argument(
+        '--symbols', 
+        type=str, 
+        required=True, 
+        nargs='+',
+        help='Danh sách cặp giao dịch (BTC/USDT ETH/USDT ...)'
+    )
     
-    # Thiết lập khoảng thời gian
-    start_time = args.start_date
-    end_time = args.end_date or datetime.now()
-    days = args.days
+    # Tham số thời gian và khung thời gian
+    collect_parser.add_argument(
+        '--timeframes', 
+        type=str, 
+        nargs='+', 
+        default=['1h'],
+        help='Khung thời gian (1m, 5m, 15m, 1h, 4h, 1d, ...)'
+    )
+    
+    time_group = collect_parser.add_mutually_exclusive_group()
+    
+    time_group.add_argument(
+        '--days', 
+        type=int, 
+        help='Số ngày dữ liệu cần thu thập (tính từ hiện tại)'
+    )
+    
+    time_group.add_argument(
+        '--start-date', 
+        type=str, 
+        help='Ngày bắt đầu (YYYY-MM-DD)'
+    )
+    
+    collect_parser.add_argument(
+        '--end-date', 
+        type=str, 
+        help='Ngày kết thúc (YYYY-MM-DD), mặc định là hiện tại'
+    )
+    
+    # Loại thị trường
+    collect_parser.add_argument(
+        '--futures', 
+        action='store_true',
+        help='Thu thập dữ liệu futures thay vì spot'
+    )
+    
+    # Thư mục đầu ra
+    collect_parser.add_argument(
+        '--output-dir', 
+        type=str,
+        help='Thư mục lưu dữ liệu'
+    )
+    
+    collect_parser.set_defaults(func=handle_collect_command)
+
+def handle_collect_command(args: argparse.Namespace, system: AutomatedTradingSystem) -> int:
+    """
+    Xử lý lệnh 'collect'.
+    
+    Args:
+        args: Các tham số dòng lệnh
+        system: Instance của AutomatedTradingSystem
+        
+    Returns:
+        int: Mã kết quả (0 = thành công)
+    """
+    logger = get_logger('collect_command')
     
     try:
-        # Thu thập dữ liệu cho mỗi timeframe
-        all_data = {}
-        
-        for timeframe in args.timeframes:
-            logger.info(f"Thu thập dữ liệu khung thời gian {timeframe}")
-            
-            data = await trading_system.collect_data(
-                exchange_id=args.exchange,
-                symbols=args.symbols,
-                timeframe=timeframe,
-                start_time=start_time,
-                end_time=end_time,
-                days=days,
-                is_futures=args.futures,
-                api_key=api_key,
-                api_secret=api_secret
-            )
-            
-            if data:
-                # Thêm vào all_data với key là timeframe
-                for symbol, df in data.items():
-                    all_data[f"{symbol}_{timeframe}"] = df
-                
-                # Log thông tin
-                total_records = sum(len(df) for df in data.values())
-                logger.info(f"Đã thu thập {total_records} dòng dữ liệu cho timeframe {timeframe}")
-            else:
-                logger.warning(f"Không thu thập được dữ liệu cho timeframe {timeframe}")
-        
-        # Xác định thư mục đầu ra
+        # Xử lý tham số đầu vào
+        exchange_id = args.exchange.lower()
+        symbols = args.symbols
+        timeframes = args.timeframes
+        days = args.days
+        start_date = args.start_date
+        end_date = args.end_date
+        futures = args.futures
         output_dir = args.output_dir
-        if output_dir is None:
-            output_dir = os.path.join(trading_system.data_dir, "raw")
         
-        # Tạo thư mục nếu chưa tồn tại
-        os.makedirs(output_dir, exist_ok=True)
+        # Chuyển đổi thành đường dẫn nếu có
+        if output_dir:
+            output_dir = Path(output_dir)
         
-        # Lưu dữ liệu
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Xử lý thu thập dữ liệu cho mỗi khung thời gian
+        result_paths = {}
         
-        for key, df in all_data.items():
-            symbol, timeframe = key.split("_", 1)
-            symbol_safe = symbol.replace("/", "_").lower()
+        for timeframe in timeframes:
+            logger.info(f"Thu thập dữ liệu cho khung thời gian {timeframe}")
             
-            file_path = os.path.join(output_dir, f"{symbol_safe}_{timeframe}_{timestamp}.csv")
-            df.to_csv(file_path, index=False)
+            # Chạy thu thập dữ liệu bất đồng bộ
+            paths = asyncio.run(system.collect_data(
+                exchange_id=exchange_id,
+                symbols=symbols,
+                timeframe=timeframe,
+                days=days,
+                start_date=start_date,
+                end_date=end_date,
+                futures=futures,
+                output_dir=output_dir
+            ))
             
-            logger.info(f"Đã lưu dữ liệu vào {file_path}")
+            if paths:
+                result_paths[timeframe] = paths
+                symbol_count = len(paths)
+                logger.info(f"Đã thu thập dữ liệu cho {symbol_count} cặp tiền với khung thời gian {timeframe}")
+                
+                # In ra đường dẫn tới dữ liệu
+                for symbol, path in paths.items():
+                    logger.info(f"  - {symbol}: {path}")
+            else:
+                logger.warning(f"Không có dữ liệu nào được thu thập cho khung thời gian {timeframe}")
         
-        logger.info(f"Đã hoàn thành thu thập dữ liệu cho {len(args.symbols)} cặp giao dịch, {len(args.timeframes)} khung thời gian")
-        
+        # Tóm tắt kết quả
+        if result_paths:
+            total_timeframes = len(result_paths)
+            total_symbols = sum(len(paths) for paths in result_paths.values())
+            logger.info(f"Tổng kết: Đã thu thập {total_symbols} datasets cho {total_timeframes} khung thời gian")
+            return 0
+        else:
+            logger.error("Không thu thập được dữ liệu nào")
+            return 1
+            
+    except KeyboardInterrupt:
+        logger.info("Đã hủy thu thập dữ liệu")
+        return 130
     except Exception as e:
-        logger.error(f"Lỗi khi thu thập dữ liệu: {str(e)}")
-        raise
+        logger.error(f"Lỗi khi thu thập dữ liệu: {str(e)}", exc_info=True)
+        return 1

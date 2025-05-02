@@ -1,96 +1,58 @@
-#!/usr/bin/env python3
 """
-Điểm khởi chạy chính cho hệ thống giao dịch tự động.
-File này cung cấp giao diện dòng lệnh đơn giản để sử dụng các chức năng
-chính của hệ thống.
+Điểm khởi chạy chính của hệ thống.
+File này cung cấp giao diện dòng lệnh (CLI) cho người dùng,
+cho phép điều khiển các chức năng chính của hệ thống giao dịch tự động.
 """
 
 import os
 import sys
-import asyncio
 import logging
 from pathlib import Path
-from datetime import datetime
-import argparse
 
-# Thêm thư mục gốc vào PATH để import các module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Thêm thư mục gốc vào path để import các module
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import các module cần thiết
+from config.logging_config import get_logger
+from config.system_config import get_system_config
 from cli.parser import create_parser
-from cli.commands import collect_commands, process_commands, backtest_commands, train_commands, trade_commands, dashboard_commands
-from config.logging_config import setup_logger
 from trading_system import AutomatedTradingSystem
 
-# Thiết lập logger
-logger = setup_logger("main")
-
-def handle_exception(exc_type, exc_value, exc_traceback):
+def main():
     """
-    Xử lý exception không được bắt.
+    Hàm chính điều khiển luồng thực thi của ứng dụng.
     """
-    if issubclass(exc_type, KeyboardInterrupt):
-        # Cho phép Ctrl+C thoát bình thường
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-
-    logger.critical("Lỗi không được xử lý:", exc_info=(exc_type, exc_value, exc_traceback))
-
-# Đặt handler cho các exception không được bắt
-sys.excepthook = handle_exception
-
-async def main():
-    """
-    Hàm main chính của ứng dụng.
-    """
-    # Tạo parser lệnh
+    # Khởi tạo logger
+    logger = get_logger("main")
+    logger.info("Khởi động hệ thống giao dịch tự động")
+    
+    # Lấy cấu hình hệ thống
+    system_config = get_system_config()
+    
+    # Tạo parser dòng lệnh
     parser = create_parser()
     args = parser.parse_args()
-
-    # Kiểm tra nếu không có lệnh nào được chỉ định
-    if not hasattr(args, 'command'):
+    
+    # Khởi tạo hệ thống giao dịch
+    trading_system = AutomatedTradingSystem(config=system_config)
+    
+    # Nếu không có lệnh nào được cung cấp, hiển thị help
+    if not hasattr(args, 'func'):
         parser.print_help()
         return
     
-    # Tạo hệ thống giao dịch tự động
-    trading_system = AutomatedTradingSystem(
-        mode=args.mode,
-        verbose=args.verbose
-    )
-    
-    # Khởi tạo hệ thống
-    await trading_system.setup()
-    
     try:
-        # Xử lý các lệnh
-        if args.command == 'collect':
-            await collect_commands.handle_collect_command(args, trading_system)
-        elif args.command == 'process':
-            await process_commands.handle_process_command(args, trading_system)
-        elif args.command == 'backtest':
-            await backtest_commands.handle_backtest_command(args, trading_system)
-        elif args.command == 'train':
-            await train_commands.handle_train_command(args, trading_system)
-        elif args.command == 'trade':
-            await trade_commands.handle_trade_command(args, trading_system)
-        elif args.command == 'dashboard':
-            await dashboard_commands.handle_dashboard_command(args, trading_system)
-        else:
-            logger.error(f"Lệnh không được hỗ trợ: {args.command}")
-            
+        # Chạy lệnh được chọn
+        args.func(args, trading_system)
     except KeyboardInterrupt:
-        logger.info("Đã nhận lệnh thoát từ người dùng (Ctrl+C)")
+        logger.info("Nhận tín hiệu ngắt. Đang dừng hệ thống...")
     except Exception as e:
-        logger.error(f"Lỗi khi thực hiện lệnh {args.command}: {str(e)}")
+        logger.error(f"Lỗi không mong đợi: {str(e)}", exc_info=True)
+        return 1
     finally:
-        # Lưu trạng thái hệ thống
-        if args.save_state:
-            trading_system.save_system_state()
+        logger.info("Đóng hệ thống giao dịch tự động")
+    
+    return 0
 
 if __name__ == "__main__":
-    try:
-        # Chạy hàm main bất đồng bộ
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\nChương trình đã bị dừng bởi người dùng")
-        sys.exit(0)
+    sys.exit(main())

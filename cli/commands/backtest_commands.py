@@ -1,139 +1,129 @@
 """
 Xử lý lệnh backtest.
-File này cung cấp hàm xử lý lệnh 'backtest' từ CLI.
+File này định nghĩa các tham số và xử lý cho lệnh 'backtest' trên CLI.
 """
 
-import asyncio
 import os
 import sys
-from datetime import datetime
+import argparse
+from typing import Dict, List, Any, Optional
 from pathlib import Path
-import logging
-import pandas as pd
-import glob
-import json
 
+# Thêm thư mục gốc vào path để import các module
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Import các module cần thiết
 from config.logging_config import get_logger
 from trading_system import AutomatedTradingSystem
 
-# Thiết lập logger
-logger = get_logger("backtest_commands")
-
-async def handle_backtest_command(args, trading_system):
+def setup_backtest_parser(subparsers) -> None:
     """
-    Xử lý lệnh backtest từ CLI.
+    Thiết lập parser cho lệnh 'backtest'.
     
     Args:
-        args: Đối tượng ArgumentParser đã parse
-        trading_system: Instance của AutomatedTradingSystem
+        subparsers: Subparsers object từ argparse
     """
-    logger.info(f"Đang thực hiện backtest cho agent {args.agent}")
+    backtest_parser = subparsers.add_parser(
+        'backtest',
+        help='Chạy backtest chiến lược giao dịch',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     
-    # Xác định thư mục dữ liệu
-    data_dir = args.data_dir or trading_system.data_dir
+    # Loại chiến lược
+    backtest_parser.add_argument(
+        '--strategy', 
+        type=str, 
+        choices=['dqn', 'ppo', 'a2c', 'simple', 'technical'], 
+        default='dqn',
+        help='Loại chiến lược giao dịch'
+    )
     
-    # Tìm file dữ liệu phù hợp
-    symbol_safe = args.symbol.replace("/", "_").lower()
-    timeframe = args.timeframe
+    # Model path cho các chiến lược RL
+    backtest_parser.add_argument(
+        '--model-path', 
+        type=str,
+        help='Đường dẫn tới file mô hình đã huấn luyện'
+    )
     
-    pattern = os.path.join(data_dir, "processed", f"{symbol_safe}_{timeframe}*_*.csv")
-    files = glob.glob(pattern)
+    # Tham số dữ liệu
+    backtest_parser.add_argument(
+        '--data-path', 
+        type=str,
+        help='Đường dẫn file dữ liệu backtest'
+    )
     
-    if not files:
-        # Thử tìm trong thư mục features
-        pattern = os.path.join(data_dir, "features", f"{symbol_safe}_{timeframe}*_featured_*.csv")
-        files = glob.glob(pattern)
+    backtest_parser.add_argument(
+        '--symbol', 
+        type=str, 
+        default='BTC/USDT',
+        help='Cặp giao dịch backtest'
+    )
     
-    if not files:
-        # Thử tìm trong thư mục cleaned
-        pattern = os.path.join(data_dir, "cleaned", f"{symbol_safe}_{timeframe}*_cleaned_*.csv")
-        files = glob.glob(pattern)
+    backtest_parser.add_argument(
+        '--timeframe', 
+        type=str, 
+        default='1h',
+        help='Khung thời gian backtest'
+    )
     
-    if not files:
-        # Thử tìm trong thư mục raw
-        pattern = os.path.join(data_dir, "raw", f"{symbol_safe}_{timeframe}*.csv")
-        files = glob.glob(pattern)
+    # Tham số backtest
+    backtest_parser.add_argument(
+        '--initial-balance', 
+        type=float, 
+        default=10000.0,
+        help='Số dư ban đầu cho môi trường'
+    )
     
-    if not files:
-        logger.error(f"Không tìm thấy dữ liệu cho {args.symbol} với timeframe {args.timeframe}")
-        return
+    backtest_parser.add_argument(
+        '--leverage', 
+        type=float, 
+        default=1.0,
+        help='Đòn bẩy giao dịch'
+    )
     
-    # Sử dụng file mới nhất
-    newest_file = max(files, key=os.path.getctime)
-    logger.info(f"Sử dụng dữ liệu từ {newest_file}")
+    backtest_parser.add_argument(
+        '--fee-rate', 
+        type=float, 
+        default=0.001,
+        help='Tỷ lệ phí giao dịch (0.001 = 0.1%)'
+    )
     
-    try:
-        # Tải dữ liệu
-        df = pd.read_csv(newest_file)
+    backtest_parser.add_argument(
+        '--output-dir', 
+        type=str,
+        help='Thư mục lưu kết quả backtest'
+    )
+    
+    backtest_parser.add_argument(
+        '--plot-results', 
+        action='store_true',
+        help='Vẽ biểu đồ kết quả backtest'
+    )
+    
+    backtest_parser.set_defaults(func=handle_backtest_command)
+
+def handle_backtest_command(args: argparse.Namespace, system: AutomatedTradingSystem) -> int:
+    """
+    Xử lý lệnh 'backtest'.
+    
+    Args:
+        args: Các tham số dòng lệnh
+        system: Instance của AutomatedTradingSystem
         
-        # Chuyển cột timestamp sang datetime nếu có
-        if 'timestamp' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        data = {args.symbol: df}
-        
-        # Thiết lập môi trường
-        if not trading_system.setup_environment(
-            data=data,
-            symbol=args.symbol,
-            initial_balance=args.initial_balance,
-            max_positions=args.max_positions,
-            window_size=100,
-            reward_function="profit"
-        ):
-            logger.error("Không thể thiết lập môi trường backtest")
-            return
-        
-        # Thiết lập agent
-        if not trading_system.setup_agent(
-            agent_type=args.agent,
-            load_model=args.model_path is not None,
-            model_path=args.model_path
-        ):
-            logger.error("Không thể thiết lập agent")
-            return
-        
-        # Xác định đường dẫn đầu ra
-        if args.output_path:
-            output_path = args.output_path
-        else:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_dir = os.path.join(trading_system.data_dir, "backtest_results")
-            os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, f"backtest_{symbol_safe}_{timeframe}_{args.agent}_{timestamp}.csv")
-        
-        # Chạy backtest
-        results = trading_system.backtest(
-            render_mode=args.render_mode,
-            output_path=output_path
-        )
-        
-        if not results:
-            logger.error("Backtest không thành công")
-            return
-        
-        # Hiển thị kết quả
-        logger.info("Kết quả backtest:")
-        logger.info(f"  - Số dư ban đầu: {args.initial_balance:.2f}")
-        logger.info(f"  - Số dư cuối: {results['final_balance']:.2f}")
-        logger.info(f"  - NAV cuối: {results['final_nav']:.2f}")
-        logger.info(f"  - Tỷ suất lợi nhuận: {results['return_pct']:.2f}%")
-        logger.info(f"  - Tỷ lệ thắng: {results['win_rate']*100:.2f}%")
-        logger.info(f"  - Drawdown tối đa: {results['max_drawdown']*100:.2f}%")
-        logger.info(f"  - Số giao dịch: {results['trade_count']}")
-        
-        # Lưu thêm file kết quả JSON
-        json_output = output_path.replace(".csv", ".json")
-        with open(json_output, "w") as f:
-            # Chuyển các timestamp thành chuỗi để có thể lưu JSON
-            if "history" in results and "timestamps" in results["history"]:
-                results["history"]["timestamps"] = [str(ts) for ts in results["history"]["timestamps"]]
-            
-            json.dump(results, f, indent=4)
-        
-        logger.info(f"Đã lưu kết quả chi tiết vào {json_output}")
-        logger.info(f"Đã hoàn thành backtest cho {args.symbol}, timeframe {args.timeframe}")
-        
-    except Exception as e:
-        logger.error(f"Lỗi khi thực hiện backtest: {str(e)}")
-        raise
+    Returns:
+        int: Mã kết quả (0 = thành công)
+    """
+    logger = get_logger('backtest_command')
+    
+    # TODO: Thực hiện backtest
+    logger.info("Chức năng backtest chưa được triển khai đầy đủ")
+    
+    # Hiển thị các tham số đã chọn
+    logger.info(f"Chiến lược: {args.strategy}")
+    logger.info(f"Symbol: {args.symbol}")
+    logger.info(f"Timeframe: {args.timeframe}")
+    logger.info(f"Số dư ban đầu: {args.initial_balance}")
+    logger.info(f"Đòn bẩy: {args.leverage}")
+    logger.info(f"Phí giao dịch: {args.fee_rate}")
+    
+    return 0
