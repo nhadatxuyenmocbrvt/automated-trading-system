@@ -95,10 +95,16 @@ automated-trading-system/
 │   │   ├── profit_reward.py               # Phần thưởng theo lợi nhuận
 │   │   ├── risk_adjusted_reward.py        # Phần thưởng điều chỉnh theo rủi ro
 │   │   └── custom_reward.py               # Tùy chỉnh phần thưởng
-│   └── simulators/
-│       ├── market_simulator.py            # Mô phỏng thị trường
-│       └── exchange_simulator.py          # Mô phỏng sàn giao dịch
-│
+│   ├── simulators/
+│   │   ├── market_simulator.py            # Môi trường giao dịch chính
+│   │   ├── exchange_simulator/           
+│   │   │   ├── __init__.py             # Exports các class chính
+│   │   │   ├── base_simulator.py       # Lớp cơ sở ExchangeSimulator 
+│   │   │   ├── realistic_simulator.py  # Lớp RealisticExchangeSimulator
+│   │   │   ├── order_manager.py        # Quản lý lệnh và sổ lệnh
+│   │   │   ├── position_manager.py     # Quản lý vị thế
+│   │   │   └── account_manager.py      # Quản lý tài khoản và số dư
+│   │   └── exchange_simulator.py       # File wrapper để tương thích ngược
 ├── models/                                # Huấn luyện agent
 │   ├── agents/
 │   │   ├── dqn_agent.py                   # Agent DQN
