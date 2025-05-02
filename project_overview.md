@@ -138,9 +138,11 @@
 - [x] `models/agents/a2c_agent.py`
 - **Đầu ra**: Các mô hình agent đa dạng
 
-#### Sprint 13 - Pipeline huấn luyện
+#### Sprint 13.1 - Pipeline huấn luyện
 - [ ] `models/training_pipeline/trainer.py`
 - [ ] `models/training_pipeline/experience_buffer.py`
+
+#### Sprint 13.2 - Pipeline huấn luyện
 - [ ] `models/training_pipeline/hyperparameter_tuner.py`
 - [ ] `models/cross_coin_trainer.py`
 - **Đầu ra**: Pipeline huấn luyện hoàn chỉnh

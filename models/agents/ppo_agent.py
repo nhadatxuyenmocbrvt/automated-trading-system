@@ -8,6 +8,7 @@ import os
 import time
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 from typing import Dict, List, Tuple, Any, Optional, Union, Callable
 import logging
 from datetime import datetime
