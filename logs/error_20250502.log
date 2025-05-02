@@ -1,3 +1,3 @@
-2025-05-02 22:02:01,917 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:189] - Cặp giao dịch BTC/USDT không hợp lệ cho binanceusdm
-2025-05-02 22:02:01,921 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:189] - Cặp giao dịch ETH/USDT không hợp lệ cho binanceusdm
-2025-05-02 22:02:02,799 - trading_system.collect_command - ERROR - [collect_commands.py:159] - Không thu thập được dữ liệu nào
+2025-05-02 22:11:31,216 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:189] - Cặp giao dịch BTC/USDT không hợp lệ cho binanceusdm
+2025-05-02 22:11:31,220 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:189] - Cặp giao dịch ETH/USDT không hợp lệ cho binanceusdm
+2025-05-02 22:11:32,044 - trading_system.collect_command - ERROR - [collect_commands.py:159] - Không thu thập được dữ liệu nào

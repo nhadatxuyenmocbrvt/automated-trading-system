@@ -1,49 +1,49 @@
-2025-05-02 22:02:01,303 - trading_system - INFO - [main.py:27] - Khởi động hệ thống giao dịch tự động
-2025-05-02 22:02:01,322 - trading_system.trading_system - INFO - [trading_system.py:101] - Đã khởi tạo hệ thống giao dịch tự động
-2025-05-02 22:02:01,322 - trading_system.collect_command - INFO - [collect_commands.py:127] - Thu thập dữ liệu cho khung thời gian 1h
-2025-05-02 22:02:01,324 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
-2025-05-02 22:02:01,325 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
-2025-05-02 22:02:01,325 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
-2025-05-02 22:02:01,326 - trading_system.trading_system - INFO - [feature_generator.py:111] - Đã khởi tạo FeatureGenerator
-2025-05-02 22:02:01,327 - trading_system.trading_system - INFO - [feature_generator.py:331] - Đăng ký các đặc trưng mặc định
-2025-05-02 22:02:01,327 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: normalize
-2025-05-02 22:02:01,328 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: standardize
-2025-05-02 22:02:01,328 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: min_max_scale
-2025-05-02 22:02:01,328 - trading_system.trading_system - DEBUG - [feature_generator.py:233] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
-2025-05-02 22:02:01,329 - trading_system.trading_system - INFO - [feature_generator.py:331] - Đăng ký các đặc trưng mặc định
-2025-05-02 22:02:01,329 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: normalize
-2025-05-02 22:02:01,330 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: standardize
-2025-05-02 22:02:01,330 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: min_max_scale
-2025-05-02 22:02:01,331 - trading_system.trading_system - DEBUG - [feature_generator.py:233] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
-2025-05-02 22:02:01,331 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
-2025-05-02 22:02:01,332 - trading_system.trading_system - INFO - [data_pipeline.py:198] - Đã khởi tạo các collector dữ liệu cho binance
-2025-05-02 22:02:01,333 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
-2025-05-02 22:02:01,334 - trading_system.trading_system - INFO - [trading_system.py:179] - Bắt đầu thu thập dữ liệu từ binance cho 2 cặp tiền, khung thời gian 1h
-2025-05-02 22:02:01,334 - trading_system.trading_system - INFO - [data_pipeline.py:304] - Thu thập dữ liệu từ binance cho 2 cặp giao dịch, khung thời gian 1h
-2025-05-02 22:02:01,335 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:112] - Không tìm thấy API credentials cho binanceusdm
-2025-05-02 22:02:01,910 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 483 thị trường
-2025-05-02 22:02:01,910 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-05-02 22:02:01,911 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
-2025-05-02 22:02:01,911 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 483 thị trường từ cache
-2025-05-02 22:02:01,912 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
-2025-05-02 22:02:01,915 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:91] - Đã khởi tạo HistoricalDataCollector cho binanceusdm
-2025-05-02 22:02:01,915 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:829] - Thu thập OHLCV cho 2 cặp giao dịch với 1h
-2025-05-02 22:02:01,915 - trading_system.historical_data_collector_binanceusdm - DEBUG - [historical_data_collector.py:837] - Bắt đầu thu thập dữ liệu cho BTC/USDT
-2025-05-02 22:02:01,916 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:171] - Thu thập OHLCV cho BTC/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
-2025-05-02 22:02:01,917 - trading_system.historical_data_collector_binanceusdm - DEBUG - [historical_data_collector.py:107] - Đã chuyển đổi BTC/USDT thành BTCUSDT cho binanceusdm
-2025-05-02 22:02:01,917 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:189] - Cặp giao dịch BTC/USDT không hợp lệ cho binanceusdm
-2025-05-02 22:02:01,918 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:192] - Gợi ý: Đối với Binance Futures, hãy thử sử dụng BTCUSDT thay vì BTC/USDT
-2025-05-02 22:02:01,920 - trading_system.historical_data_collector_binanceusdm - DEBUG - [historical_data_collector.py:837] - Bắt đầu thu thập dữ liệu cho ETH/USDT
-2025-05-02 22:02:01,921 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:171] - Thu thập OHLCV cho ETH/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
-2025-05-02 22:02:01,921 - trading_system.historical_data_collector_binanceusdm - DEBUG - [historical_data_collector.py:107] - Đã chuyển đổi ETH/USDT thành ETHUSDT cho binanceusdm
-2025-05-02 22:02:01,921 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:189] - Cặp giao dịch ETH/USDT không hợp lệ cho binanceusdm
-2025-05-02 22:02:01,921 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:192] - Gợi ý: Đối với Binance Futures, hãy thử sử dụng ETHUSDT thay vì ETH/USDT
-2025-05-02 22:02:01,922 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:862] - Đã thu thập dữ liệu cho 2 cặp giao dịch
-2025-05-02 22:02:01,923 - trading_system.trading_system - WARNING - [data_pipeline.py:338] - Không có dữ liệu cho BTC/USDT
-2025-05-02 22:02:01,923 - trading_system.trading_system - WARNING - [data_pipeline.py:338] - Không có dữ liệu cho ETH/USDT
-2025-05-02 22:02:02,794 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1910] - Đã thu thập 0 bản ghi tâm lý từ Fear and Greed Index
-2025-05-02 22:02:02,795 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
-2025-05-02 22:02:02,796 - trading_system.trading_system - WARNING - [trading_system.py:208] - Không có dữ liệu nào được thu thập
-2025-05-02 22:02:02,798 - trading_system.collect_command - WARNING - [collect_commands.py:150] - Không có dữ liệu nào được thu thập cho khung thời gian 1h
-2025-05-02 22:02:02,799 - trading_system.collect_command - ERROR - [collect_commands.py:159] - Không thu thập được dữ liệu nào
-2025-05-02 22:02:02,800 - trading_system - INFO - [main.py:53] - Đóng hệ thống giao dịch tự động
+2025-05-02 22:11:30,898 - trading_system - INFO - [main.py:27] - Khởi động hệ thống giao dịch tự động
+2025-05-02 22:11:30,915 - trading_system.trading_system - INFO - [trading_system.py:101] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-02 22:11:30,915 - trading_system.collect_command - INFO - [collect_commands.py:127] - Thu thập dữ liệu cho khung thời gian 1h
+2025-05-02 22:11:30,919 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-02 22:11:30,919 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-02 22:11:30,920 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-02 22:11:30,921 - trading_system.trading_system - INFO - [feature_generator.py:111] - Đã khởi tạo FeatureGenerator
+2025-05-02 22:11:30,922 - trading_system.trading_system - INFO - [feature_generator.py:331] - Đăng ký các đặc trưng mặc định
+2025-05-02 22:11:30,922 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: normalize
+2025-05-02 22:11:30,923 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: standardize
+2025-05-02 22:11:30,923 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: min_max_scale
+2025-05-02 22:11:30,924 - trading_system.trading_system - DEBUG - [feature_generator.py:233] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
+2025-05-02 22:11:30,924 - trading_system.trading_system - INFO - [feature_generator.py:331] - Đăng ký các đặc trưng mặc định
+2025-05-02 22:11:30,925 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: normalize
+2025-05-02 22:11:30,925 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: standardize
+2025-05-02 22:11:30,926 - trading_system.trading_system - DEBUG - [feature_generator.py:175] - Đã đăng ký bộ tiền xử lý: min_max_scale
+2025-05-02 22:11:30,926 - trading_system.trading_system - DEBUG - [feature_generator.py:233] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
+2025-05-02 22:11:30,927 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-05-02 22:11:30,928 - trading_system.trading_system - INFO - [data_pipeline.py:198] - Đã khởi tạo các collector dữ liệu cho binance
+2025-05-02 22:11:30,928 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-05-02 22:11:30,930 - trading_system.trading_system - INFO - [trading_system.py:179] - Bắt đầu thu thập dữ liệu từ binance cho 2 cặp tiền, khung thời gian 1h
+2025-05-02 22:11:30,930 - trading_system.trading_system - INFO - [data_pipeline.py:304] - Thu thập dữ liệu từ binance cho 2 cặp giao dịch, khung thời gian 1h
+2025-05-02 22:11:30,931 - trading_system.exchange.binanceusdm_connector - WARNING - [generic_connector.py:112] - Không tìm thấy API credentials cho binanceusdm
+2025-05-02 22:11:31,207 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 483 thị trường
+2025-05-02 22:11:31,208 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
+2025-05-02 22:11:31,209 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
+2025-05-02 22:11:31,210 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 483 thị trường từ cache
+2025-05-02 22:11:31,211 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
+2025-05-02 22:11:31,213 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:91] - Đã khởi tạo HistoricalDataCollector cho binanceusdm
+2025-05-02 22:11:31,214 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:829] - Thu thập OHLCV cho 2 cặp giao dịch với 1h
+2025-05-02 22:11:31,214 - trading_system.historical_data_collector_binanceusdm - DEBUG - [historical_data_collector.py:837] - Bắt đầu thu thập dữ liệu cho BTC/USDT
+2025-05-02 22:11:31,215 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:171] - Thu thập OHLCV cho BTC/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
+2025-05-02 22:11:31,215 - trading_system.historical_data_collector_binanceusdm - DEBUG - [historical_data_collector.py:107] - Đã chuyển đổi BTC/USDT thành BTCUSDT cho binanceusdm
+2025-05-02 22:11:31,216 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:189] - Cặp giao dịch BTC/USDT không hợp lệ cho binanceusdm
+2025-05-02 22:11:31,217 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:192] - Gợi ý: Đối với Binance Futures, hãy thử sử dụng BTCUSDT thay vì BTC/USDT
+2025-05-02 22:11:31,219 - trading_system.historical_data_collector_binanceusdm - DEBUG - [historical_data_collector.py:837] - Bắt đầu thu thập dữ liệu cho ETH/USDT
+2025-05-02 22:11:31,219 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:171] - Thu thập OHLCV cho ETH/USDT (1h) từ 2022-01-01 00:00:00 đến 2023-12-31 00:00:00
+2025-05-02 22:11:31,220 - trading_system.historical_data_collector_binanceusdm - DEBUG - [historical_data_collector.py:107] - Đã chuyển đổi ETH/USDT thành ETHUSDT cho binanceusdm
+2025-05-02 22:11:31,220 - trading_system.historical_data_collector_binanceusdm - ERROR - [historical_data_collector.py:189] - Cặp giao dịch ETH/USDT không hợp lệ cho binanceusdm
+2025-05-02 22:11:31,221 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:192] - Gợi ý: Đối với Binance Futures, hãy thử sử dụng ETHUSDT thay vì ETH/USDT
+2025-05-02 22:11:31,222 - trading_system.historical_data_collector_binanceusdm - INFO - [historical_data_collector.py:862] - Đã thu thập dữ liệu cho 2 cặp giao dịch
+2025-05-02 22:11:31,222 - trading_system.trading_system - WARNING - [data_pipeline.py:338] - Không có dữ liệu cho BTC/USDT
+2025-05-02 22:11:31,223 - trading_system.trading_system - WARNING - [data_pipeline.py:338] - Không có dữ liệu cho ETH/USDT
+2025-05-02 22:11:32,038 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1910] - Đã thu thập 0 bản ghi tâm lý từ Fear and Greed Index
+2025-05-02 22:11:32,039 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
+2025-05-02 22:11:32,040 - trading_system.trading_system - WARNING - [trading_system.py:208] - Không có dữ liệu nào được thu thập
+2025-05-02 22:11:32,043 - trading_system.collect_command - WARNING - [collect_commands.py:150] - Không có dữ liệu nào được thu thập cho khung thời gian 1h
+2025-05-02 22:11:32,044 - trading_system.collect_command - ERROR - [collect_commands.py:159] - Không thu thập được dữ liệu nào
+2025-05-02 22:11:32,045 - trading_system - INFO - [main.py:53] - Đóng hệ thống giao dịch tự động
