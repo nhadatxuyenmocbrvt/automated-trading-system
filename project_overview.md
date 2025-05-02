@@ -126,10 +126,10 @@
 ### Giai đoạn 5: Huấn luyện agent & Quản lý rủi ro (8 tuần)
 
 #### Sprint 11 - Xây dựng agent cơ bản
-- [ ] `models/agents/base_agent.py`
-- [ ] `models/agents/dqn_agent.py`
-- [ ] `models/networks/policy_network.py`
-- [ ] `models/networks/value_network.py`
+- [x] `models/agents/base_agent.py`
+- [x] `models/agents/dqn_agent.py`
+- [x] `models/networks/policy_network.py`
+- [x] `models/networks/value_network.py`
 - **Đầu ra**: Mô hình agent DQN hoạt động
 
 #### Sprint 12 - Xây dựng agent nâng cao
