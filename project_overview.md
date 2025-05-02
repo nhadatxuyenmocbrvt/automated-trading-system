@@ -139,12 +139,12 @@
 - **Đầu ra**: Các mô hình agent đa dạng
 
 #### Sprint 13.1 - Pipeline huấn luyện
-- [ ] `models/training_pipeline/trainer.py`
-- [ ] `models/training_pipeline/experience_buffer.py`
+- [x] `models/training_pipeline/trainer.py`
+- [x] `models/training_pipeline/experience_buffer.py`
 
 #### Sprint 13.2 - Pipeline huấn luyện
-- [ ] `models/training_pipeline/hyperparameter_tuner.py`
-- [ ] `models/cross_coin_trainer.py`
+- [x] `models/training_pipeline/hyperparameter_tuner.py`
+- [x] `models/cross_coin_trainer.py`
 - **Đầu ra**: Pipeline huấn luyện hoàn chỉnh
 
 #### Sprint 14 - Quản lý rủi ro
@@ -247,6 +247,21 @@
 - [ ] `real_time_inference/auto_restart/recovery_system.py`
 - [ ] `real_time_inference/inference_engine.py`
 - **Đầu ra**: Hệ thống giao dịch thời gian thực hoàn chỉnh
+
+#### Sprint 27.2 Vận hành hệ thống
+- [ ]├── main.py                               # Điểm khởi chạy chính, đơn giản hơn
+- [ ]├── trading_system.py                     # Chứa lớp AutomatedTradingSystem
+- [ ]├── cli/                                  # Thư mục xử lý CLI
+- [ ]│   ├── __init__.py
+- [ ]│   ├── parser.py                         # Xây dựng parser chính và subparsers
+- [ ]│   └── commands/                         # Thư mục chứa các module lệnh  
+- [ ]│       ├── __init__.py
+- [ ]│       ├── collect_commands.py           # Xử lý lệnh collect
+- [ ]│       ├── process_commands.py           # Xử lý các lệnh process
+- [ ]│       ├── backtest_commands.py          # Xử lý lệnh backtest
+- [ ]│       ├── train_commands.py             # Xử lý lệnh train
+- [ ]│       ├── trade_commands.py             # Xử lý lệnh trade
+- [ ]│       └── dashboard_commands.py         # Xử lý lệnh dashboard
 
 ### Giai đoạn 9: Hoàn thiện & Tối ưu hóa (4 tuần)
 

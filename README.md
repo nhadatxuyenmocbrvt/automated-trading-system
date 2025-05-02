@@ -227,7 +227,19 @@ automated-trading-system/
 │   │   └── priority_system.py             # Hệ thống ưu tiên
 │   └── model_updater.py                   # Cập nhật mô hình tự động
 │
-└── main.py                                # Điểm khởi chạy chính hệ thống
+├── main.py                               # Điểm khởi chạy chính, đơn giản hơn
+├── trading_system.py                     # Chứa lớp AutomatedTradingSystem
+├── cli/                                  # Thư mục xử lý CLI
+│   ├── __init__.py
+│   ├── parser.py                         # Xây dựng parser chính và subparsers
+│   └── commands/                         # Thư mục chứa các module lệnh  
+│       ├── __init__.py
+│       ├── collect_commands.py           # Xử lý lệnh collect
+│       ├── process_commands.py           # Xử lý các lệnh process
+│       ├── backtest_commands.py          # Xử lý lệnh backtest
+│       ├── train_commands.py             # Xử lý lệnh train
+│       ├── trade_commands.py             # Xử lý lệnh trade
+│       └── dashboard_commands.py         # Xử lý lệnh dashboard
 ```
 
 ## Công nghệ sử dụng
