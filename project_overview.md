@@ -109,18 +109,18 @@
 - **Đầu ra**: Bộ hàm phần thưởng đa dạng
 
 #### Sprint 10.1 - Mô phỏng thị trường
-- [ ] `environments/simulators/market_simulator.py`
-- [ ] Tích hợp với hệ thống dữ liệu
+- [x] `environments/simulators/market_simulator.py`
+- [x] Tích hợp với hệ thống dữ liệu
 - **Đầu ra**: Hệ thống mô phỏng thị trường hoàn chỉnh
 
 #### Sprint 10.2 - Mô phỏng thị trường
-- [ ] `environments/simulators/exchange_simulator/base_simulator.py`
-- [ ] `environments/simulators/exchange_simulator/realistic_simulator.py`
-- [ ] `environments/simulators/exchange_simulator/order_manager.py`
-- [ ] `environments/simulators/exchange_simulator/position_manager.py`
-- [ ] `environments/simulators/exchange_simulator/account_manager.py`
-- [ ] `environments/simulators/exchange_simulator.py`
-- [ ] Tích hợp với hệ thống dữ liệu
+- [x] `environments/simulators/exchange_simulator/base_simulator.py`
+- [x] `environments/simulators/exchange_simulator/realistic_simulator.py`
+- [x] `environments/simulators/exchange_simulator/order_manager.py`
+- [x] `environments/simulators/exchange_simulator/position_manager.py`
+- [x] `environments/simulators/exchange_simulator/account_manager.py`
+- [x] `environments/simulators/exchange_simulator.py`
+- [x] Tích hợp với hệ thống dữ liệu
 - **Đầu ra**: Hệ thống mô phỏng thị trường hoàn chỉnh
 
 ### Giai đoạn 5: Huấn luyện agent & Quản lý rủi ro (8 tuần)
