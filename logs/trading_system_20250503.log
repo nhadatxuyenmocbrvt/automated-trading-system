@@ -1,0 +1,63 @@
+2025-05-03 02:26:12,823 - trading_system - INFO - [main.py:27] - Khởi động hệ thống giao dịch tự động
+2025-05-03 02:26:12,841 - trading_system.trading_system - INFO - [trading_system.py:101] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-03 02:26:12,842 - trading_system.process_pipeline - DEBUG - [process_commands.py:257] - Tìm kiếm với pattern: **/btc_usdt_1h*.parquet
+2025-05-03 02:26:12,844 - trading_system.process_pipeline - DEBUG - [process_commands.py:257] - Tìm kiếm với pattern: **/btc_usdt_*.parquet
+2025-05-03 02:26:12,846 - trading_system.process_pipeline - INFO - [process_commands.py:261] - Tìm thấy 1 file với pattern **/btc_usdt_*.parquet
+2025-05-03 02:26:12,847 - trading_system.process_pipeline - INFO - [process_commands.py:265] - Sử dụng file mới nhất cho BTC/USDT: E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\btc_usdt_20250503_004147.parquet
+2025-05-03 02:26:12,848 - trading_system.process_pipeline - DEBUG - [process_commands.py:257] - Tìm kiếm với pattern: **/eth_usdt_1h*.parquet
+2025-05-03 02:26:12,849 - trading_system.process_pipeline - DEBUG - [process_commands.py:257] - Tìm kiếm với pattern: **/eth_usdt_*.parquet
+2025-05-03 02:26:12,851 - trading_system.process_pipeline - INFO - [process_commands.py:261] - Tìm thấy 1 file với pattern **/eth_usdt_*.parquet
+2025-05-03 02:26:12,852 - trading_system.process_pipeline - INFO - [process_commands.py:265] - Sử dụng file mới nhất cho ETH/USDT: E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\eth_usdt_20250503_004147.parquet
+2025-05-03 02:26:12,853 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-03 02:26:12,853 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-03 02:26:12,854 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-03 02:26:12,855 - trading_system.trading_system - INFO - [feature_generator.py:129] - Đã khởi tạo FeatureGenerator
+2025-05-03 02:26:12,856 - trading_system.trading_system - INFO - [feature_generator.py:348] - Đăng ký các đặc trưng mặc định
+2025-05-03 02:26:12,856 - trading_system.trading_system - WARNING - [feature_generator.py:1135] - Lỗi import indicators: cannot import name 'ema' from 'data_processors.feature_engineering.technical_indicators.trend_indicators' (E:\AI_AGENT\automated-trading-system\data_processors\feature_engineering\technical_indicators\trend_indicators.py)
+2025-05-03 02:26:12,857 - trading_system.trading_system - DEBUG - [feature_generator.py:192] - Đã đăng ký bộ tiền xử lý: normalize
+2025-05-03 02:26:12,858 - trading_system.trading_system - DEBUG - [feature_generator.py:192] - Đã đăng ký bộ tiền xử lý: standardize
+2025-05-03 02:26:12,859 - trading_system.trading_system - DEBUG - [feature_generator.py:192] - Đã đăng ký bộ tiền xử lý: min_max_scale
+2025-05-03 02:26:12,859 - trading_system.trading_system - DEBUG - [feature_generator.py:250] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
+2025-05-03 02:26:12,861 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-05-03 02:26:12,861 - trading_system.trading_system - INFO - [data_pipeline.py:198] - Đã khởi tạo các collector dữ liệu cho binance
+2025-05-03 02:26:12,862 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-05-03 02:26:12,863 - trading_system.trading_system - INFO - [trading_system.py:253] - Bắt đầu xử lý dữ liệu cho 2 cặp tiền
+2025-05-03 02:26:12,958 - trading_system.trading_system - INFO - [data_pipeline.py:469] - Đã tải 18000 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\btc_usdt_20250503_004147.parquet cho BTC/USDT
+2025-05-03 02:26:12,964 - trading_system.trading_system - INFO - [data_pipeline.py:469] - Đã tải 18000 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\eth_usdt_20250503_004147.parquet cho ETH/USDT
+2025-05-03 02:26:12,965 - trading_system.data_cleaner - INFO - [data_cleaner.py:353] - Bắt đầu làm sạch dữ liệu OHLCV với 18000 dòng
+2025-05-03 02:26:12,975 - trading_system.data_cleaner - INFO - [data_cleaner.py:528] - Đã hoàn thành làm sạch dữ liệu OHLCV, kết quả có 18000 dòng
+2025-05-03 02:26:12,976 - trading_system.trading_system - INFO - [data_pipeline.py:568] - Đã làm sạch 18000 -> 18000 dòng dữ liệu OHLCV cho BTC/USDT
+2025-05-03 02:26:12,977 - trading_system.data_cleaner - INFO - [data_cleaner.py:353] - Bắt đầu làm sạch dữ liệu OHLCV với 18000 dòng
+2025-05-03 02:26:12,985 - trading_system.data_cleaner - INFO - [data_cleaner.py:528] - Đã hoàn thành làm sạch dữ liệu OHLCV, kết quả có 18000 dòng
+2025-05-03 02:26:12,986 - trading_system.trading_system - INFO - [data_pipeline.py:568] - Đã làm sạch 18000 -> 18000 dòng dữ liệu OHLCV cho ETH/USDT
+2025-05-03 02:26:12,987 - trading_system.trading_system - INFO - [feature_generator.py:934] - Đã tạo pipeline đặc trưng: BTC/USDT_pipeline_20250503_022612
+2025-05-03 02:26:12,988 - trading_system.trading_system - INFO - [feature_generator.py:339] - Đã lưu cấu hình đặc trưng vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_config.json
+2025-05-03 02:26:12,992 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột open bằng phương pháp zscore
+2025-05-03 02:26:12,995 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột high bằng phương pháp zscore
+2025-05-03 02:26:12,998 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột low bằng phương pháp zscore
+2025-05-03 02:26:13,000 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột close bằng phương pháp zscore
+2025-05-03 02:26:13,003 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột volume bằng phương pháp zscore
+2025-05-03 02:26:13,004 - trading_system.trading_system - DEBUG - [feature_generator.py:750] - Đã áp dụng bộ tiền xử lý normalize cho 5 cột
+2025-05-03 02:26:13,014 - trading_system.feature_selector - INFO - [statistical_methods.py:186] - Đã chọn 3 đặc trưng dựa trên tương quan pearson
+2025-05-03 02:26:13,015 - trading_system.trading_system - INFO - [feature_generator.py:891] - Đã áp dụng chọn lọc đặc trưng statistical_correlation, còn lại 4 đặc trưng
+2025-05-03 02:26:13,016 - trading_system.trading_system - INFO - [data_pipeline.py:742] - Đã tạo đặc trưng cho BTC/USDT: 6 -> 4 cột
+2025-05-03 02:26:13,017 - trading_system.trading_system - INFO - [feature_generator.py:934] - Đã tạo pipeline đặc trưng: ETH/USDT_pipeline_20250503_022613
+2025-05-03 02:26:13,018 - trading_system.trading_system - INFO - [feature_generator.py:339] - Đã lưu cấu hình đặc trưng vào E:\AI_AGENT\automated-trading-system\data\processed\feature_engineering\feature_config.json
+2025-05-03 02:26:13,023 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột open bằng phương pháp zscore
+2025-05-03 02:26:13,025 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột high bằng phương pháp zscore
+2025-05-03 02:26:13,028 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột low bằng phương pháp zscore
+2025-05-03 02:26:13,030 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột close bằng phương pháp zscore
+2025-05-03 02:26:13,033 - trading_system.feature_preprocessing - DEBUG - [preprocessing.py:148] - Đã chuẩn hóa cột volume bằng phương pháp zscore
+2025-05-03 02:26:13,033 - trading_system.trading_system - DEBUG - [feature_generator.py:750] - Đã áp dụng bộ tiền xử lý normalize cho 5 cột
+2025-05-03 02:26:13,043 - trading_system.feature_selector - INFO - [statistical_methods.py:186] - Đã chọn 3 đặc trưng dựa trên tương quan pearson
+2025-05-03 02:26:13,044 - trading_system.trading_system - INFO - [feature_generator.py:891] - Đã áp dụng chọn lọc đặc trưng statistical_correlation, còn lại 4 đặc trưng
+2025-05-03 02:26:13,045 - trading_system.trading_system - INFO - [data_pipeline.py:742] - Đã tạo đặc trưng cho ETH/USDT: 6 -> 4 cột
+2025-05-03 02:26:13,061 - trading_system.trading_system - INFO - [data_pipeline.py:998] - Đã lưu 18000 dòng dữ liệu cho BTC/USDT vào E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250503_022613.parquet
+2025-05-03 02:26:13,064 - trading_system.trading_system - DEBUG - [data_pipeline.py:1024] - Đã lưu metadata cho BTC/USDT vào E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250503_022613_metadata.json
+2025-05-03 02:26:13,077 - trading_system.trading_system - INFO - [data_pipeline.py:998] - Đã lưu 18000 dòng dữ liệu cho ETH/USDT vào E:\AI_AGENT\automated-trading-system\data\processed\eth_usdt_20250503_022613.parquet
+2025-05-03 02:26:13,081 - trading_system.trading_system - DEBUG - [data_pipeline.py:1024] - Đã lưu metadata cho ETH/USDT vào E:\AI_AGENT\automated-trading-system\data\processed\eth_usdt_20250503_022613_metadata.json
+2025-05-03 02:26:13,081 - trading_system.trading_system - INFO - [trading_system.py:323] - Đã xử lý và lưu dữ liệu thành công cho 2 cặp tiền
+2025-05-03 02:26:13,082 - trading_system.process_pipeline - INFO - [process_commands.py:322] - Tổng kết: Đã xử lý dữ liệu cho 2 cặp tiền
+2025-05-03 02:26:13,083 - trading_system.process_pipeline - INFO - [process_commands.py:326] -   - BTC/USDT: E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250503_022613.parquet
+2025-05-03 02:26:13,083 - trading_system.process_pipeline - INFO - [process_commands.py:326] -   - ETH/USDT: E:\AI_AGENT\automated-trading-system\data\processed\eth_usdt_20250503_022613.parquet
+2025-05-03 02:26:13,084 - trading_system - INFO - [main.py:53] - Đóng hệ thống giao dịch tự động

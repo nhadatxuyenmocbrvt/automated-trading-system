@@ -171,7 +171,7 @@ class DataPipeline:
         )
         
         # Đăng ký các đặc trưng mặc định
-        self.feature_generator.register_default_features()
+        self.feature_generator.register_default_features(all_indicators=True)
         
         # Khởi tạo các collector nếu được kích hoạt
         self.collectors = {}

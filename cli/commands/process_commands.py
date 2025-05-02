@@ -7,8 +7,9 @@ import os
 import sys
 import argparse
 import asyncio
+import logging  # Thêm dòng này
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 
 # Thêm thư mục gốc vào path để import các module
@@ -189,6 +190,146 @@ def setup_process_parser(subparsers) -> None:
     
     process_parser.set_defaults(func=handle_process_command)
 
+def _prepare_directories(input_dir: Optional[str], 
+                         output_dir: Optional[str], 
+                         system: AutomatedTradingSystem, 
+                         default_input_subdir: str = "collected") -> Tuple[Path, Optional[Path]]:
+    """
+    Chuẩn bị và kiểm tra các thư mục đầu vào/đầu ra.
+    
+    Args:
+        input_dir: Thư mục đầu vào
+        output_dir: Thư mục đầu ra
+        system: Instance của AutomatedTradingSystem
+        default_input_subdir: Thư mục con mặc định
+        
+    Returns:
+        Tuple (input_dir_path, output_dir_path)
+    """
+    # Chuyển đổi thành đường dẫn nếu có
+    if input_dir:
+        input_dir_path = Path(input_dir)
+    else:
+        input_dir_path = system.data_dir / default_input_subdir
+    
+    # Chuyển đổi output_dir nếu có
+    output_dir_path = None
+    if output_dir:
+        output_dir_path = Path(output_dir)
+    
+    return input_dir_path, output_dir_path
+
+def _find_data_files(input_dir: Path, 
+                    symbols: Optional[List[str]], 
+                    timeframes: List[str], 
+                    logger: logging.Logger) -> Dict[str, Path]:
+    """
+    Tìm các file dữ liệu phù hợp với symbols và timeframes.
+    
+    Args:
+        input_dir: Thư mục đầu vào
+        symbols: Danh sách cặp giao dịch
+        timeframes: Danh sách khung thời gian
+        logger: Logger
+        
+    Returns:
+        Dict với key là symbol và value là đường dẫn file
+    """
+    data_paths = {}
+    
+    # Duyệt qua các thư mục con để tìm file
+    if input_dir.exists():
+        for timeframe in timeframes:
+            # Tìm các file phù hợp với timeframe
+            if symbols:
+                for symbol in symbols:
+                    symbol_safe = symbol.replace('/', '_').lower()
+                    
+                    # Thử các pattern khác nhau, từ cụ thể đến linh hoạt
+                    patterns = [
+                        f"**/{symbol_safe}_{timeframe}*.parquet",  # Pattern cụ thể
+                        f"**/{symbol_safe}_*.parquet",             # Pattern chỉ theo symbol
+                        f"**/*{symbol_safe}*{timeframe}*.parquet", # Pattern hỗn hợp
+                        f"**/*{symbol_safe}*.parquet"              # Pattern linh hoạt
+                    ]
+                    
+                    for pattern in patterns:
+                        logger.debug(f"Tìm kiếm với pattern: {pattern}")
+                        matching_files = list(input_dir.glob(pattern))
+                        
+                        if matching_files:
+                            logger.info(f"Tìm thấy {len(matching_files)} file với pattern {pattern}")
+                            # Sắp xếp theo thời gian tạo để lấy file mới nhất
+                            newest_file = max(matching_files, key=lambda f: f.stat().st_mtime)
+                            data_paths[symbol] = newest_file
+                            logger.info(f"Sử dụng file mới nhất cho {symbol}: {newest_file}")
+                            break
+            else:
+                # Nếu không có symbols, tìm tất cả các file
+                pattern = f"**/*{timeframe}*.parquet"
+                matching_files = list(input_dir.glob(pattern))
+                
+                for file_path in matching_files:
+                    # Trích xuất symbol từ tên file
+                    filename = file_path.stem
+                    parts = filename.split('_')
+                    # Tạo symbol từ hai phần đầu tiên nếu có (btc_usdt -> BTC/USDT)
+                    if len(parts) >= 2:
+                        symbol = f"{parts[0].upper()}/{parts[1].upper()}"
+                        data_paths[symbol] = file_path
+                        logger.info(f"Tìm thấy dữ liệu cho {symbol}: {file_path}")
+    
+    return data_paths
+
+def _process_and_report_results(system: AutomatedTradingSystem, 
+                               data_paths: Dict[str, Path], 
+                               clean_data: bool, 
+                               generate_features: bool, 
+                               pipeline_name: Optional[str] = None,
+                               output_dir: Optional[Path] = None, 
+                               logger: logging.Logger = None) -> int:
+    """
+    Xử lý dữ liệu và báo cáo kết quả.
+    
+    Args:
+        system: Instance của AutomatedTradingSystem
+        data_paths: Dict với key là symbol và value là đường dẫn file
+        clean_data: Có làm sạch dữ liệu không
+        generate_features: Có tạo đặc trưng không
+        pipeline_name: Tên pipeline xử lý
+        output_dir: Thư mục đầu ra
+        logger: Logger
+        
+    Returns:
+        Mã kết quả (0 = thành công)
+    """
+    if not data_paths:
+        logger.error(f"Không tìm thấy file dữ liệu phù hợp")
+        return 1
+    
+    # Xử lý dữ liệu
+    result_paths = system.process_data(
+        data_paths=data_paths,
+        pipeline_name=pipeline_name,
+        clean_data=clean_data,
+        generate_features=generate_features,
+        output_dir=output_dir
+    )
+    
+    # Tóm tắt kết quả
+    if result_paths:
+        total_symbols = len(result_paths)
+        logger.info(f"Tổng kết: Đã xử lý dữ liệu cho {total_symbols} cặp tiền")
+        
+        # In ra đường dẫn tới dữ liệu
+        for symbol, path in result_paths.items():
+            logger.info(f"  - {symbol}: {path}")
+            
+        return 0
+    else:
+        logger.error("Không có dữ liệu nào được xử lý")
+        return 1
+
 def handle_process_command(args: argparse.Namespace, system: AutomatedTradingSystem) -> int:
     """
     Xử lý lệnh 'process'.
@@ -242,77 +383,20 @@ def handle_clean_command(args: argparse.Namespace, system: AutomatedTradingSyste
     logger = get_logger('process_clean')
     
     try:
-        # Xử lý tham số đầu vào
-        data_type = args.data_type
-        input_dir = args.input_dir
-        symbols = args.symbols
-        timeframes = args.timeframes
-        output_dir = args.output_dir
+        # Chuẩn bị thư mục đầu vào/ra
+        input_dir, output_dir = _prepare_directories(args.input_dir, args.output_dir, system)
         
-        # Chuyển đổi thành đường dẫn nếu có
-        if input_dir:
-            input_dir = Path(input_dir)
-        if output_dir:
-            output_dir = Path(output_dir)
+        # Tìm các file dữ liệu
+        data_paths = _find_data_files(input_dir, args.symbols, args.timeframes, logger)
         
-        # Nếu không có input_dir, sử dụng thư mục mặc định
-        if not input_dir:
-            input_dir = system.data_dir / "collected"
-        
-        # Tìm tất cả các file dữ liệu phù hợp
-        data_paths = {}
-        
-        # Duyệt qua các thư mục con để tìm file
-        if input_dir.exists():
-            for timeframe in timeframes:
-                # Tìm các file phù hợp với timeframe
-                if symbols:
-                    for symbol in symbols:
-                        symbol_safe = symbol.replace('/', '_')
-                        pattern = f"*{symbol_safe}*{timeframe}*.parquet"
-                        matching_files = list(input_dir.glob(f"**/{pattern}"))
-                        
-                        if matching_files:
-                            data_paths[symbol] = matching_files[0]
-                else:
-                    # Nếu không có symbols, tìm tất cả các file
-                    pattern = f"*{timeframe}*.parquet"
-                    matching_files = list(input_dir.glob(f"**/{pattern}"))
-                    
-                    for file_path in matching_files:
-                        # Trích xuất symbol từ tên file
-                        filename = file_path.stem
-                        parts = filename.split('_')
-                        # Giả sử symbol nằm ở phần đầu tiên
-                        if parts:
-                            symbol = parts[0]
-                            data_paths[symbol] = file_path
-        
-        if not data_paths:
-            logger.error(f"Không tìm thấy file dữ liệu nào trong {input_dir}")
-            return 1
-        
-        # Xử lý dữ liệu
-        result_paths = system.process_data(
-            data_paths=data_paths,
-            clean_data=True,
+        # Xử lý và báo cáo kết quả
+        return _process_and_report_results(
+            system, data_paths, 
+            clean_data=True, 
             generate_features=False,
-            output_dir=output_dir
+            output_dir=output_dir,
+            logger=logger
         )
-        
-        # Tóm tắt kết quả
-        if result_paths:
-            total_symbols = len(result_paths)
-            logger.info(f"Tổng kết: Đã làm sạch dữ liệu cho {total_symbols} cặp tiền")
-            
-            # In ra đường dẫn tới dữ liệu
-            for symbol, path in result_paths.items():
-                logger.info(f"  - {symbol}: {path}")
-                
-            return 0
-        else:
-            logger.error("Không có dữ liệu nào được xử lý")
-            return 1
             
     except Exception as e:
         logger.error(f"Lỗi khi làm sạch dữ liệu: {str(e)}", exc_info=True)
@@ -332,80 +416,30 @@ def handle_features_command(args: argparse.Namespace, system: AutomatedTradingSy
     logger = get_logger('process_features')
     
     try:
-        # Xử lý tham số đầu vào
-        data_type = args.data_type
-        input_dir = args.input_dir
-        symbols = args.symbols
-        indicators = args.indicators
-        all_indicators = args.all_indicators
-        output_dir = args.output_dir
-        
-        # Chuyển đổi thành đường dẫn nếu có
-        if input_dir:
-            input_dir = Path(input_dir)
-        if output_dir:
-            output_dir = Path(output_dir)
-        
-        # Nếu không có input_dir, sử dụng thư mục mặc định
-        if not input_dir:
-            input_dir = system.data_dir / "processed"
-            
-            # Nếu không tồn tại, thử sử dụng thư mục collected
-            if not input_dir.exists():
-                input_dir = system.data_dir / "collected"
-        
-        # Tìm tất cả các file dữ liệu phù hợp
-        data_paths = {}
-        
-        # Duyệt qua các thư mục con để tìm file
-        if input_dir.exists():
-            if symbols:
-                for symbol in symbols:
-                    symbol_safe = symbol.replace('/', '_')
-                    pattern = f"*{symbol_safe}*.parquet"
-                    matching_files = list(input_dir.glob(f"**/{pattern}"))
-                    
-                    if matching_files:
-                        data_paths[symbol] = matching_files[0]
-            else:
-                # Nếu không có symbols, tìm tất cả các file
-                pattern = "*.parquet"
-                matching_files = list(input_dir.glob(f"**/{pattern}"))
-                
-                for file_path in matching_files:
-                    # Trích xuất symbol từ tên file
-                    filename = file_path.stem
-                    parts = filename.split('_')
-                    # Giả sử symbol nằm ở phần đầu tiên
-                    if parts:
-                        symbol = parts[0]
-                        data_paths[symbol] = file_path
-        
-        if not data_paths:
-            logger.error(f"Không tìm thấy file dữ liệu nào trong {input_dir}")
-            return 1
-        
-        # Xử lý dữ liệu
-        result_paths = system.process_data(
-            data_paths=data_paths,
-            clean_data=False,
-            generate_features=True,
-            output_dir=output_dir
+        # Chuẩn bị thư mục đầu vào/ra
+        input_dir, output_dir = _prepare_directories(
+            args.input_dir, 
+            args.output_dir, 
+            system, 
+            default_input_subdir="processed"
         )
         
-        # Tóm tắt kết quả
-        if result_paths:
-            total_symbols = len(result_paths)
-            logger.info(f"Tổng kết: Đã tạo đặc trưng cho {total_symbols} cặp tiền")
-            
-            # In ra đường dẫn tới dữ liệu
-            for symbol, path in result_paths.items():
-                logger.info(f"  - {symbol}: {path}")
-                
-            return 0
-        else:
-            logger.error("Không có dữ liệu nào được xử lý")
-            return 1
+        # Nếu thư mục processed không tồn tại, thử sử dụng thư mục collected
+        if not input_dir.exists():
+            input_dir, _ = _prepare_directories(None, None, system, default_input_subdir="collected")
+            logger.info(f"Thư mục processed không tồn tại, sử dụng thư mục {input_dir}")
+        
+        # Tìm các file dữ liệu
+        data_paths = _find_data_files(input_dir, args.symbols, [''], logger)  # Không filter theo timeframe
+        
+        # Xử lý và báo cáo kết quả
+        return _process_and_report_results(
+            system, data_paths, 
+            clean_data=False, 
+            generate_features=True,
+            output_dir=output_dir,
+            logger=logger
+        )
             
     except Exception as e:
         logger.error(f"Lỗi khi tạo đặc trưng: {str(e)}", exc_info=True)
@@ -425,82 +459,21 @@ def handle_pipeline_command(args: argparse.Namespace, system: AutomatedTradingSy
     logger = get_logger('process_pipeline')
     
     try:
-        # Xử lý tham số đầu vào
-        input_dir = args.input_dir
-        symbols = args.symbols
-        timeframes = args.timeframes
-        start_date = args.start_date
-        end_date = args.end_date
-        output_dir = args.output_dir
-        pipeline_name = args.pipeline_name
-        no_clean = args.no_clean
-        no_features = args.no_features
+        # Chuẩn bị thư mục đầu vào/ra
+        input_dir, output_dir = _prepare_directories(args.input_dir, args.output_dir, system)
         
-        # Chuyển đổi thành đường dẫn nếu có
-        if input_dir:
-            input_dir = Path(input_dir)
-        if output_dir:
-            output_dir = Path(output_dir)
+        # Tìm các file dữ liệu
+        data_paths = _find_data_files(input_dir, args.symbols, args.timeframes, logger)
         
-        # Nếu không có input_dir, sử dụng thư mục mặc định
-        if not input_dir:
-            input_dir = system.data_dir / "collected"
-        
-        # Tìm tất cả các file dữ liệu phù hợp
-        data_paths = {}
-        
-        # Duyệt qua các thư mục con để tìm file
-        if input_dir.exists():
-            for timeframe in timeframes:
-                # Tìm các file phù hợp với timeframe
-                if symbols:
-                    for symbol in symbols:
-                        symbol_safe = symbol.replace('/', '_')
-                        pattern = f"*{symbol_safe}*{timeframe}*.parquet"
-                        matching_files = list(input_dir.glob(f"**/{pattern}"))
-                        
-                        if matching_files:
-                            data_paths[symbol] = matching_files[0]
-                else:
-                    # Nếu không có symbols, tìm tất cả các file
-                    pattern = f"*{timeframe}*.parquet"
-                    matching_files = list(input_dir.glob(f"**/{pattern}"))
-                    
-                    for file_path in matching_files:
-                        # Trích xuất symbol từ tên file
-                        filename = file_path.stem
-                        parts = filename.split('_')
-                        # Giả sử symbol nằm ở phần đầu tiên
-                        if parts:
-                            symbol = parts[0]
-                            data_paths[symbol] = file_path
-        
-        if not data_paths:
-            logger.error(f"Không tìm thấy file dữ liệu nào trong {input_dir}")
-            return 1
-        
-        # Xử lý dữ liệu
-        result_paths = system.process_data(
-            data_paths=data_paths,
-            pipeline_name=pipeline_name,
-            clean_data=not no_clean,
-            generate_features=not no_features,
-            output_dir=output_dir
+        # Xử lý và báo cáo kết quả
+        return _process_and_report_results(
+            system, data_paths, 
+            clean_data=not args.no_clean, 
+            generate_features=not args.no_features,
+            pipeline_name=args.pipeline_name,
+            output_dir=output_dir,
+            logger=logger
         )
-        
-        # Tóm tắt kết quả
-        if result_paths:
-            total_symbols = len(result_paths)
-            logger.info(f"Tổng kết: Đã xử lý dữ liệu cho {total_symbols} cặp tiền")
-            
-            # In ra đường dẫn tới dữ liệu
-            for symbol, path in result_paths.items():
-                logger.info(f"  - {symbol}: {path}")
-                
-            return 0
-        else:
-            logger.error("Không có dữ liệu nào được xử lý")
-            return 1
             
     except Exception as e:
         logger.error(f"Lỗi khi chạy pipeline xử lý dữ liệu: {str(e)}", exc_info=True)

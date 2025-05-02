@@ -30,22 +30,40 @@ from data_processors.feature_engineering.feature_selector.statistical_methods im
 
 # Các import mặc định khi các module đã được phát triển
 try:
-    from data_processors.feature_engineering.technical_indicators import *
+    from data_processors.feature_engineering.technical_indicators.trend_indicators import (
+    exponential_moving_average as ema,
+    simple_moving_average as sma
+)
 except ImportError:
     pass
 
 try:
-    from data_processors.feature_engineering.market_features import *
+    from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
+    relative_strength_index as rsi,
+    moving_average_convergence_divergence as macd
+)
 except ImportError:
     pass
 
 try:
-    from data_processors.feature_engineering.sentiment_features import *
+    from data_processors.feature_engineering.technical_indicators.volatility_indicators import (
+    average_true_range as atr,
+    bollinger_bands
+)
 except ImportError:
     pass
 
 try:
-    from data_processors.feature_engineering.feature_selector import *
+    from data_processors.feature_engineering.technical_indicators.volume_indicators import (
+    on_balance_volume as obv
+)
+except ImportError:
+    pass
+
+try:
+    from data_processors.feature_engineering.technical_indicators.support_resistance import (
+    detect_support_resistance as support_resistance_zones
+)
 except ImportError:
     pass
 
@@ -109,7 +127,6 @@ class FeatureGenerator:
         self.feature_info = {}
         
         self.logger.info("Đã khởi tạo FeatureGenerator")
-        self.register_default_features()
     
     def register_feature(
         self,
@@ -324,13 +341,18 @@ class FeatureGenerator:
         except Exception as e:
             self.logger.error(f"Lỗi khi lưu cấu hình đặc trưng: {e}")
     
-    def register_default_features(self) -> None:
         """
         Đăng ký các đặc trưng mặc định phổ biến.
         """
+    def register_default_features(self, all_indicators: bool = False) -> None:
         self.logger.info("Đăng ký các đặc trưng mặc định")
+
+        if all_indicators:
+            self._register_all_technical_indicators()
+
         
         # Đăng ký các đặc trưng khi các module con đã được phát triển
+    
         try:
             self._register_default_technical_indicators()
         except (ImportError, AttributeError) as e:
@@ -1098,3 +1120,28 @@ class FeatureGenerator:
             "is_fitted": self.is_fitted,
             "feature_info": self.feature_info
         }
+
+    def _register_all_technical_indicators(self) -> None:
+        """
+        Đăng ký toàn bộ technical indicators nếu có sẵn.
+        """
+        try:
+            from data_processors.feature_engineering.technical_indicators.trend_indicators import ema, sma
+            from data_processors.feature_engineering.technical_indicators.momentum_indicators import rsi, macd
+            from data_processors.feature_engineering.technical_indicators.volatility_indicators import atr, bollinger_bands
+            from data_processors.feature_engineering.technical_indicators.volume_indicators import obv
+            from data_processors.feature_engineering.technical_indicators.support_resistance import support_resistance_zones
+        except ImportError as e:
+            self.logger.warning(f"Lỗi import indicators: {e}")
+            return
+
+        self.register_feature("trend_ema", ema, {"window": 14}, ["close"], "technical", "EMA 14")
+        self.register_feature("trend_sma", sma, {"window": 20}, ["close"], "technical", "SMA 20")
+        self.register_feature("momentum_rsi", rsi, {"window": 14}, ["close"], "technical", "RSI 14")
+        self.register_feature("momentum_macd", macd, {}, ["close"], "technical", "MACD")
+        self.register_feature("volatility_atr", atr, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
+        self.register_feature("volatility_bbands", bollinger_bands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
+        self.register_feature("volume_obv", obv, {}, ["close", "volume"], "technical", "OBV")
+        self.register_feature("support_resistance", support_resistance_zones, {}, ["high", "low"], "technical", "Hỗ trợ – Kháng cự")
+
+        self.logger.info("Đã đăng ký tất cả technical indicators")

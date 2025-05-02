@@ -1,0 +1,55 @@
+{
+    "symbol": "ETH/USDT",
+    "rows": 18000,
+    "columns": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume"
+    ],
+    "dtypes": {
+        "timestamp": "datetime64[ns]",
+        "open": "float64",
+        "high": "float64",
+        "low": "float64",
+        "close": "float64",
+        "volume": "float64"
+    },
+    "saved_at": "2025-05-03T00:41:47.262717",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\futures\\1h\\eth_usdt_20250503_004147.parquet",
+    "data_stats": {
+        "open": {
+            "min": 903.26,
+            "max": 3874.24,
+            "mean": 1905.406858888889,
+            "null_count": 0
+        },
+        "high": {
+            "min": 928.0,
+            "max": 3893.19,
+            "mean": 1914.6079194444442,
+            "null_count": 0
+        },
+        "low": {
+            "min": 878.04,
+            "max": 3853.09,
+            "mean": 1895.8699388888888,
+            "null_count": 0
+        },
+        "close": {
+            "min": 903.26,
+            "max": 3874.24,
+            "mean": 1905.3353172222223,
+            "null_count": 0
+        },
+        "volume": {
+            "min": 7687.973,
+            "max": 2566330.125,
+            "mean": 159853.2903687778,
+            "null_count": 0
+        }
+    }
+}

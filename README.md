@@ -334,7 +334,7 @@ python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timefram
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
 
 # Làm sạch dữ liệu
-python main.py process clean --data-type ohlcv --symbols BTC/USDT --timeframes 1h
+python main.py process clean --data-type ohlcv --symbols BTC/USDT ETH/USDT --timeframes 1h
 
 # Tạo đặc trưng kỹ thuật
 python main.py process features --data-type ohlcv --symbols BTC/USDT ETH/USDT --all-indicators

@@ -85,54 +85,16 @@ class HistoricalDataCollector:
         self.max_workers = max_workers
         self.semaphore = asyncio.Semaphore(max_workers)
         
-        # Tạo bảng ánh xạ giữa các định dạng cặp giao dịch
-        self.symbol_mappings = {}
-        
         self.logger.info(f"Đã khởi tạo HistoricalDataCollector cho {self.exchange_id}")
     
     def _format_symbol_for_exchange(self, symbol: str) -> str:
         """
-        Chuyển đổi định dạng cặp giao dịch phù hợp với từng sàn.
-        
-        Args:
-            symbol: Cặp giao dịch ở định dạng chuẩn (VD: BTC/USDT)
-        
-        Returns:
-            Cặp giao dịch ở định dạng phù hợp với sàn
+        Chuẩn hóa symbol theo yêu cầu của sàn. Ví dụ: BTC/USDT → BTCUSDT (cho binanceusdm).
         """
-        # Xử lý đặc biệt cho Binance Futures
-        if self.exchange_id.lower() in ['binanceusdm', 'binancecoinm']:
-            # Loại bỏ dấu "/" và kết hợp các phần
-            formatted = symbol.replace('/', '')
-            self.logger.debug(f"Đã chuyển đổi {symbol} thành {formatted} cho {self.exchange_id}")
-            return formatted
-        
-        # Mặc định trả về định dạng ban đầu
+        if self.exchange_id in ["binanceusdm", "binancecoinm"]:
+            return symbol.replace("/", "")  # BTC/USDT → BTCUSDT
         return symbol
-    
-    def _save_symbol_with_original_format(self, formatted_symbol: str, original_symbol: str) -> None:
-        """
-        Lưu ánh xạ giữa định dạng gốc và định dạng đã chuyển đổi.
-        
-        Args:
-            formatted_symbol: Định dạng đã chuyển đổi
-            original_symbol: Định dạng gốc
-        """
-        self.symbol_mappings[formatted_symbol] = original_symbol
-        self.symbol_mappings[original_symbol] = formatted_symbol
-    
-    def _get_original_symbol(self, formatted_symbol: str) -> str:
-        """
-        Lấy định dạng gốc từ định dạng đã chuyển đổi.
-        
-        Args:
-            formatted_symbol: Định dạng đã chuyển đổi
-            
-        Returns:
-            Định dạng gốc nếu có trong bảng ánh xạ, ngược lại trả về định dạng đã cho
-        """
-        return self.symbol_mappings.get(formatted_symbol, formatted_symbol)
-    
+
     async def collect_ohlcv(
         self,
         symbol: str,
@@ -170,33 +132,29 @@ class HistoricalDataCollector:
         
         self.logger.info(f"Thu thập OHLCV cho {symbol} ({timeframe}) từ {start_time} đến {end_time}")
         
-        # Định dạng cặp giao dịch phù hợp với sàn
+        # Kiểm tra xem cặp giao dịch có hiệu lực không
         original_symbol = symbol
         formatted_symbol = self._format_symbol_for_exchange(symbol)
-        
-        # Lưu ánh xạ giữa hai định dạng
-        self._save_symbol_with_original_format(formatted_symbol, original_symbol)
-        
-        # Kiểm tra xem cặp giao dịch có hiệu lực không
+        # Load markets trước khi dùng
         try:
-            # Kiểm tra markets có rỗng không và load lại nếu cần
-            markets = self.exchange_connector.exchange.markets
-            if not markets:
-                self.exchange_connector.exchange.load_markets(reload=True)
-                markets = self.exchange_connector.exchange.markets
-
-            if formatted_symbol not in markets:
-                self.logger.error(f"Cặp giao dịch {symbol} không hợp lệ cho {self.exchange_id}")
-                # Thêm gợi ý nếu đang sử dụng Binance Futures
-                if self.exchange_id.lower() in ['binanceusdm', 'binancecoinm'] and '/' in symbol:
-                    self.logger.info(f"Gợi ý: Đối với Binance Futures, hãy thử sử dụng {symbol.replace('/', '')} thay vì {symbol}")
-                return pd.DataFrame()
+            markets = self.exchange_connector.exchange.load_markets(reload=True)
+            self.logger.debug(f"[DEBUG] Tổng số cặp: {len(markets)} – Ví dụ: {list(markets.keys())[:10]}")
         except Exception as e:
-            self.logger.error(f"Lỗi khi kiểm tra cặp giao dịch {symbol}: {e}")
+            self.logger.error(f"Lỗi khi load markets: {e}")
             return pd.DataFrame()
         
+        # Tìm symbol tương ứng trong danh sách keys
+        found_symbol = None
+        for market_symbol in markets.keys():
+            if formatted_symbol in market_symbol.replace(":", "").replace("/", ""):
+                found_symbol = market_symbol
+                break
+        if not found_symbol:
+            self.logger.error(f"Cặp giao dịch {original_symbol} (formatted: {formatted_symbol}) không hợp lệ cho {self.exchange_id}")
+            return pd.DataFrame()
+                
         # Xác định đường dẫn file và kiểm tra dữ liệu hiện có
-        filename = f"{original_symbol.replace('/', '_')}_{timeframe}".lower()
+        filename = f"{symbol.replace('/', '_')}_{timeframe}".lower()
         file_path = None
         
         if save_format == 'parquet':
@@ -249,9 +207,8 @@ class HistoricalDataCollector:
             try:
                 # Gọi API với giới hạn rate
                 async with self.semaphore:
-                    # Sử dụng định dạng đã chuyển đổi khi gọi API
                     candles = self.exchange_connector.fetch_ohlcv(
-                        formatted_symbol, timeframe, current_start_ts, limit
+                        found_symbol, timeframe, current_start_ts, limit
                     )
                     await asyncio.sleep(self.rate_limit_sleep)
                 
@@ -356,15 +313,8 @@ class HistoricalDataCollector:
         
         self.logger.info(f"Thu thập orderbook snapshot cho {symbol} từ {start_time} đến {end_time}")
         
-        # Định dạng cặp giao dịch phù hợp với sàn
-        original_symbol = symbol
-        formatted_symbol = self._format_symbol_for_exchange(symbol)
-        
-        # Lưu ánh xạ giữa hai định dạng
-        self._save_symbol_with_original_format(formatted_symbol, original_symbol)
-        
         # Xác định đường dẫn file
-        filename = f"{original_symbol.replace('/', '_')}_depth{depth}_interval{interval}s".lower()
+        filename = f"{symbol.replace('/', '_')}_depth{depth}_interval{interval}s".lower()
         file_path = None
         
         if save_format == 'parquet':
@@ -426,17 +376,17 @@ class HistoricalDataCollector:
                 continue
             
             try:
-                # Lấy snapshot orderbook, sử dụng định dạng đã chuyển đổi
+                # Lấy snapshot orderbook
                 async with self.semaphore:
                     orderbook = await self.exchange_connector.fetch_order_book(
-                        formatted_symbol, depth
+                        symbol, depth
                     )
                     await asyncio.sleep(self.rate_limit_sleep)
                 
                 if orderbook:
                     # Tạo snapshot với thông tin timestamp
                     snapshot = {
-                        "symbol": original_symbol,  # Sử dụng định dạng gốc để lưu
+                        "symbol": symbol,
                         "timestamp": time_point.isoformat(),
                         "bids": orderbook['bids'],
                         "asks": orderbook['asks'],
@@ -511,15 +461,8 @@ class HistoricalDataCollector:
         
         self.logger.info(f"Thu thập lịch sử giao dịch cho {symbol} từ {start_time} đến {end_time}")
         
-        # Định dạng cặp giao dịch phù hợp với sàn
-        original_symbol = symbol
-        formatted_symbol = self._format_symbol_for_exchange(symbol)
-        
-        # Lưu ánh xạ giữa hai định dạng
-        self._save_symbol_with_original_format(formatted_symbol, original_symbol)
-        
         # Xác định đường dẫn file
-        filename = f"{original_symbol.replace('/', '_')}_trades".lower()
+        filename = f"{symbol.replace('/', '_')}_trades".lower()
         file_path = None
         
         if save_format == 'parquet':
@@ -571,9 +514,8 @@ class HistoricalDataCollector:
             try:
                 # Gọi API với giới hạn rate
                 async with self.semaphore:
-                    # Sử dụng định dạng đã chuyển đổi khi gọi API
                     trades = await self.exchange_connector.fetch_trades(
-                        formatted_symbol, current_since, limit
+                        symbol, current_since, limit
                     )
                     await asyncio.sleep(self.rate_limit_sleep)
                 
@@ -616,7 +558,7 @@ class HistoricalDataCollector:
                     'id': trade.get('id', None),
                     'timestamp': trade.get('timestamp', None),
                     'datetime': trade.get('datetime', None),
-                    'symbol': original_symbol,  # Sử dụng định dạng gốc để lưu
+                    'symbol': trade.get('symbol', symbol),
                     'side': trade.get('side', None),
                     'price': trade.get('price', None),
                     'amount': trade.get('amount', None),
@@ -709,15 +651,8 @@ class HistoricalDataCollector:
         
         self.logger.info(f"Thu thập tỷ lệ tài trợ cho {symbol} từ {start_time} đến {end_time}")
         
-        # Định dạng cặp giao dịch phù hợp với sàn
-        original_symbol = symbol
-        formatted_symbol = self._format_symbol_for_exchange(symbol)
-        
-        # Lưu ánh xạ giữa hai định dạng
-        self._save_symbol_with_original_format(formatted_symbol, original_symbol)
-        
         # Xác định đường dẫn file
-        filename = f"{original_symbol.replace('/', '_')}_funding".lower()
+        filename = f"{symbol.replace('/', '_')}_funding".lower()
         file_path = None
         
         if save_format == 'parquet':
@@ -754,9 +689,9 @@ class HistoricalDataCollector:
         
         # Thu thập dữ liệu
         try:
-            # Gọi API để lấy tỷ lệ tài trợ hiện tại - sử dụng định dạng đã chuyển đổi
+            # Gọi API để lấy tỷ lệ tài trợ hiện tại
             async with self.semaphore:
-                funding_rate = await self.exchange_connector.fetch_funding_rate(formatted_symbol)
+                funding_rate = await self.exchange_connector.fetch_funding_rate(symbol)
                 await asyncio.sleep(self.rate_limit_sleep)
             
             if not funding_rate:
@@ -765,7 +700,7 @@ class HistoricalDataCollector:
             
             # Tạo DataFrame
             new_data = pd.DataFrame([{
-                'symbol': original_symbol,  # Sử dụng định dạng gốc để lưu
+                'symbol': symbol,
                 'timestamp': pd.to_datetime(funding_rate.get('timestamp', datetime.now().timestamp() * 1000), unit='ms'),
                 'fundingRate': funding_rate.get('fundingRate', None),
                 'fundingTime': pd.to_datetime(funding_rate.get('fundingTime', None), unit='ms') if funding_rate.get('fundingTime') else None,
@@ -1058,11 +993,6 @@ async def create_data_collector(
     exchange_connector = None
     
     if exchange_id.lower() == 'binance':
-        # Nếu là futures, sử dụng binanceusdm
-        if is_futures:
-            exchange_id = 'binanceusdm'  # Thay đổi exchange_id để phản ánh đúng loại sàn
-            
-        # Tạo connector dựa trên exchange_id đã được cập nhật
         exchange_connector = BinanceConnector(
             api_key=api_key,
             api_secret=api_secret,
