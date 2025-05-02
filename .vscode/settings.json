@@ -1,0 +1,9 @@
+{
+  "python.analysis.extraPaths": [
+    "~\\anaconda3\\envs\\autotrading_env\\Lib\\site-packages"
+  ],
+  "python.linting.enabled": true,
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "none"
+  }
+}

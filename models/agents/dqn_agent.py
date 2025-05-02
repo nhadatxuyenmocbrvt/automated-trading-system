@@ -4,14 +4,21 @@ File này định nghĩa lớp DQNAgent cho thuật toán Deep Q-Network và cá
 được sử dụng để huấn luyện agent quyết định hành động dựa trên Q-learning.
 """
 
+# Thư viện chuẩn
+import sys
 import os
 import random
 import logging
+from collections import deque
+from pathlib import Path
+from typing import Dict, List, Tuple, Any, Optional, Union
+
+# Thư viện bên thứ ba
 import numpy as np
 import tensorflow as tf
-from collections import deque
-from typing import Dict, List, Tuple, Any, Optional, Union
-from pathlib import Path
+
+# Thêm thư mục gốc vào path để import được các module
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Import các module từ hệ thống
 from config.logging_config import get_logger
@@ -19,7 +26,6 @@ from config.system_config import get_system_config
 from environments.base_environment import BaseEnvironment
 from models.agents.base_agent import BaseAgent
 from models.networks.value_network import ValueNetwork
-
 class DQNAgent(BaseAgent):
     """
     Agent thực hiện thuật toán Deep Q-Network.
