@@ -45,9 +45,9 @@
         "atr_norm_14": "float64",
         "close": "float64"
     },
-    "saved_at": "2025-05-03T14:40:51.108843",
+    "saved_at": "2025-05-03T19:37:23.551018",
     "file_format": "parquet",
-    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\eth_usdt_20250503_144050.parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\eth_usdt_20250503_193723.parquet",
     "data_stats": {
         "low": {
             "min": -1.7689991724342016,

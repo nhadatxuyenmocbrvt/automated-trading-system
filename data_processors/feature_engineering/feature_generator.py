@@ -41,24 +41,33 @@ class FeatureGenerator:
         max_workers: int = 4,
         logger: Optional[logging.Logger] = None
     ):
-        """
-        Khởi tạo trình tạo đặc trưng.
-        
-        Args:
-            data_dir: Thư mục lưu trữ cấu hình và mô hình
-            feature_config: Cấu hình đặc trưng
-            max_workers: Số luồng tối đa cho xử lý song song
-            logger: Logger hiện có, nếu có
-        """
         # Thiết lập thư mục lưu trữ
         if data_dir is None:
-            self.data_dir = MODEL_DIR / 'feature_engineering'
+            try:
+                # Thử sử dụng MODEL_DIR từ config
+                from config.system_config import MODEL_DIR
+                if MODEL_DIR is not None:
+                    self.data_dir = MODEL_DIR / 'feature_engineering'
+                else:
+                    raise AttributeError("MODEL_DIR is None")
+            except (ImportError, AttributeError) as e:
+                # Nếu có lỗi, sử dụng đường dẫn mặc định
+                default_dir = Path("./data/processed/feature_engineering") 
+                self.data_dir = default_dir
+                if logger:
+                    logger.warning(f"Không thể sử dụng MODEL_DIR: {e}. Sử dụng đường dẫn mặc định: {self.data_dir}")
         else:
             self.data_dir = data_dir
-        
+    
         # Tạo thư mục nếu chưa tồn tại
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            if logger:
+                logger.error(f"Không thể tạo thư mục {self.data_dir}: {e}")
+            # Sử dụng thư mục hiện tại nếu không thể tạo thư mục
+            self.data_dir = Path(".")
+    
         # Thiết lập logger
         if logger is None:
             self.logger = setup_logger("feature_generator")
@@ -244,12 +253,21 @@ class FeatureGenerator:
         Args:
             config_path: Đường dẫn file cấu hình
         """
-        if config_path is None:
-            config_path = self.data_dir / "feature_config.json"
-        else:
-            config_path = Path(config_path)
-        
         try:
+            if config_path is None:
+                if self.data_dir is None:
+                    # Tạo thư mục mặc định trong thư mục hiện tại
+                    default_dir = Path("./data/processed/feature_engineering")
+                    default_dir.mkdir(parents=True, exist_ok=True)
+                    config_path = default_dir / "feature_config.json"
+                    self.logger.warning(f"data_dir là None, sử dụng đường dẫn mặc định: {config_path}")
+                else:
+                    config_path = self.data_dir / "feature_config.json"
+            else:
+                config_path = Path(config_path)
+            # Đảm bảo thư mục cha tồn tại
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+        
             # Tạo cấu hình để lưu
             config_to_save = {
                 "version": "1.0.0",
