@@ -285,7 +285,10 @@ class MissingDataHandler:
         df: pd.DataFrame,
         columns: Optional[List[str]] = None,
         threshold: float = 0.5,
-        timestamp_col: Optional[str] = None
+        timestamp_col: Optional[str] = None,
+        # Thêm tham số mới cho xử lý NaN ở đầu
+        handle_leading_nan: bool = True,
+        leading_nan_method: str = 'drop'  # 'drop', 'backfill', 'custom_value'
     ) -> pd.DataFrame:
         """
         Xử lý các giá trị thiếu trong DataFrame.
@@ -295,6 +298,8 @@ class MissingDataHandler:
             columns: Danh sách cột cần xử lý (None để xử lý tất cả các cột)
             threshold: Ngưỡng tỷ lệ giá trị thiếu để loại bỏ cột (0.0 - 1.0)
             timestamp_col: Tên cột thời gian (None để tự động phát hiện)
+            handle_leading_nan: Xử lý các giá trị NaN ở đầu dữ liệu
+            leading_nan_method: Phương pháp xử lý NaN đầu ('drop', 'backfill', 'custom_value')
             
         Returns:
             DataFrame đã xử lý
@@ -329,6 +334,33 @@ class MissingDataHandler:
         if not columns:
             self.logger.warning("Không có cột nào để xử lý sau khi áp dụng ngưỡng")
             return result_df
+        
+        # Xử lý NaN ở đầu dữ liệu nếu cần
+        if handle_leading_nan:
+            for col in columns:
+                if col not in result_df.columns:
+                    continue
+                    
+                # Tìm vị trí đầu tiên có giá trị không phải NA
+                first_valid_idx = result_df[col].first_valid_index()
+                
+                if first_valid_idx is not None and first_valid_idx > 0:
+                    leading_nans = result_df.index[result_df.index < first_valid_idx]
+                    
+                    if leading_nan_method == 'drop':
+                        # Giữ NaN cho các giá trị đầu tiên
+                        self.logger.info(f"Cột {col}: Giữ NaN ở {len(leading_nans)} giá trị đầu")
+                        
+                    elif leading_nan_method == 'backfill':
+                        # Điền giá trị đầu tiên cho các giá trị NaN đầu
+                        first_valid_value = result_df.loc[first_valid_idx, col]
+                        result_df.loc[leading_nans, col] = first_valid_value
+                        self.logger.info(f"Cột {col}: Điền giá trị đầu {first_valid_value} cho {len(leading_nans)} giá trị NaN đầu")
+                        
+                    elif leading_nan_method == 'custom_value':
+                        # Điền giá trị tùy chỉnh (ví dụ: 0) cho các giá trị NaN đầu
+                        result_df.loc[leading_nans, col] = 0
+                        self.logger.info(f"Cột {col}: Điền giá trị 0 cho {len(leading_nans)} giá trị NaN đầu")
         
         # Tự động phát hiện chuỗi thời gian nếu cần
         is_time_series = False
@@ -832,6 +864,177 @@ class MissingDataHandler:
         result_df = result_df.rename(columns={'index': timestamp_col})
         
         self.logger.info(f"Đã điền {len(full_index) - len(df)} khoảng trống trong dữ liệu chuỗi thời gian")
+        
+        return result_df
+
+    # Thêm phương thức mới để tạo cột target cho học có giám sát
+    def create_target_columns(
+        self,
+        df: pd.DataFrame,
+        price_column: str = 'close',
+        target_types: List[str] = ['direction', 'return'],
+        horizons: List[int] = [1, 3, 5],
+        threshold: float = 0.0
+    ) -> pd.DataFrame:
+        """
+        Tạo các cột mục tiêu cho học có giám sát.
+        
+        Args:
+            df: DataFrame cần xử lý
+            price_column: Cột giá sử dụng làm cơ sở
+            target_types: Loại mục tiêu ('direction', 'return', 'volatility')
+            horizons: Các khung thời gian tương lai (shifts)
+            threshold: Ngưỡng cho target direction (% thay đổi tối thiểu)
+            
+        Returns:
+            DataFrame với cột mục tiêu mới
+        """
+        if df.empty:
+            self.logger.warning("DataFrame rỗng, không thể tạo cột mục tiêu")
+            return df
+            
+        result_df = df.copy()
+        
+        if price_column not in result_df.columns:
+            self.logger.error(f"Không tìm thấy cột giá {price_column}")
+            return result_df
+        
+        for horizon in horizons:
+            # Tính phần trăm thay đổi giá
+            pct_change = result_df[price_column].pct_change(-horizon)  # Dấu - để nhìn về tương lai
+            
+            for target_type in target_types:
+                if target_type == 'direction':
+                    # 1 nếu tăng (lớn hơn ngưỡng), 0 nếu giảm hoặc đi ngang
+                    target_col = f'target_direction_{horizon}'
+                    result_df[target_col] = (pct_change > threshold).astype(int)
+                    self.logger.info(f"Đã tạo cột {target_col}")
+                    
+                elif target_type == 'return':
+                    # Phần trăm thay đổi giá
+                    target_col = f'target_return_{horizon}'
+                    result_df[target_col] = pct_change
+                    self.logger.info(f"Đã tạo cột {target_col}")
+                    
+                elif target_type == 'volatility':
+                    # Biến động giá (lấy giá trị tuyệt đối của return)
+                    target_col = f'target_volatility_{horizon}'
+                    result_df[target_col] = pct_change.abs()
+                    self.logger.info(f"Đã tạo cột {target_col}")
+        
+        return result_df
+
+    # Thêm phương thức mới để xử lý vấn đề chỉ báo trùng thông tin
+    def remove_redundant_features(
+        self,
+        df: pd.DataFrame,
+        correlation_threshold: float = 0.95,
+        redundant_groups: Optional[List[List[str]]] = None
+    ) -> pd.DataFrame:
+        """
+        Loại bỏ các chỉ báo trùng lặp thông tin.
+        
+        Args:
+            df: DataFrame cần xử lý
+            correlation_threshold: Ngưỡng tương quan để xác định đặc trưng trùng lặp
+            redundant_groups: Danh sách các nhóm đặc trưng đã biết là trùng lặp
+            
+        Returns:
+            DataFrame đã loại bỏ đặc trưng trùng lặp
+        """
+        if df.empty:
+            self.logger.warning("DataFrame rỗng, không thể xử lý đặc trưng trùng lặp")
+            return df
+            
+        result_df = df.copy()
+        
+        # Danh sách đặc trưng bị loại bỏ
+        removed_features = []
+        
+        # 1. Xử lý các nhóm đặc trưng đã biết là trùng lặp
+        if redundant_groups is None:
+            # Mặc định cho các nhóm MACD
+            redundant_groups = [
+                ['macd', 'macd_signal', 'macd_hist'],
+                ['macd_line', 'macd_signal', 'macd_histogram']
+            ]
+        
+        for group in redundant_groups:
+            # Kiểm tra xem có bao nhiêu đặc trưng trong nhóm tồn tại trong DataFrame
+            existing_features = [feat for feat in group if feat in result_df.columns]
+            
+            if len(existing_features) > 1:
+                # Giữ lại đặc trưng chính và histogram (nếu có)
+                keep_features = []
+                # Ưu tiên giữ macd_line/macd và macd_histogram/macd_hist
+                for feature in existing_features:
+                    if 'histogram' in feature or 'hist' in feature or feature == 'macd' or feature == 'macd_line':
+                        keep_features.append(feature)
+                
+                # Nếu chỉ có một hoặc không có đặc trưng nào được giữ lại, giữ lại đặc trưng đầu tiên
+                if len(keep_features) <= 1:
+                    keep_features = [existing_features[0]]
+                
+                # Loại bỏ các đặc trưng không giữ lại
+                remove_features = [feat for feat in existing_features if feat not in keep_features]
+                
+                if remove_features:
+                    result_df = result_df.drop(columns=remove_features)
+                    removed_features.extend(remove_features)
+                    
+                    self.logger.info(f"Đã loại bỏ {remove_features} và giữ lại {keep_features} từ nhóm trùng lặp")
+        
+        # 2. Phát hiện tự động dựa trên tương quan
+        try:
+            # Chỉ tính tương quan cho các cột số
+            numeric_cols = result_df.select_dtypes(include=['number']).columns
+            
+            if len(numeric_cols) > 1:
+                # Tính ma trận tương quan
+                corr_matrix = result_df[numeric_cols].corr().abs()
+                
+                # Tạo mask trên tam giác trên để tránh trùng lặp
+                upper_tri = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+                
+                # Tìm các cặp đặc trưng có tương quan cao
+                high_corr_pairs = []
+                for i in range(len(corr_matrix.columns)):
+                    for j in range(i+1, len(corr_matrix.columns)):
+                        if upper_tri.iloc[i, j] > correlation_threshold:
+                            high_corr_pairs.append((corr_matrix.columns[i], corr_matrix.columns[j], upper_tri.iloc[i, j]))
+                
+                # Sắp xếp theo giá trị tương quan giảm dần
+                high_corr_pairs.sort(key=lambda x: x[2], reverse=True)
+                
+                # Xử lý từng cặp, loại bỏ đặc trưng thừa
+                for feat1, feat2, corr_val in high_corr_pairs:
+                    # Nếu cả hai đặc trưng vẫn tồn tại trong DataFrame
+                    if feat1 in result_df.columns and feat2 in result_df.columns:
+                        # Ưu tiên giữ lại đặc trưng có ít giá trị NA hơn
+                        na_count1 = result_df[feat1].isna().sum()
+                        na_count2 = result_df[feat2].isna().sum()
+                        
+                        if na_count1 <= na_count2:
+                            keep_feature = feat1
+                            remove_feature = feat2
+                        else:
+                            keep_feature = feat2
+                            remove_feature = feat1
+                        
+                        # Loại bỏ đặc trưng thừa
+                        result_df = result_df.drop(columns=[remove_feature])
+                        removed_features.append(remove_feature)
+                        
+                        self.logger.info(f"Loại bỏ {remove_feature} (giữ lại {keep_feature}) với tương quan {corr_val:.4f}")
+        
+        except Exception as e:
+            self.logger.error(f"Lỗi khi xử lý đặc trưng trùng lặp: {str(e)}")
+        
+        # Thông báo tổng kết
+        if removed_features:
+            self.logger.info(f"Đã loại bỏ tổng cộng {len(removed_features)} đặc trưng trùng lặp")
+        else:
+            self.logger.info("Không tìm thấy đặc trưng trùng lặp để loại bỏ")
         
         return result_df
 

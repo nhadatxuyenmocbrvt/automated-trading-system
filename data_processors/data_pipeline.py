@@ -149,6 +149,15 @@ class DataPipeline:
         """
         # Khởi tạo DataCleaner
         cleaning_config = self.config.get("data_cleaning", {})
+
+        # Khởi tạo MissingDataHandler để sử dụng trực tiếp
+        missing_data_handler_kwargs = cleaning_config.get("missing_data_handler_kwargs", {})
+        self.missing_data_handler = MissingDataHandler(
+            method=cleaning_config.get("missing_value_method", MissingValueMethod.INTERPOLATE),
+            **missing_data_handler_kwargs
+        )
+
+        # Khởi tạo DataCleaner
         self.data_cleaner = DataCleaner(
             use_outlier_detection=cleaning_config.get("remove_outliers", True),
             use_missing_data_handler=cleaning_config.get("handle_missing_values", True),
@@ -157,9 +166,7 @@ class DataPipeline:
                 "method": cleaning_config.get("outlier_method", OutlierDetectionMethod.Z_SCORE),
                 "threshold": cleaning_config.get("outlier_threshold", 10.0)
             },
-            missing_data_handler_kwargs={
-                "method": cleaning_config.get("missing_value_method", MissingValueMethod.INTERPOLATE)
-            }
+            missing_data_handler_kwargs=missing_data_handler_kwargs
         )
         
         # Khởi tạo FeatureGenerator
@@ -480,7 +487,11 @@ class DataPipeline:
         clean_orderbook: bool = False,
         clean_trades: bool = False,
         clean_sentiment: bool = True,
-        configs: Optional[Dict[str, Dict[str, Any]]] = None
+        configs: Optional[Dict[str, Dict[str, Any]]] = None,
+        # Thêm tham số mới
+        handle_leading_nan: bool = True,
+        leading_nan_method: str = 'backfill'
+
     ) -> Dict[str, pd.DataFrame]:
         """
         Làm sạch dữ liệu.
@@ -556,14 +567,33 @@ class DataPipeline:
                 elif all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
                     # Làm sạch dữ liệu OHLCV
                     config = default_configs["ohlcv"]
-                    cleaned_df = self.data_cleaner.clean_ohlcv_data(
-                        df,
-                        handle_gaps=config.get("handle_gaps", True),
-                        handle_negative_values=config.get("handle_negative_values", True),
-                        verify_high_low=config.get("verify_high_low", True),
-                        verify_open_close=config.get("verify_open_close", True),
-                        flag_outliers_only=config.get("flag_outliers_only", False)
-                    )
+                    # Trước hết xử lý các giá trị thiếu, đặc biệt là NaN ở đầu
+                    if handle_leading_nan:
+                        df_temp = self.missing_data_handler.handle_missing_values(
+                            df,
+                            columns=None,
+                            handle_leading_nan=handle_leading_nan,
+                            leading_nan_method=leading_nan_method
+                        )
+                        # Tiếp tục với phương thức làm sạch OHLCV
+                        cleaned_df = self.data_cleaner.clean_ohlcv_data(
+                            df_temp,
+                            handle_gaps=config.get("handle_gaps", True),
+                            handle_negative_values=config.get("handle_negative_values", True),
+                            verify_high_low=config.get("verify_high_low", True),
+                            verify_open_close=config.get("verify_open_close", True),
+                            flag_outliers_only=config.get("flag_outliers_only", False)
+                        )
+                    else:
+                        # Phương thức gốc nếu không xử lý NaN ở đầu
+                        cleaned_df = self.data_cleaner.clean_ohlcv_data(
+                            df,
+                            handle_gaps=config.get("handle_gaps", True),
+                            handle_negative_values=config.get("handle_negative_values", True),
+                            verify_high_low=config.get("verify_high_low", True),
+                            verify_open_close=config.get("verify_open_close", True),
+                            flag_outliers_only=config.get("flag_outliers_only", False)
+                        )
                     
                     self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu OHLCV cho {symbol}")
                     
@@ -869,6 +899,122 @@ class DataPipeline:
         
         return results
     
+    def remove_redundant_indicators(
+        self,
+        data: Dict[str, pd.DataFrame],
+        correlation_threshold: float = 0.95,
+        redundant_groups: Optional[List[List[str]]] = None
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Loại bỏ các chỉ báo kỹ thuật trùng lặp thông tin.
+    
+        Args:
+            data: Dict với key là symbol và value là DataFrame
+            correlation_threshold: Ngưỡng tương quan để xác định đặc trưng trùng lặp
+            redundant_groups: Danh sách các nhóm đặc trưng đã biết là trùng lặp
+        
+        Returns:
+            Dict với key là symbol và value là DataFrame đã loại bỏ chỉ báo trùng lặp
+        """
+        results = {}
+    
+        # Thiết lập nhóm mặc định nếu không cung cấp
+        if redundant_groups is None:
+            redundant_groups = [
+                ['macd_line', 'macd_signal', 'macd_histogram'],
+                ['atr_14', 'atr_pct_14', 'atr_norm_14'],
+                ['bb_middle_20', 'sma_20']  # bb_middle_20 thường là SMA của close
+            ]
+    
+        for symbol, df in data.items():
+            self.logger.info(f"Loại bỏ các chỉ báo trùng lặp cho {symbol}")
+            try:
+                # Kiểm tra xem MissingDataHandler đã được khởi tạo chưa
+                if hasattr(self, 'missing_data_handler'):
+                    # Sử dụng phương thức từ MissingDataHandler
+                    results[symbol] = self.missing_data_handler.remove_redundant_features(
+                        df, 
+                        correlation_threshold=correlation_threshold,
+                        redundant_groups=redundant_groups
+                    )
+                
+                    # Ghi log số cột đã loại bỏ
+                    removed_count = len(df.columns) - len(results[symbol].columns)
+                    if removed_count > 0:
+                        self.logger.info(f"Đã loại bỏ {removed_count} chỉ báo trùng lặp cho {symbol}")
+                    else:
+                        self.logger.info(f"Không tìm thấy chỉ báo trùng lặp cho {symbol}")
+                else:
+                    # Nếu không có MissingDataHandler, trả về dữ liệu gốc
+                    results[symbol] = df
+                    self.logger.warning("MissingDataHandler không được khởi tạo, không thể loại bỏ chỉ báo trùng lặp")
+            except Exception as e:
+                self.logger.error(f"Lỗi khi loại bỏ chỉ báo trùng lặp cho {symbol}: {str(e)}")
+                results[symbol] = df
+    
+        return results
+    
+    def create_target_features(
+        self,
+        data: Dict[str, pd.DataFrame],
+        price_column: str = 'close',
+        target_types: List[str] = ['direction', 'return'],
+        horizons: List[int] = [1, 3, 5],
+        threshold: float = 0.0
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Tạo các cột mục tiêu cho huấn luyện có giám sát.
+    
+        Args:
+            data: Dict với key là symbol và value là DataFrame
+            price_column: Tên cột giá sử dụng làm cơ sở
+            target_types: Loại mục tiêu ('direction', 'return', 'volatility')
+            horizons: Các khung thời gian tương lai
+            threshold: Ngưỡng cho target direction
+        
+        Returns:
+            Dict với key là symbol và value là DataFrame có cột mục tiêu
+        """
+        results = {}
+    
+        for symbol, df in data.items():
+            self.logger.info(f"Tạo cột mục tiêu cho {symbol}")
+            try:
+                # Bỏ qua dữ liệu tâm lý
+                if symbol.lower() == "sentiment":
+                    results[symbol] = df
+                    continue
+                
+                # Kiểm tra xem cột giá có trong DataFrame không
+                if price_column not in df.columns:
+                    self.logger.warning(f"Không tìm thấy cột giá {price_column} cho {symbol}, bỏ qua tạo mục tiêu")
+                    results[symbol] = df
+                    continue
+                
+                # Kiểm tra xem MissingDataHandler đã được khởi tạo chưa
+                if hasattr(self, 'missing_data_handler'):
+                    # Sử dụng phương thức từ MissingDataHandler
+                    results[symbol] = self.missing_data_handler.create_target_columns(
+                        df,
+                        price_column=price_column,
+                        target_types=target_types,
+                        horizons=horizons,
+                        threshold=threshold
+                    )
+                
+                    # Ghi log số cột mục tiêu đã tạo
+                    new_cols = set(results[symbol].columns) - set(df.columns)
+                    self.logger.info(f"Đã tạo {len(new_cols)} cột mục tiêu cho {symbol}: {', '.join(new_cols)}")
+                else:
+                    # Nếu không có MissingDataHandler, trả về dữ liệu gốc
+                    results[symbol] = df
+                    self.logger.warning("MissingDataHandler không được khởi tạo, không thể tạo cột mục tiêu")
+            except Exception as e:
+                self.logger.error(f"Lỗi khi tạo cột mục tiêu cho {symbol}: {str(e)}")
+                results[symbol] = df
+    
+        return results
+
     def prepare_training_data(
         self,
         data: Dict[str, pd.DataFrame],
@@ -1182,6 +1328,8 @@ class DataPipeline:
                 {"name": "load_data", "enabled": input_files is not None},
                 {"name": "clean_data", "enabled": True},
                 {"name": "generate_features", "enabled": self.config.get("feature_engineering", {}).get("enabled", True)},
+                {"name": "remove_redundant_indicators", "enabled": True},  # Thêm bước mới
+                {"name": "create_target_features", "enabled": True},  # Thêm bước mới
                 {"name": "merge_sentiment", "enabled": self.config.get("collectors", {}).get("include_sentiment", True)},
                 {"name": "prepare_training", "enabled": False},  # Mặc định không chuẩn bị dữ liệu huấn luyện
                 {"name": "save_data", "enabled": save_results}
@@ -1250,7 +1398,26 @@ class DataPipeline:
                     featured_data = self.generate_features(current_data, **step_params)
                     current_data = featured_data
                     step_results["generate_features"] = featured_data
-                
+
+                    # Thêm các trường hợp mới tại đây
+                elif step_name == "remove_redundant_indicators":
+                    # Loại bỏ các chỉ báo trùng lặp
+                    pruned_data = self.remove_redundant_indicators(
+                        current_data,
+                        **step_params
+                    )
+                    current_data = pruned_data
+                    step_results["remove_redundant_indicators"] = pruned_data
+
+                elif step_name == "create_target_features":
+                    # Tạo cột mục tiêu cho huấn luyện có giám sát
+                    data_with_targets = self.create_target_features(
+                        current_data,
+                        **step_params
+                    )
+                    current_data = data_with_targets
+                    step_results["create_target_features"] = data_with_targets
+                                    
                 elif step_name == "merge_sentiment":
                     # Kết hợp dữ liệu tâm lý
                     sentiment_data = step_params.get("sentiment_data", None)
