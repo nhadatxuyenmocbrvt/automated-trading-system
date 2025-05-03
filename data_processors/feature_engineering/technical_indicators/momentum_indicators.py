@@ -39,6 +39,7 @@ def relative_strength_index(
     if not validate_price_data(df, [column]):
         raise ValueError(f"Dữ liệu không hợp lệ: thiếu cột {column}")
     
+    # Tạo bản sao an toàn
     result_df = df.copy()
     
     # Tính delta (thay đổi giá)
@@ -77,8 +78,31 @@ def relative_strength_index(
     else:
         result_name = f"{prefix}rsi_{window}"
     
-    # Đặt tên cột kết quả
-    result_df[result_name] = rsi
+    # THÊM DÒNG NÀY: Chuyển đổi rõ ràng thành float
+    rsi = rsi.astype(float)
+    
+    # SỬA DÒNG NÀY: Sử dụng phương thức an toàn để gán giá trị
+    # Tạo Series mới với tên cụ thể trước khi gán vào DataFrame
+    rsi_series = pd.Series(rsi, index=result_df.index, name=result_name)
+    
+    # THÊM TRY-EXCEPT để xử lý lỗi và ghi log
+    try:
+        # Gán Series vào DataFrame bằng loc để tránh vấn đề với cấu trúc nội bộ
+        result_df = result_df.assign(**{result_name: rsi_series})
+    except Exception as e:
+        # Log lỗi chi tiết
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Lỗi khi gán RSI: {e}\n{error_trace}")
+        
+        # Thử phương thức khác nếu cách đầu không thành công
+        try:
+            # Phương pháp dự phòng
+            result_df.loc[:, result_name] = rsi_series.values
+        except Exception as e2:
+            print(f"Lỗi khi gán RSI (phương pháp dự phòng): {e2}")
+            # Nếu vẫn thất bại, trả về DataFrame gốc
+            return df
     
     return result_df
 

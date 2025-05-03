@@ -601,5 +601,76 @@ def ichimoku_cloud(
     # Tính cloud direction (hướng của đám mây) cho phân tích động lượng
     cloud_direction = cloud_thickness - cloud_thickness.shift(1)
     result_df[f"{prefix}ichimoku_cloud_direction"] = cloud_direction
+
+    return result_df
+
+def supertrend(
+    df: pd.DataFrame,
+    period: int = 10,
+    multiplier: float = 3.0,
+    column: str = 'close',
+    prefix: str = ''
+) -> pd.DataFrame:
+    """
+    Tính chỉ báo SuperTrend.
+    
+    Args:
+        df: DataFrame chứa dữ liệu giá
+        period: Kích thước cửa sổ cho ATR
+        multiplier: Hệ số nhân cho ATR
+        column: Tên cột giá sử dụng để tính toán (mặc định là 'close')
+        prefix: Tiền tố cho tên cột kết quả
+        
+    Returns:
+        DataFrame với cột mới chứa giá trị SuperTrend
+    """
+    required_columns = ['high', 'low', 'close']
+    if not validate_price_data(df, required_columns):
+        raise ValueError(f"Dữ liệu không hợp lệ: thiếu các cột {required_columns}")
+    
+    result_df = df.copy()
+    
+    # Tính True Range
+    tr = true_range(result_df['high'], result_df['low'], result_df['close'])
+    
+    # Tính ATR
+    atr = tr.rolling(window=period).mean()
+    
+    # Tính các dải băng trên và dưới
+    upper_band = ((result_df['high'] + result_df['low']) / 2) + (multiplier * atr)
+    lower_band = ((result_df['high'] + result_df['low']) / 2) - (multiplier * atr)
+    
+    # Tính SuperTrend
+    supertrend = pd.Series(np.zeros(len(result_df)), index=result_df.index)
+    trend = pd.Series(np.zeros(len(result_df)), index=result_df.index)
+    
+    # Khởi tạo giá trị đầu tiên
+    supertrend.iloc[period-1] = lower_band.iloc[period-1]
+    trend.iloc[period-1] = 1  # 1 là xu hướng tăng, -1 là xu hướng giảm
+    
+    # Tính toán SuperTrend cho các nến tiếp theo
+    for i in range(period, len(result_df)):
+        # Xu hướng trước đó là tăng
+        if trend.iloc[i-1] == 1:
+            # Cập nhật SuperTrend
+            if result_df['close'].iloc[i] <= supertrend.iloc[i-1]:
+                supertrend.iloc[i] = upper_band.iloc[i]
+                trend.iloc[i] = -1
+            else:
+                supertrend.iloc[i] = max(lower_band.iloc[i], supertrend.iloc[i-1])
+                trend.iloc[i] = 1
+        # Xu hướng trước đó là giảm
+        else:
+            # Cập nhật SuperTrend
+            if result_df['close'].iloc[i] >= supertrend.iloc[i-1]:
+                supertrend.iloc[i] = lower_band.iloc[i]
+                trend.iloc[i] = 1
+            else:
+                supertrend.iloc[i] = min(upper_band.iloc[i], supertrend.iloc[i-1])
+                trend.iloc[i] = -1
+    
+    # Đặt tên các cột kết quả
+    result_df[f"{prefix}supertrend_{period}_{multiplier}"] = supertrend
+    result_df[f"{prefix}supertrend_trend_{period}_{multiplier}"] = trend
     
     return result_df

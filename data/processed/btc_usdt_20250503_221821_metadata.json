@@ -1,0 +1,53 @@
+{
+    "symbol": "BTC/USDT",
+    "rows": 3000,
+    "columns": [
+        "low",
+        "high",
+        "open",
+        "volume",
+        "close"
+    ],
+    "dtypes": {
+        "low": "float64",
+        "high": "float64",
+        "open": "float64",
+        "volume": "float64",
+        "close": "float64"
+    },
+    "saved_at": "2025-05-03T22:18:21.230598",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\btc_usdt_20250503_221821.parquet",
+    "data_stats": {
+        "low": {
+            "min": -1.365008852982402,
+            "max": 1.8003703795122485,
+            "mean": 5.305385760342082e-16,
+            "null_count": 0
+        },
+        "high": {
+            "min": -1.3465677367350737,
+            "max": 1.7926287968058094,
+            "mean": -4.547473508864641e-16,
+            "null_count": 0
+        },
+        "open": {
+            "min": -1.3547658604032433,
+            "max": 1.7972324458894413,
+            "mean": -1.5158245029548803e-16,
+            "null_count": 0
+        },
+        "volume": {
+            "min": -0.7763863626580614,
+            "max": 22.312637322812133,
+            "mean": 7.342274936187702e-17,
+            "null_count": 0
+        },
+        "close": {
+            "min": -1.355482855171363,
+            "max": 1.796233166116325,
+            "mean": 6.063298011819521e-16,
+            "null_count": 0
+        }
+    }
+}

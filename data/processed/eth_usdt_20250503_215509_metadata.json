@@ -1,6 +1,6 @@
 {
     "symbol": "ETH/USDT",
-    "rows": 18000,
+    "rows": 3000,
     "columns": [
         "timestamp",
         "open",
@@ -17,38 +17,38 @@
         "close": "float64",
         "volume": "float64"
     },
-    "saved_at": "2025-05-03T10:56:30.912526",
+    "saved_at": "2025-05-03T21:55:09.520819",
     "file_format": "parquet",
-    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\futures\\1h\\eth_usdt_20250503_105630.parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\eth_usdt_20250503_215509.parquet",
     "data_stats": {
         "open": {
-            "min": 903.26,
-            "max": 3874.24,
-            "mean": 1905.406858888889,
+            "min": 1528.17,
+            "max": 2435.2,
+            "mean": 1889.9719033333333,
             "null_count": 0
         },
         "high": {
-            "min": 928.0,
-            "max": 3893.19,
-            "mean": 1914.6079194444442,
+            "min": 1530.76,
+            "max": 2455.52,
+            "mean": 1896.3929400000002,
             "null_count": 0
         },
         "low": {
-            "min": 878.04,
-            "max": 3853.09,
-            "mean": 1895.8699388888888,
+            "min": 1514.5,
+            "max": 2414.62,
+            "mean": 1883.15259,
             "null_count": 0
         },
         "close": {
-            "min": 903.26,
-            "max": 3874.24,
-            "mean": 1905.3353172222223,
+            "min": 1528.18,
+            "max": 2435.2,
+            "mean": 1890.1658066666666,
             "null_count": 0
         },
         "volume": {
             "min": 7687.973,
-            "max": 2566330.125,
-            "mean": 159853.2903687778,
+            "max": 1759249.605,
+            "mean": 101002.232082,
             "null_count": 0
         }
     }

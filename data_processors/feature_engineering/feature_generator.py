@@ -432,17 +432,18 @@ class FeatureGenerator:
         """
         # Biến theo dõi import thành công
         import_success = False
-        
+    
         # Thử import từ package chính
         try:
             # Import từ package gốc để sử dụng các alias đã được định nghĩa trong __init__.py
             from data_processors.feature_engineering.technical_indicators import (
-                sma, ema, macd, rsi, bbands, atr, obv
+                sma, ema, macd, rsi, bbands, atr, obv,
+                adx, supertrend, volume_oscillator  # Thêm các chỉ báo mới
             )
             import_success = True
-            
+        
             self.logger.debug("Import thành công từ technical_indicators package")
-            
+        
             # Đăng ký các chỉ báo với hàm đã import
             self.register_feature("trend_ema", ema, {"window": 14}, ["close"], "technical", "EMA 14")
             self.register_feature("trend_sma", sma, {"window": 20}, ["close"], "technical", "SMA 20")
@@ -451,18 +452,26 @@ class FeatureGenerator:
             self.register_feature("volatility_atr", atr, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
             self.register_feature("volatility_bbands", bbands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
             self.register_feature("volume_obv", obv, {}, ["close", "volume"], "technical", "OBV")
-            
+        
+            # Thêm các chỉ báo mới
+            self.register_feature("trend_adx", adx, {"window": 14}, ["high", "low", "close"], "technical", "ADX 14")
+            self.register_feature("trend_supertrend", supertrend, {"period": 10, "multiplier": 3.0}, 
+                                ["high", "low", "close"], "technical", "SuperTrend 10,3")
+            self.register_feature("volume_osc", volume_oscillator, {"short_window": 5, "long_window": 10}, 
+                                ["volume"], "technical", "Volume Oscillator 5,10")
+        
             self.logger.info("Đã đăng ký tất cả technical indicators có sẵn")
-            
+        
         except ImportError as e:
             self.logger.warning(f"Lỗi import từ package technical_indicators: {e}")
-            
+        
             # Nếu import từ package gốc thất bại, thử import trực tiếp từ các module
             try:
                 # Import từng module riêng lẻ với các hàm đầy đủ
                 from data_processors.feature_engineering.technical_indicators.trend_indicators import (
                     exponential_moving_average, simple_moving_average, 
-                    bollinger_bands, moving_average_convergence_divergence
+                    bollinger_bands, moving_average_convergence_divergence,
+                    average_directional_index, supertrend  # Thêm ADX và SuperTrend
                 )
                 from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
                     relative_strength_index
@@ -471,12 +480,12 @@ class FeatureGenerator:
                     average_true_range
                 )
                 from data_processors.feature_engineering.technical_indicators.volume_indicators import (
-                    on_balance_volume
+                    on_balance_volume, volume_oscillator  # Thêm Volume Oscillator
                 )
-                
+            
                 import_success = True
                 self.logger.debug("Import thành công từ các module riêng lẻ")
-                
+            
                 # Đăng ký với tên hàm đầy đủ
                 self.register_feature("trend_ema", exponential_moving_average, {"window": 14}, ["close"], "technical", "EMA 14")
                 self.register_feature("trend_sma", simple_moving_average, {"window": 20}, ["close"], "technical", "SMA 20")
@@ -485,12 +494,20 @@ class FeatureGenerator:
                 self.register_feature("volatility_atr", average_true_range, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
                 self.register_feature("volatility_bbands", bollinger_bands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
                 self.register_feature("volume_obv", on_balance_volume, {}, ["close", "volume"], "technical", "OBV")
-                
+            
+                # Thêm các chỉ báo mới
+                self.register_feature("trend_adx", average_directional_index, {"window": 14}, 
+                                    ["high", "low", "close"], "technical", "ADX 14")
+                self.register_feature("trend_supertrend", supertrend, {"period": 10, "multiplier": 3.0}, 
+                                    ["high", "low", "close"], "technical", "SuperTrend 10,3")
+                self.register_feature("volume_osc", volume_oscillator, {"short_window": 5, "long_window": 10}, 
+                                    ["volume"], "technical", "Volume Oscillator 5,10")
+            
                 self.logger.info("Đã đăng ký tất cả technical indicators từ các module riêng lẻ")
-                
+            
             except ImportError as e_inner:
                 self.logger.error(f"Lỗi import từ các module riêng lẻ: {e_inner}")
-        
+    
         if not import_success:
             self.logger.warning("Không thể đăng ký bất kỳ technical indicator nào, vui lòng kiểm tra cấu trúc module")
     
