@@ -15,9 +15,9 @@
         "volume": "float64",
         "close": "float64"
     },
-    "saved_at": "2025-05-03T13:09:39.869120",
+    "saved_at": "2025-05-03T13:41:52.123953",
     "file_format": "parquet",
-    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\btc_usdt_20250503_130939.parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\btc_usdt_20250503_134152.parquet",
     "data_stats": {
         "low": {
             "min": -1.5638142697336017,

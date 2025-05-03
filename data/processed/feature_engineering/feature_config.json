@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "last_updated": "2025-05-03T13:13:53.619387",
+    "last_updated": "2025-05-03T14:09:05.824570",
     "features": {
         "trend_ema": {
             "type": "technical",
@@ -53,12 +53,6 @@
             "is_enabled": true,
             "params": {},
             "description": "OBV"
-        },
-        "support_resistance": {
-            "type": "technical",
-            "is_enabled": true,
-            "params": {},
-            "description": "H\u1ed7 tr\u1ee3 \u2013 Kh\u00e1ng c\u1ef1"
         }
     },
     "preprocessors": {

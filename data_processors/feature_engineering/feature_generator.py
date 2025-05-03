@@ -28,45 +28,6 @@ from data_processors.feature_engineering.utils.validation import validate_featur
 from data_processors.feature_engineering.utils.preprocessing import normalize_features, standardize_features, min_max_scale
 from data_processors.feature_engineering.feature_selector.statistical_methods import correlation_selector
 
-# Các import mặc định khi các module đã được phát triển
-try:
-    from data_processors.feature_engineering.technical_indicators.trend_indicators import (
-    exponential_moving_average as ema,
-    simple_moving_average as sma
-)
-except ImportError:
-    pass
-
-try:
-    from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
-    relative_strength_index as rsi,
-    moving_average_convergence_divergence as macd
-)
-except ImportError:
-    pass
-
-try:
-    from data_processors.feature_engineering.technical_indicators.volatility_indicators import (
-    average_true_range as atr,
-    bollinger_bands
-)
-except ImportError:
-    pass
-
-try:
-    from data_processors.feature_engineering.technical_indicators.volume_indicators import (
-    on_balance_volume as obv
-)
-except ImportError:
-    pass
-
-try:
-    from data_processors.feature_engineering.technical_indicators.support_resistance import (
-    detect_support_resistance as support_resistance_zones
-)
-except ImportError:
-    pass
-
 
 class FeatureGenerator:
     """
@@ -349,10 +310,8 @@ class FeatureGenerator:
 
         if all_indicators:
             self._register_all_technical_indicators()
-
         
         # Đăng ký các đặc trưng khi các module con đã được phát triển
-    
         try:
             self._register_default_technical_indicators()
         except (ImportError, AttributeError) as e:
@@ -446,6 +405,74 @@ class FeatureGenerator:
         # Các bộ chọn lọc này sẽ được triển khai khi module cụ thể đã phát triển
         pass
     
+    def _register_all_technical_indicators(self) -> None:
+        """
+        Đăng ký toàn bộ technical indicators nếu có sẵn.
+        """
+        # Biến theo dõi import thành công
+        import_success = False
+        
+        # Thử import từ package chính
+        try:
+            # Import từ package gốc để sử dụng các alias đã được định nghĩa trong __init__.py
+            from data_processors.feature_engineering.technical_indicators import (
+                sma, ema, macd, rsi, bbands, atr, obv
+            )
+            import_success = True
+            
+            self.logger.debug("Import thành công từ technical_indicators package")
+            
+            # Đăng ký các chỉ báo với hàm đã import
+            self.register_feature("trend_ema", ema, {"window": 14}, ["close"], "technical", "EMA 14")
+            self.register_feature("trend_sma", sma, {"window": 20}, ["close"], "technical", "SMA 20")
+            self.register_feature("momentum_rsi", rsi, {"window": 14}, ["close"], "technical", "RSI 14")
+            self.register_feature("momentum_macd", macd, {}, ["close"], "technical", "MACD")
+            self.register_feature("volatility_atr", atr, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
+            self.register_feature("volatility_bbands", bbands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
+            self.register_feature("volume_obv", obv, {}, ["close", "volume"], "technical", "OBV")
+            
+            self.logger.info("Đã đăng ký tất cả technical indicators có sẵn")
+            
+        except ImportError as e:
+            self.logger.warning(f"Lỗi import từ package technical_indicators: {e}")
+            
+            # Nếu import từ package gốc thất bại, thử import trực tiếp từ các module
+            try:
+                # Import từng module riêng lẻ với các hàm đầy đủ
+                from data_processors.feature_engineering.technical_indicators.trend_indicators import (
+                    exponential_moving_average, simple_moving_average, 
+                    bollinger_bands, moving_average_convergence_divergence
+                )
+                from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
+                    relative_strength_index
+                )
+                from data_processors.feature_engineering.technical_indicators.volatility_indicators import (
+                    average_true_range
+                )
+                from data_processors.feature_engineering.technical_indicators.volume_indicators import (
+                    on_balance_volume
+                )
+                
+                import_success = True
+                self.logger.debug("Import thành công từ các module riêng lẻ")
+                
+                # Đăng ký với tên hàm đầy đủ
+                self.register_feature("trend_ema", exponential_moving_average, {"window": 14}, ["close"], "technical", "EMA 14")
+                self.register_feature("trend_sma", simple_moving_average, {"window": 20}, ["close"], "technical", "SMA 20")
+                self.register_feature("momentum_rsi", relative_strength_index, {"window": 14}, ["close"], "technical", "RSI 14")
+                self.register_feature("momentum_macd", moving_average_convergence_divergence, {}, ["close"], "technical", "MACD")
+                self.register_feature("volatility_atr", average_true_range, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
+                self.register_feature("volatility_bbands", bollinger_bands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
+                self.register_feature("volume_obv", on_balance_volume, {}, ["close", "volume"], "technical", "OBV")
+                
+                self.logger.info("Đã đăng ký tất cả technical indicators từ các module riêng lẻ")
+                
+            except ImportError as e_inner:
+                self.logger.error(f"Lỗi import từ các module riêng lẻ: {e_inner}")
+        
+        if not import_success:
+            self.logger.warning("Không thể đăng ký bất kỳ technical indicator nào, vui lòng kiểm tra cấu trúc module")
+    
     def _check_dependencies(self, df: pd.DataFrame, feature_info: Dict) -> bool:
         """
         Kiểm tra xem dataframe có chứa các cột phụ thuộc không.
@@ -488,12 +515,16 @@ class FeatureGenerator:
         feature_info = self.registered_features[feature_name]
         
         if not feature_info["is_enabled"]:
+            self.logger.debug(f"Bỏ qua tính toán đặc trưng {feature_name} (đã bị tắt)")
             return df
         
         if not self._check_dependencies(df, feature_info):
+            self.logger.warning(f"Bỏ qua tính toán đặc trưng {feature_name} do thiếu phụ thuộc")
             return df
         
         try:
+            self.logger.debug(f"Bắt đầu tính toán đặc trưng {feature_name}")
+            
             # Tạo bản sao để tránh thay đổi trực tiếp
             result_df = df.copy()
             
@@ -501,8 +532,20 @@ class FeatureGenerator:
             feature_func = feature_info["function"]
             feature_params = feature_info["params"]
             
+            # Ghi log thông tin về hàm và tham số
+            self.logger.debug(f"Gọi hàm {feature_func.__name__} với tham số {feature_params}")
+            
             # Gọi hàm tính toán đặc trưng
             result = feature_func(result_df, **feature_params)
+            
+            # Ghi log thông tin về kết quả
+            if isinstance(result, pd.DataFrame):
+                new_cols = [col for col in result.columns if col not in df.columns]
+                self.logger.debug(f"Hàm trả về DataFrame với {len(new_cols)} cột mới: {new_cols}")
+            elif isinstance(result, pd.Series):
+                self.logger.debug(f"Hàm trả về Series với tên {result.name}")
+            else:
+                self.logger.debug(f"Hàm trả về kiểu dữ liệu {type(result)}")
             
             # Cập nhật DataFrame với kết quả mới
             if isinstance(result, pd.DataFrame):
@@ -510,20 +553,33 @@ class FeatureGenerator:
                 for col in result.columns:
                     if col not in df.columns:
                         result_df[col] = result[col]
+                        self.logger.debug(f"Đã thêm cột mới {col} từ đặc trưng {feature_name}")
             elif isinstance(result, pd.Series):
                 # Kết quả là Series
                 if result.name and result.name not in df.columns:
                     result_df[result.name] = result
+                    self.logger.debug(f"Đã thêm cột mới {result.name} từ đặc trưng {feature_name}")
                 else:
                     result_df[feature_name] = result
+                    self.logger.debug(f"Đã thêm cột mới {feature_name} từ đặc trưng {feature_name}")
             else:
                 # Kết quả là giá trị đơn lẻ hoặc mảng
                 result_df[feature_name] = result
+                self.logger.debug(f"Đã thêm cột mới {feature_name} từ đặc trưng {feature_name}")
+            
+            # Log số cột trước và sau
+            self.logger.debug(f"Số cột trước khi tính: {df.shape[1]}, sau khi tính: {result_df.shape[1]}")
+            
+            new_columns = set(result_df.columns) - set(df.columns)
+            if new_columns:
+                self.logger.info(f"Đã tạo {len(new_columns)} cột mới từ đặc trưng {feature_name}: {new_columns}")
+            else:
+                self.logger.warning(f"Không có cột mới nào được tạo từ đặc trưng {feature_name}")
             
             return result_df
             
         except Exception as e:
-            self.logger.error(f"Lỗi khi tính toán đặc trưng {feature_name}: {e}")
+            self.logger.error(f"Lỗi khi tính toán đặc trưng {feature_name}: {str(e)}", exc_info=True)
             return df
     
     def calculate_features(
@@ -543,6 +599,9 @@ class FeatureGenerator:
         Returns:
             DataFrame với các đặc trưng mới
         """
+        # Ghi log các cột ban đầu
+        self.logger.debug(f"Cột ban đầu trước khi tính toán đặc trưng: {df.columns.tolist()}")
+        
         if feature_names is None:
             # Tính tất cả các đặc trưng đã bật
             feature_names = [name for name, info in self.registered_features.items() if info["is_enabled"]]
@@ -563,12 +622,15 @@ class FeatureGenerator:
         # Sắp xếp topo để đảm bảo các phụ thuộc được tính trước
         sorted_features = self._topological_sort(dependencies_graph)
         
+        self.logger.debug(f"Thứ tự tính toán các đặc trưng: {sorted_features}")
+        
         if parallel and len(sorted_features) > 1:
             # Chia nhỏ danh sách tính năng thành các nhóm không phụ thuộc
             feature_groups = self._group_independent_features(dependencies_graph, sorted_features)
             
             # Tính toán từng nhóm, các tính năng trong một nhóm không phụ thuộc lẫn nhau
             for group in feature_groups:
+                self.logger.debug(f"Xử lý nhóm đặc trưng: {group}")
                 if len(group) == 1:
                     # Chỉ có một tính năng trong nhóm, không cần song song
                     feature_name = group[0]
@@ -589,6 +651,7 @@ class FeatureGenerator:
                                 for col in feature_df.columns:
                                     if col not in df.columns and col not in result_df.columns:
                                         result_df[col] = feature_df[col]
+                                        self.logger.debug(f"Đã thêm cột {col} từ đặc trưng {feature_name} (song song)")
                             except Exception as e:
                                 self.logger.error(f"Lỗi khi tính toán đặc trưng {feature_name}: {e}")
         else:
@@ -599,6 +662,7 @@ class FeatureGenerator:
         # Kiểm tra và ghi log các đặc trưng đã tạo
         created_features = [col for col in result_df.columns if col not in df.columns]
         self.logger.info(f"Đã tạo {len(created_features)} đặc trưng mới: {', '.join(created_features)}")
+        self.logger.debug(f"Tất cả các cột sau khi tính toán: {result_df.columns.tolist()}")
         
         return result_df
     
@@ -831,7 +895,7 @@ class FeatureGenerator:
         self,
         df: pd.DataFrame,
         selector_name: str,
-        target_column: str = 'close',  # Thêm giá trị mặc định là 'close'
+        target_column: str = 'close',
         fit: bool = True
     ) -> pd.DataFrame:
         """
@@ -849,6 +913,15 @@ class FeatureGenerator:
         if selector_name not in self.feature_selectors:
             self.logger.warning(f"Bộ chọn lọc {selector_name} không tồn tại")
             return df
+        
+        # Ghi log tất cả các cột trước khi chọn lọc
+        self.logger.debug(f"Các cột trước khi chọn lọc: {df.columns.tolist()}")
+        
+        # Tạo danh sách các cột technical indicators (thường có tiền tố cụ thể)
+        technical_prefixes = ['sma_', 'ema_', 'rsi_', 'macd_', 'bb_', 'atr_', 'obv']
+        technical_columns = [col for col in df.columns if any(prefix in col for prefix in technical_prefixes)]
+        
+        self.logger.debug(f"Các cột technical indicators đã phát hiện: {technical_columns}")
         
         selector_info = self.feature_selectors[selector_name]
         
@@ -868,22 +941,51 @@ class FeatureGenerator:
                 # Lưu danh sách tính năng đã chọn
                 self.feature_selectors[selector_name]["selected_features"] = selected_features
                 
+                # Thêm các technical indicators vào danh sách các cột cần giữ lại
+                columns_to_keep = list(selected_features)
+                for col in technical_columns:
+                    if col not in columns_to_keep:
+                        columns_to_keep.append(col)
+                        self.logger.debug(f"Đã thêm cột technical indicator {col} vào danh sách giữ lại")
+                
+                # Đảm bảo cột target_column được giữ lại
+                if target_column not in columns_to_keep and target_column in df.columns:
+                    columns_to_keep.append(target_column)
+                
                 # Tạo DataFrame kết quả với các tính năng đã chọn
-                if len(selected_features) > 0:
-                    # Luôn giữ lại cột target_column
-                    columns_to_keep = np.append(selected_features, target_column) if target_column not in selected_features else selected_features
-                    result_df = df[columns_to_keep].copy()
+                if len(columns_to_keep) > 0:
+                    # Kiểm tra để đảm bảo tất cả các cột đều tồn tại
+                    valid_columns = [col for col in columns_to_keep if col in df.columns]
+                    result_df = df[valid_columns].copy()
+                    self.logger.debug(f"Các cột giữ lại: {valid_columns}")
                 else:
                     # Nếu không có tính năng nào được chọn, trả về DataFrame ban đầu
+                    self.logger.warning("Không có cột nào được giữ lại, sử dụng DataFrame gốc")
                     result_df = df.copy()
             else:
                 # Áp dụng với các đặc trưng đã chọn
                 selected_features = self.feature_selectors[selector_name]["selected_features"]
                 
                 if selected_features is not None and len(selected_features) > 0:
-                    # Luôn giữ lại cột target_column
-                    columns_to_keep = np.append(selected_features, target_column) if target_column not in selected_features else selected_features
-                    result_df = df[columns_to_keep].copy()
+                    # Thêm các technical indicators vào danh sách các cột cần giữ lại
+                    columns_to_keep = list(selected_features)
+                    for col in technical_columns:
+                        if col not in columns_to_keep:
+                            columns_to_keep.append(col)
+                            self.logger.debug(f"Đã thêm cột technical indicator {col} vào danh sách giữ lại")
+                    
+                    # Đảm bảo cột target_column được giữ lại
+                    if target_column not in columns_to_keep and target_column in df.columns:
+                        columns_to_keep.append(target_column)
+                    
+                    # Tạo DataFrame kết quả
+                    if len(columns_to_keep) > 0:
+                        # Kiểm tra để đảm bảo tất cả các cột đều tồn tại
+                        valid_columns = [col for col in columns_to_keep if col in df.columns]
+                        result_df = df[valid_columns].copy()
+                        self.logger.debug(f"Các cột giữ lại: {valid_columns}")
+                    else:
+                        result_df = df.copy()
                 else:
                     self.logger.warning(f"Bộ chọn lọc {selector_name} chưa được fit hoặc không chọn được tính năng nào")
                     result_df = df.copy()
@@ -893,7 +995,7 @@ class FeatureGenerator:
             return result_df
             
         except Exception as e:
-            self.logger.error(f"Lỗi khi áp dụng chọn lọc đặc trưng {selector_name}: {str(e)}")
+            self.logger.error(f"Lỗi khi áp dụng chọn lọc đặc trưng {selector_name}: {str(e)}", exc_info=True)
             return df
     
     def create_feature_pipeline(
@@ -916,6 +1018,9 @@ class FeatureGenerator:
             save_pipeline: Lưu pipeline hay không
             pipeline_name: Tên pipeline
         """
+        # Tạm thời tắt bộ chọn lọc đặc trưng để kiểm tra
+        # feature_selector = None
+        
         pipeline_config = {
             "feature_names": feature_names,
             "preprocessor_names": preprocessor_names,
@@ -980,6 +1085,28 @@ class FeatureGenerator:
         
         # Bước 1: Tính toán các đặc trưng
         if feature_names:
+            # Trước khi gọi calculate_features, thử tính thủ công EMA để kiểm tra
+            try:
+                from data_processors.feature_engineering.technical_indicators import ema
+                self.logger.info("Bắt đầu tính toán thủ công EMA để kiểm tra")
+                
+                # Tính EMA với window=14
+                test_df = result_df.copy()
+                ema_result = ema(test_df, column='close', window=14)
+                
+                # Kiểm tra kết quả
+                new_cols = [col for col in ema_result.columns if col not in result_df.columns]
+                self.logger.info(f"EMA đã tạo ra {len(new_cols)} cột mới: {new_cols}")
+                
+                # Nếu tính toán thành công, cập nhật DataFrame
+                if new_cols:
+                    for col in new_cols:
+                        result_df[col] = ema_result[col]
+                    self.logger.info("Đã thêm cột EMA thủ công vào kết quả")
+            except Exception as e:
+                self.logger.error(f"Lỗi khi tính toán thủ công EMA: {str(e)}", exc_info=True)
+            
+            # Tiếp tục với calculate_features bình thường
             result_df = self.calculate_features(result_df, feature_names, parallel=True)
         
         # Bước 2: Áp dụng các bộ tiền xử lý
@@ -992,7 +1119,21 @@ class FeatureGenerator:
         
         # Bước 4: Áp dụng chọn lọc đặc trưng
         if feature_selector:
+            # Lưu lại số cột trước khi áp dụng feature selection
+            num_cols_before = result_df.shape[1]
+            self.logger.debug(f"Số cột trước khi áp dụng feature selection: {num_cols_before}")
+            self.logger.debug(f"Các cột: {result_df.columns.tolist()}")
+            
+            # Áp dụng feature selection
             result_df = self.apply_feature_selection(result_df, feature_selector, fit=fit)
+            
+            # Ghi log số cột đã được giữ lại
+            num_cols_after = result_df.shape[1]
+            self.logger.debug(f"Số cột sau khi áp dụng feature selection: {num_cols_after}")
+            self.logger.debug(f"Các cột đã giữ lại: {result_df.columns.tolist()}")
+            
+            if num_cols_before > num_cols_after:
+                self.logger.warning(f"Feature selection đã loại bỏ {num_cols_before - num_cols_after} cột")
         
         # Cập nhật trạng thái
         if fit:
@@ -1120,99 +1261,3 @@ class FeatureGenerator:
             "is_fitted": self.is_fitted,
             "feature_info": self.feature_info
         }
-
-    def _register_all_technical_indicators(self) -> None:
-        """
-        Đăng ký toàn bộ technical indicators nếu có sẵn.
-        """
-        try:
-            # Nhập các module cần thiết với xử lý lỗi rõ ràng
-            try:
-                from data_processors.feature_engineering.technical_indicators.trend_indicators import (
-                    simple_moving_average as sma,
-                    exponential_moving_average as ema,
-                    bollinger_bands,
-                    moving_average_convergence_divergence as macd
-                )
-            except ImportError as e:
-                self.logger.warning(f"Lỗi import trend_indicators: {e}")
-                sma = None
-                ema = None
-                bollinger_bands = None
-                macd = None
-            
-            try:
-                from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
-                    relative_strength_index as rsi
-                )
-            except ImportError as e:
-                self.logger.warning(f"Lỗi import momentum_indicators: {e}")
-                rsi = None
-                if macd is None:  # Nếu macd chưa được import từ trend_indicators
-                    try:
-                        from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
-                            moving_average_convergence_divergence as macd
-                        )
-                    except ImportError:
-                        macd = None
-            
-            try:
-                from data_processors.feature_engineering.technical_indicators.volatility_indicators import (
-                    average_true_range as atr
-                )
-            except ImportError as e:
-                self.logger.warning(f"Lỗi import volatility_indicators: {e}")
-                atr = None
-                if bollinger_bands is None:  # Nếu bollinger_bands chưa được import từ trend_indicators
-                    try:
-                        from data_processors.feature_engineering.technical_indicators.volatility_indicators import (
-                            bollinger_bands
-                        )
-                    except ImportError:
-                        bollinger_bands = None
-            
-            try:
-                from data_processors.feature_engineering.technical_indicators.volume_indicators import (
-                    on_balance_volume as obv
-                )
-            except ImportError as e:
-                self.logger.warning(f"Lỗi import volume_indicators: {e}")
-                obv = None
-            
-            try:
-                from data_processors.feature_engineering.technical_indicators.support_resistance import (
-                    detect_support_resistance as support_resistance_zones
-                )
-            except ImportError as e:
-                self.logger.warning(f"Lỗi import support_resistance: {e}")
-                support_resistance_zones = None
-            
-            # Đăng ký các chỉ báo nếu chúng đã được import thành công
-            if ema is not None:
-                self.register_feature("trend_ema", ema, {"window": 14}, ["close"], "technical", "EMA 14")
-            
-            if sma is not None:
-                self.register_feature("trend_sma", sma, {"window": 20}, ["close"], "technical", "SMA 20")
-            
-            if rsi is not None:
-                self.register_feature("momentum_rsi", rsi, {"window": 14}, ["close"], "technical", "RSI 14")
-            
-            if macd is not None:
-                self.register_feature("momentum_macd", macd, {}, ["close"], "technical", "MACD")
-            
-            if atr is not None:
-                self.register_feature("volatility_atr", atr, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
-            
-            if bollinger_bands is not None:
-                self.register_feature("volatility_bbands", bollinger_bands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
-            
-            if obv is not None:
-                self.register_feature("volume_obv", obv, {}, ["close", "volume"], "technical", "OBV")
-            
-            if support_resistance_zones is not None:
-                self.register_feature("support_resistance", support_resistance_zones, {}, ["high", "low"], "technical", "Hỗ trợ – Kháng cự")
-
-            self.logger.info("Đã đăng ký tất cả technical indicators có sẵn")
-            
-        except Exception as e:
-            self.logger.error(f"Lỗi khi đăng ký indicators: {str(e)}")
