@@ -113,7 +113,7 @@ def setup_process_parser(subparsers) -> None:
     )
     
     features_parser.add_argument(
-        '--all-indicators', 
+        '--all-indicators',
         action='store_true',
         help='Tạo tất cả các chỉ báo kỹ thuật có sẵn'
     )
@@ -186,6 +186,12 @@ def setup_process_parser(subparsers) -> None:
         '--no-features', 
         action='store_true',
         help='Bỏ qua bước tạo đặc trưng'
+    )
+    
+    pipeline_parser.add_argument(
+        '--all-indicators', 
+        action='store_true',
+        help='Sử dụng tất cả các chỉ báo kỹ thuật có sẵn'
     )
     
     process_parser.set_defaults(func=handle_process_command)
@@ -286,6 +292,7 @@ def _process_and_report_results(system: AutomatedTradingSystem,
                                clean_data: bool, 
                                generate_features: bool, 
                                pipeline_name: Optional[str] = None,
+                               all_indicators: bool = False,
                                output_dir: Optional[Path] = None, 
                                logger: logging.Logger = None) -> int:
     """
@@ -297,6 +304,7 @@ def _process_and_report_results(system: AutomatedTradingSystem,
         clean_data: Có làm sạch dữ liệu không
         generate_features: Có tạo đặc trưng không
         pipeline_name: Tên pipeline xử lý
+        all_indicators: Sử dụng tất cả các chỉ báo kỹ thuật có sẵn
         output_dir: Thư mục đầu ra
         logger: Logger
         
@@ -313,6 +321,7 @@ def _process_and_report_results(system: AutomatedTradingSystem,
         pipeline_name=pipeline_name,
         clean_data=clean_data,
         generate_features=generate_features,
+        all_indicators=all_indicators,
         output_dir=output_dir
     )
     
@@ -437,6 +446,7 @@ def handle_features_command(args: argparse.Namespace, system: AutomatedTradingSy
             system, data_paths, 
             clean_data=False, 
             generate_features=True,
+            all_indicators=args.all_indicators,
             output_dir=output_dir,
             logger=logger
         )
@@ -471,6 +481,7 @@ def handle_pipeline_command(args: argparse.Namespace, system: AutomatedTradingSy
             clean_data=not args.no_clean, 
             generate_features=not args.no_features,
             pipeline_name=args.pipeline_name,
+            all_indicators=args.all_indicators,
             output_dir=output_dir,
             logger=logger
         )

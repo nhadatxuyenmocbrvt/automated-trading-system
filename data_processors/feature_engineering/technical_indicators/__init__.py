@@ -36,6 +36,22 @@ from data_processors.feature_engineering.technical_indicators.utils import (
     find_local_extrema, prepare_price_data
 )
 
+# Định nghĩa các alias ngắn gọn cho các hàm phổ biến
+sma = simple_moving_average
+ema = exponential_moving_average
+macd = moving_average_convergence_divergence
+rsi = relative_strength_index
+bbands = bollinger_bands
+adx = average_directional_index
+psar = parabolic_sar
+atr = average_true_range
+obv = on_balance_volume
+stoch = stochastic_oscillator
+cci = commodity_channel_index
+mfi = money_flow_index
+vwap = volume_weighted_average_price
+sr = detect_support_resistance
+
 __all__ = [
     # Trend
     'simple_moving_average', 'exponential_moving_average', 'bollinger_bands',
@@ -60,5 +76,9 @@ __all__ = [
     
     # Utils
     'crossover', 'crossunder', 'normalize_indicator', 'true_range',
-    'find_local_extrema', 'prepare_price_data'
+    'find_local_extrema', 'prepare_price_data',
+    
+    # Aliases
+    'sma', 'ema', 'macd', 'rsi', 'bbands', 'adx', 'psar', 'atr', 
+    'obv', 'stoch', 'cci', 'mfi', 'vwap', 'sr'
 ]

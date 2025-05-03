@@ -5,17 +5,19 @@
         "low",
         "high",
         "open",
+        "volume",
         "close"
     ],
     "dtypes": {
         "low": "float64",
         "high": "float64",
         "open": "float64",
+        "volume": "float64",
         "close": "float64"
     },
-    "saved_at": "2025-05-03T01:27:01.705986",
+    "saved_at": "2025-05-03T11:32:39.133957",
     "file_format": "parquet",
-    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\eth_usdt_20250503_012701.parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\eth_usdt_20250503_113239.parquet",
     "data_stats": {
         "low": {
             "min": -1.7689991724342016,
@@ -33,6 +35,12 @@
             "min": -1.7315909046647069,
             "max": 3.401910138929482,
             "mean": -1.8316212744038138e-16,
+            "null_count": 0
+        },
+        "volume": {
+            "min": -0.8376534133405709,
+            "max": 13.247391518058691,
+            "mean": -7.579122514774402e-17,
             "null_count": 0
         },
         "close": {

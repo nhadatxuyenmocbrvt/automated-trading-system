@@ -27,6 +27,7 @@ from config.system_config import BASE_DIR, MODEL_DIR
 from data_processors.feature_engineering.utils.validation import validate_features, check_feature_integrity
 from data_processors.feature_engineering.utils.preprocessing import normalize_features, standardize_features, min_max_scale
 from data_processors.feature_engineering.feature_selector.statistical_methods import correlation_selector
+from data_processors.feature_engineering.technical_indicators import ema, sma, macd
 
 # Các import mặc định khi các module đã được phát triển
 try:
@@ -440,7 +441,7 @@ class FeatureGenerator:
             selector_func=correlation_selector,
             params={
                 "threshold": 0.1,  # Ngưỡng tương quan thấp hơn để chọn nhiều đặc trưng hơn
-                "k": 3  # Chọn 3 đặc trưng tốt nhất nếu không có đủ đặc trưng vượt qua ngưỡng
+                "k": 10  # Chọn 3 đặc trưng tốt nhất nếu không có đủ đặc trưng vượt qua ngưỡng
             }
         )
         # Các bộ chọn lọc này sẽ được triển khai khi module cụ thể đã phát triển

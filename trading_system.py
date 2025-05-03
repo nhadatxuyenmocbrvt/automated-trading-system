@@ -221,6 +221,7 @@ class AutomatedTradingSystem:
         pipeline_name: Optional[str] = None,
         clean_data: bool = True,
         generate_features: bool = True,
+         all_indicators: bool = False,
         output_dir: Optional[Union[str, Path]] = None,
     ) -> Dict[str, Path]:
         """
@@ -231,6 +232,7 @@ class AutomatedTradingSystem:
             pipeline_name: Tên pipeline xử lý dữ liệu
             clean_data: Làm sạch dữ liệu
             generate_features: Tạo đặc trưng
+            all_indicators: Sử dụng tất cả các chỉ báo kỹ thuật có sẵn
             output_dir: Thư mục lưu dữ liệu đã xử lý
             
         Returns:
@@ -306,7 +308,8 @@ class AutomatedTradingSystem:
             if generate_features:
                 processed_data = self.data_pipeline.generate_features(
                     data=processed_data,
-                    use_pipeline=pipeline_name
+                    use_pipeline=pipeline_name,
+                    all_indicators=all_indicators  # Truyền tham số này
                 )
             
             # Lưu dữ liệu đã xử lý

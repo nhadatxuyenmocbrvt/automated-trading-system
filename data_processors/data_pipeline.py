@@ -620,7 +620,8 @@ class DataPipeline:
         data: Dict[str, pd.DataFrame],
         feature_configs: Optional[Dict[str, Dict[str, Any]]] = None,
         use_pipeline: Optional[str] = None,
-        fit_pipeline: bool = True
+        fit_pipeline: bool = True,
+        all_indicators: bool = False  # Thêm tham số này
     ) -> Dict[str, pd.DataFrame]:
         """
         Tạo đặc trưng cho dữ liệu.
@@ -630,6 +631,7 @@ class DataPipeline:
             feature_configs: Cấu hình đặc trưng cho mỗi symbol
             use_pipeline: Tên pipeline có sẵn để sử dụng
             fit_pipeline: Học pipeline mới hay không
+            all_indicators: Sử dụng tất cả các chỉ báo kỹ thuật có sẵn  # Thêm mô tả này
             
         Returns:
             Dict với key là symbol và value là DataFrame có đặc trưng
@@ -640,6 +642,14 @@ class DataPipeline:
         
         results = {}
         
+        # Đảm bảo đăng ký chỉ báo dựa trên all_indicators
+        if all_indicators:
+            self.feature_generator.register_default_features(all_indicators=True)
+        else:
+            # Nếu không có yêu cầu all_indicators, 
+            # không đăng ký lại các chỉ báo kỹ thuật vì đã được đăng ký lúc khởi tạo
+            pass
+
         # Nếu sử dụng pipeline có sẵn
         if use_pipeline and use_pipeline in self.registered_pipelines:
             self.logger.info(f"Sử dụng pipeline '{use_pipeline}' để tạo đặc trưng")

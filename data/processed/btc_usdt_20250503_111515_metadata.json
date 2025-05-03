@@ -5,17 +5,19 @@
         "low",
         "high",
         "open",
+        "volume",
         "close"
     ],
     "dtypes": {
         "low": "float64",
         "high": "float64",
         "open": "float64",
+        "volume": "float64",
         "close": "float64"
     },
-    "saved_at": "2025-05-03T02:26:13.061301",
+    "saved_at": "2025-05-03T11:15:15.911000",
     "file_format": "parquet",
-    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\btc_usdt_20250503_022613.parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\btc_usdt_20250503_111515.parquet",
     "data_stats": {
         "low": {
             "min": -1.5638142697336017,
@@ -33,6 +35,12 @@
             "min": -1.5470377180781532,
             "max": 2.2909496963301312,
             "mean": 1.2631870857957337e-16,
+            "null_count": 0
+        },
+        "volume": {
+            "min": -0.8729790127571362,
+            "max": 16.28876827267869,
+            "mean": -1.2631870857957337e-17,
             "null_count": 0
         },
         "close": {
