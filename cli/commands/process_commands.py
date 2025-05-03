@@ -7,7 +7,7 @@ import os
 import sys
 import argparse
 import asyncio
-import logging  # Thêm dòng này
+import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
@@ -441,12 +441,17 @@ def handle_features_command(args: argparse.Namespace, system: AutomatedTradingSy
         # Tìm các file dữ liệu
         data_paths = _find_data_files(input_dir, args.symbols, [''], logger)  # Không filter theo timeframe
         
+        # Kiểm tra nếu có thuộc tính all_indicators
+        all_indicators = False
+        if hasattr(args, 'all_indicators'):
+            all_indicators = args.all_indicators
+        
         # Xử lý và báo cáo kết quả
         return _process_and_report_results(
             system, data_paths, 
             clean_data=False, 
             generate_features=True,
-            all_indicators=args.all_indicators,
+            all_indicators=all_indicators,
             output_dir=output_dir,
             logger=logger
         )
@@ -472,16 +477,39 @@ def handle_pipeline_command(args: argparse.Namespace, system: AutomatedTradingSy
         # Chuẩn bị thư mục đầu vào/ra
         input_dir, output_dir = _prepare_directories(args.input_dir, args.output_dir, system)
         
+        # Chuẩn bị tham số
+        start_date = args.start_date if hasattr(args, 'start_date') else None
+        end_date = args.end_date if hasattr(args, 'end_date') else None
+        
         # Tìm các file dữ liệu
-        data_paths = _find_data_files(input_dir, args.symbols, args.timeframes, logger)
+        timeframes = args.timeframes if hasattr(args, 'timeframes') and args.timeframes else ['1h']
+        symbols = args.symbols if hasattr(args, 'symbols') else None
+        data_paths = _find_data_files(input_dir, symbols, timeframes, logger)
+        
+        # Kiểm tra nếu có thuộc tính all_indicators
+        all_indicators = False
+        if hasattr(args, 'all_indicators'):
+            all_indicators = args.all_indicators
+        
+        # Kiểm tra xem có bỏ qua bước làm sạch hoặc tạo đặc trưng không
+        clean_data = True
+        if hasattr(args, 'no_clean') and args.no_clean:
+            clean_data = False
+            
+        generate_features = True
+        if hasattr(args, 'no_features') and args.no_features:
+            generate_features = False
+        
+        # Lấy tên pipeline nếu có
+        pipeline_name = args.pipeline_name if hasattr(args, 'pipeline_name') else None
         
         # Xử lý và báo cáo kết quả
         return _process_and_report_results(
             system, data_paths, 
-            clean_data=not args.no_clean, 
-            generate_features=not args.no_features,
-            pipeline_name=args.pipeline_name,
-            all_indicators=args.all_indicators,
+            clean_data=clean_data, 
+            generate_features=generate_features,
+            pipeline_name=pipeline_name,
+            all_indicators=all_indicators,
             output_dir=output_dir,
             logger=logger
         )

@@ -27,7 +27,6 @@ from config.system_config import BASE_DIR, MODEL_DIR
 from data_processors.feature_engineering.utils.validation import validate_features, check_feature_integrity
 from data_processors.feature_engineering.utils.preprocessing import normalize_features, standardize_features, min_max_scale
 from data_processors.feature_engineering.feature_selector.statistical_methods import correlation_selector
-from data_processors.feature_engineering.technical_indicators import ema, sma, macd
 
 # Các import mặc định khi các module đã được phát triển
 try:
@@ -440,8 +439,8 @@ class FeatureGenerator:
             name="statistical_correlation",  
             selector_func=correlation_selector,
             params={
-                "threshold": 0.1,  # Ngưỡng tương quan thấp hơn để chọn nhiều đặc trưng hơn
-                "k": 10  # Chọn 3 đặc trưng tốt nhất nếu không có đủ đặc trưng vượt qua ngưỡng
+                "threshold": 0.05,  # Ngưỡng tương quan thấp hơn để chọn nhiều đặc trưng hơn
+                "k": 30  # Chọn 30 đặc trưng tốt nhất nếu không có đủ đặc trưng vượt qua ngưỡng
             }
         )
         # Các bộ chọn lọc này sẽ được triển khai khi module cụ thể đã phát triển
@@ -1127,22 +1126,93 @@ class FeatureGenerator:
         Đăng ký toàn bộ technical indicators nếu có sẵn.
         """
         try:
-            from data_processors.feature_engineering.technical_indicators.trend_indicators import ema, sma
-            from data_processors.feature_engineering.technical_indicators.momentum_indicators import rsi, macd
-            from data_processors.feature_engineering.technical_indicators.volatility_indicators import atr, bollinger_bands
-            from data_processors.feature_engineering.technical_indicators.volume_indicators import obv
-            from data_processors.feature_engineering.technical_indicators.support_resistance import support_resistance_zones
-        except ImportError as e:
-            self.logger.warning(f"Lỗi import indicators: {e}")
-            return
+            # Nhập các module cần thiết với xử lý lỗi rõ ràng
+            try:
+                from data_processors.feature_engineering.technical_indicators.trend_indicators import (
+                    simple_moving_average as sma,
+                    exponential_moving_average as ema,
+                    bollinger_bands,
+                    moving_average_convergence_divergence as macd
+                )
+            except ImportError as e:
+                self.logger.warning(f"Lỗi import trend_indicators: {e}")
+                sma = None
+                ema = None
+                bollinger_bands = None
+                macd = None
+            
+            try:
+                from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
+                    relative_strength_index as rsi
+                )
+            except ImportError as e:
+                self.logger.warning(f"Lỗi import momentum_indicators: {e}")
+                rsi = None
+                if macd is None:  # Nếu macd chưa được import từ trend_indicators
+                    try:
+                        from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
+                            moving_average_convergence_divergence as macd
+                        )
+                    except ImportError:
+                        macd = None
+            
+            try:
+                from data_processors.feature_engineering.technical_indicators.volatility_indicators import (
+                    average_true_range as atr
+                )
+            except ImportError as e:
+                self.logger.warning(f"Lỗi import volatility_indicators: {e}")
+                atr = None
+                if bollinger_bands is None:  # Nếu bollinger_bands chưa được import từ trend_indicators
+                    try:
+                        from data_processors.feature_engineering.technical_indicators.volatility_indicators import (
+                            bollinger_bands
+                        )
+                    except ImportError:
+                        bollinger_bands = None
+            
+            try:
+                from data_processors.feature_engineering.technical_indicators.volume_indicators import (
+                    on_balance_volume as obv
+                )
+            except ImportError as e:
+                self.logger.warning(f"Lỗi import volume_indicators: {e}")
+                obv = None
+            
+            try:
+                from data_processors.feature_engineering.technical_indicators.support_resistance import (
+                    detect_support_resistance as support_resistance_zones
+                )
+            except ImportError as e:
+                self.logger.warning(f"Lỗi import support_resistance: {e}")
+                support_resistance_zones = None
+            
+            # Đăng ký các chỉ báo nếu chúng đã được import thành công
+            if ema is not None:
+                self.register_feature("trend_ema", ema, {"window": 14}, ["close"], "technical", "EMA 14")
+            
+            if sma is not None:
+                self.register_feature("trend_sma", sma, {"window": 20}, ["close"], "technical", "SMA 20")
+            
+            if rsi is not None:
+                self.register_feature("momentum_rsi", rsi, {"window": 14}, ["close"], "technical", "RSI 14")
+            
+            if macd is not None:
+                self.register_feature("momentum_macd", macd, {}, ["close"], "technical", "MACD")
+            
+            if atr is not None:
+                self.register_feature("volatility_atr", atr, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
+            
+            if bollinger_bands is not None:
+                self.register_feature("volatility_bbands", bollinger_bands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
+            
+            if obv is not None:
+                self.register_feature("volume_obv", obv, {}, ["close", "volume"], "technical", "OBV")
+            
+            if support_resistance_zones is not None:
+                self.register_feature("support_resistance", support_resistance_zones, {}, ["high", "low"], "technical", "Hỗ trợ – Kháng cự")
 
-        self.register_feature("trend_ema", ema, {"window": 14}, ["close"], "technical", "EMA 14")
-        self.register_feature("trend_sma", sma, {"window": 20}, ["close"], "technical", "SMA 20")
-        self.register_feature("momentum_rsi", rsi, {"window": 14}, ["close"], "technical", "RSI 14")
-        self.register_feature("momentum_macd", macd, {}, ["close"], "technical", "MACD")
-        self.register_feature("volatility_atr", atr, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
-        self.register_feature("volatility_bbands", bollinger_bands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
-        self.register_feature("volume_obv", obv, {}, ["close", "volume"], "technical", "OBV")
-        self.register_feature("support_resistance", support_resistance_zones, {}, ["high", "low"], "technical", "Hỗ trợ – Kháng cự")
-
-        self.logger.info("Đã đăng ký tất cả technical indicators")
+            self.logger.info("Đã đăng ký tất cả technical indicators có sẵn")
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi đăng ký indicators: {str(e)}")

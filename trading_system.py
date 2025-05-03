@@ -133,6 +133,7 @@ class AutomatedTradingSystem:
         
         # Thiết lập trạng thái
         self.is_collecting_data = True
+        historical_collector = None  # Khởi tạo biến này ở đây để tránh lỗi
         
         try:
             # Khởi tạo data pipeline nếu chưa có
@@ -214,6 +215,13 @@ class AutomatedTradingSystem:
             return {}
         finally:
             self.is_collecting_data = False
+            # Đóng historical_collector nếu nó đã được khởi tạo
+            try:
+                if historical_collector is not None:
+                    await historical_collector.exchange_connector.close()
+            except Exception as e:
+                self.logger.warning(f"Không thể đóng historical_collector: {str(e)}")
+                pass
     
     def process_data(
         self,

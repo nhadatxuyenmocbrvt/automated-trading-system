@@ -146,10 +146,14 @@ def bollinger_bands(
     lower_band = middle_band - std_dev * std
     
     # Bandwidth và %B
-    bandwidth = (upper_band - lower_band) / middle_band
+    # Thêm kiểm tra để tránh chia cho 0 
+    bandwidth = pd.Series(np.zeros_like(middle_band), index=middle_band.index)
+    mask = middle_band != 0  # Tạo mask cho giá trị khác 0
+    bandwidth[mask] = (upper_band[mask] - lower_band[mask]) / middle_band[mask]
     
     # Tránh chia cho 0 khi tính %B
     denominator = upper_band - lower_band
+    # Thay thế giá trị 0 bằng NaN để tránh lỗi khi chia
     denominator = denominator.replace(0, np.nan)
     percent_b = (result_df[column] - lower_band) / denominator
     
@@ -260,21 +264,27 @@ def average_directional_index(
     plus_dm_ema = plus_dm.ewm(alpha=1/window, adjust=False).mean()
     minus_dm_ema = minus_dm.ewm(alpha=1/window, adjust=False).mean()
     
-    # Tránh chia cho 0
-    tr_ema = tr_ema.replace(0, np.nan)
+    # Đánh dấu chỗ tr_ema là 0 để tránh chia cho 0
+    zero_mask = tr_ema == 0
+    # Thay thế giá trị 0 bằng NaN để tránh lỗi khi chia
+    tr_ema_safe = tr_ema.copy()
+    tr_ema_safe[zero_mask] = np.nan
     
     # Tính +DI và -DI
-    plus_di = 100 * plus_dm_ema / tr_ema
-    minus_di = 100 * minus_dm_ema / tr_ema
+    plus_di = 100 * plus_dm_ema / tr_ema_safe
+    minus_di = 100 * minus_dm_ema / tr_ema_safe
     
     # Tính DX (Directional Index)
     dx_numerator = np.abs(plus_di - minus_di)
     dx_denominator = plus_di + minus_di
     
-    # Tránh chia cho 0
-    dx_denominator = dx_denominator.replace(0, np.nan)
+    # Đánh dấu chỗ dx_denominator là 0 để tránh chia cho 0
+    zero_mask = dx_denominator == 0
+    # Thay thế giá trị 0 bằng NaN để tránh lỗi khi chia
+    dx_denominator_safe = dx_denominator.copy()
+    dx_denominator_safe[zero_mask] = np.nan
     
-    dx = 100 * dx_numerator / dx_denominator
+    dx = 100 * dx_numerator / dx_denominator_safe
     
     # Tính ADX (Average Directional Index)
     adx = dx.ewm(alpha=1/smooth_period, adjust=False).mean()

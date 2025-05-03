@@ -15,9 +15,9 @@
         "volume": "float64",
         "close": "float64"
     },
-    "saved_at": "2025-05-03T11:15:15.929976",
+    "saved_at": "2025-05-03T13:13:53.685396",
     "file_format": "parquet",
-    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\eth_usdt_20250503_111515.parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\eth_usdt_20250503_131353.parquet",
     "data_stats": {
         "low": {
             "min": -1.7689991724342016,

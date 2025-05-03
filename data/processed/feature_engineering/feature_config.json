@@ -1,7 +1,66 @@
 {
     "version": "1.0.0",
-    "last_updated": "2025-05-03T11:32:39.069976",
-    "features": {},
+    "last_updated": "2025-05-03T13:13:53.619387",
+    "features": {
+        "trend_ema": {
+            "type": "technical",
+            "is_enabled": true,
+            "params": {
+                "window": 14
+            },
+            "description": "EMA 14"
+        },
+        "trend_sma": {
+            "type": "technical",
+            "is_enabled": true,
+            "params": {
+                "window": 20
+            },
+            "description": "SMA 20"
+        },
+        "momentum_rsi": {
+            "type": "technical",
+            "is_enabled": true,
+            "params": {
+                "window": 14
+            },
+            "description": "RSI 14"
+        },
+        "momentum_macd": {
+            "type": "technical",
+            "is_enabled": true,
+            "params": {},
+            "description": "MACD"
+        },
+        "volatility_atr": {
+            "type": "technical",
+            "is_enabled": true,
+            "params": {
+                "window": 14
+            },
+            "description": "ATR 14"
+        },
+        "volatility_bbands": {
+            "type": "technical",
+            "is_enabled": true,
+            "params": {
+                "window": 20
+            },
+            "description": "Bollinger Bands"
+        },
+        "volume_obv": {
+            "type": "technical",
+            "is_enabled": true,
+            "params": {},
+            "description": "OBV"
+        },
+        "support_resistance": {
+            "type": "technical",
+            "is_enabled": true,
+            "params": {},
+            "description": "H\u1ed7 tr\u1ee3 \u2013 Kh\u00e1ng c\u1ef1"
+        }
+    },
     "preprocessors": {
         "normalize": {
             "apply_by_default": false,
@@ -28,8 +87,8 @@
     "feature_selectors": {
         "statistical_correlation": {
             "params": {
-                "threshold": 0.1,
-                "k": 10
+                "threshold": 0.05,
+                "k": 30
             },
             "feature_types": [
                 "technical",
