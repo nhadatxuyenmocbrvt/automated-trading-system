@@ -305,7 +305,7 @@ class FeatureGenerator:
         """
         Đăng ký các đặc trưng mặc định phổ biến.
         """
-    def register_default_features(self, all_indicators: bool = False) -> None:
+    def register_default_features(self, all_indicators: bool = True) -> None:
         self.logger.info("Đăng ký các đặc trưng mặc định")
 
         if all_indicators:
@@ -335,6 +335,9 @@ class FeatureGenerator:
         
         # Đăng ký các bộ chọn lọc đặc trưng mặc định
         self._register_default_feature_selectors()
+        
+        # Ghi log danh sách đặc trưng đã đăng ký
+        self.logger.info(f"Đã đăng ký {len(self.registered_features)} đặc trưng: {list(self.registered_features.keys())}")
     
     def _register_default_technical_indicators(self) -> None:
         """
@@ -606,6 +609,9 @@ class FeatureGenerator:
             # Tính tất cả các đặc trưng đã bật
             feature_names = [name for name, info in self.registered_features.items() if info["is_enabled"]]
         
+        # Ghi log danh sách đặc trưng sẽ tính
+        self.logger.info(f"Sẽ tính toán {len(feature_names)} đặc trưng: {feature_names}")
+        
         # Tạo bản sao để tránh thay đổi trực tiếp
         result_df = df.copy()
         
@@ -663,6 +669,14 @@ class FeatureGenerator:
         created_features = [col for col in result_df.columns if col not in df.columns]
         self.logger.info(f"Đã tạo {len(created_features)} đặc trưng mới: {', '.join(created_features)}")
         self.logger.debug(f"Tất cả các cột sau khi tính toán: {result_df.columns.tolist()}")
+        
+        # Kiểm tra xem có chỉ báo kỹ thuật nào được tạo ra không
+        technical_prefixes = ['sma_', 'ema_', 'rsi_', 'macd_', 'bb_', 'atr_', 'obv']
+        technical_columns = [col for col in result_df.columns if any(prefix in col for prefix in technical_prefixes)]
+        self.logger.info(f"Sau khi tính toán đặc trưng, phát hiện {len(technical_columns)} chỉ báo kỹ thuật: {technical_columns}")
+        
+        if not technical_columns:
+            self.logger.warning("KHÔNG phát hiện chỉ báo kỹ thuật nào! Kiểm tra lại việc tính toán đặc trưng.")
         
         return result_df
     
@@ -1018,8 +1032,12 @@ class FeatureGenerator:
             save_pipeline: Lưu pipeline hay không
             pipeline_name: Tên pipeline
         """
-        # Tạm thời tắt bộ chọn lọc đặc trưng để kiểm tra
-        # feature_selector = None
+        # Nếu không có danh sách đặc trưng được chỉ định, sử dụng tất cả đặc trưng đã bật
+        if feature_names is None:
+            feature_names = [name for name, info in self.registered_features.items() if info["is_enabled"]]
+            
+        # In log để kiểm tra
+        self.logger.info(f"Tạo pipeline với {len(feature_names)} đặc trưng: {feature_names}")
         
         pipeline_config = {
             "feature_names": feature_names,
@@ -1085,28 +1103,7 @@ class FeatureGenerator:
         
         # Bước 1: Tính toán các đặc trưng
         if feature_names:
-            # Trước khi gọi calculate_features, thử tính thủ công EMA để kiểm tra
-            try:
-                from data_processors.feature_engineering.technical_indicators import ema
-                self.logger.info("Bắt đầu tính toán thủ công EMA để kiểm tra")
-                
-                # Tính EMA với window=14
-                test_df = result_df.copy()
-                ema_result = ema(test_df, column='close', window=14)
-                
-                # Kiểm tra kết quả
-                new_cols = [col for col in ema_result.columns if col not in result_df.columns]
-                self.logger.info(f"EMA đã tạo ra {len(new_cols)} cột mới: {new_cols}")
-                
-                # Nếu tính toán thành công, cập nhật DataFrame
-                if new_cols:
-                    for col in new_cols:
-                        result_df[col] = ema_result[col]
-                    self.logger.info("Đã thêm cột EMA thủ công vào kết quả")
-            except Exception as e:
-                self.logger.error(f"Lỗi khi tính toán thủ công EMA: {str(e)}", exc_info=True)
-            
-            # Tiếp tục với calculate_features bình thường
+            self.logger.info(f"Bắt đầu tính toán {len(feature_names)} đặc trưng: {feature_names}")
             result_df = self.calculate_features(result_df, feature_names, parallel=True)
         
         # Bước 2: Áp dụng các bộ tiền xử lý

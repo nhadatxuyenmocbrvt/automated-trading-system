@@ -68,7 +68,7 @@ def exponential_moving_average(
         df: DataFrame chứa dữ liệu giá
         column: Tên cột giá sử dụng để tính toán
         window: Kích thước cửa sổ (số nến)
-        alpha: Hệ số làm mượt (nếu None, sẽ được tính là 2/(window+1))
+        alpha: Hệ số làm mượt (nếu None, sẽ sử dụng span=window)
         adjust: Điều chỉnh trọng số để bù đắp hiệu ứng chuỗi hữu hạn
         min_periods: Số lượng giá trị tối thiểu cần thiết, mặc định là window
         prefix: Tiền tố cho tên cột kết quả
@@ -79,22 +79,28 @@ def exponential_moving_average(
     if not validate_price_data(df, [column]):
         raise ValueError(f"Dữ liệu không hợp lệ: thiếu cột {column}")
     
-    # Xác định alpha nếu chưa được cung cấp
-    if alpha is None:
-        alpha = 2 / (window + 1)
-    
     # Nếu không chỉ định min_periods, sử dụng window
     if min_periods is None:
         min_periods = window
     
     # Tính EMA
     result_df = df.copy()
-    ema = result_df[column].ewm(
-        span=window, 
-        alpha=alpha, 
-        min_periods=min_periods, 
-        adjust=adjust  # Sử dụng adjust=False cho đúng cách tính trong trading
-    ).mean()
+    
+    # Chỉ sử dụng một trong hai tham số: span hoặc alpha
+    if alpha is None:
+        # Sử dụng span nếu không có alpha
+        ema = result_df[column].ewm(
+            span=window,
+            min_periods=min_periods,
+            adjust=adjust
+        ).mean()
+    else:
+        # Sử dụng alpha nếu được cung cấp
+        ema = result_df[column].ewm(
+            alpha=alpha,
+            min_periods=min_periods,
+            adjust=adjust
+        ).mean()
     
     # Đặt tên cột kết quả
     result_name = f"{prefix}ema_{window}"
