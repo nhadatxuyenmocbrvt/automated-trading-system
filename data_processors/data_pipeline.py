@@ -992,17 +992,29 @@ class DataPipeline:
         
         for symbol, df in data.items():
             try:
+                # Chuyển đổi các cột string thành float nếu có thể
+                df_prepared = df.copy()
+                for col in df_prepared.columns:
+                    if df_prepared[col].dtype == 'object' or df_prepared[col].dtype == 'string':
+                        try:
+                            # Thử chuyển đổi sang float
+                            df_prepared[col] = df_prepared[col].astype(float)
+                            self.logger.info(f"Đã chuyển đổi cột {col} từ {df[col].dtype} sang float")
+                        except (ValueError, TypeError):
+                            # Giữ nguyên nếu không thể chuyển đổi
+                            self.logger.debug(f"Không thể chuyển đổi cột {col} sang float")
+
                 # Tạo tên file
                 filename = f"{symbol.replace('/', '_').lower()}_{timestamp}"
                 file_path = output_dir / f"{filename}.{file_format}"
                 
                 # Lưu dữ liệu
                 if file_format == 'csv':
-                    df.to_csv(file_path, index=False)
+                    df_prepared.to_csv(file_path, index=False)
                 elif file_format == 'parquet':
-                    df.to_parquet(file_path, index=False)
+                    df_prepared.to_parquet(file_path, index=False)
                 elif file_format == 'json':
-                    df.to_json(file_path, orient='records', date_format='iso')
+                    df_prepared.to_json(file_path, orient='records', date_format='iso')
                 
                 results[symbol] = str(file_path)
                 self.logger.info(f"Đã lưu {len(df)} dòng dữ liệu cho {symbol} vào {file_path}")

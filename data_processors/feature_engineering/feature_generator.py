@@ -637,6 +637,7 @@ class FeatureGenerator:
         Returns:
             DataFrame với các đặc trưng mới
         """
+
         # Ghi log các cột ban đầu
         self.logger.debug(f"Cột ban đầu trước khi tính toán đặc trưng: {df.columns.tolist()}")
         
@@ -712,6 +713,17 @@ class FeatureGenerator:
         
         if not technical_columns:
             self.logger.warning("KHÔNG phát hiện chỉ báo kỹ thuật nào! Kiểm tra lại việc tính toán đặc trưng.")
+
+        # Chuyển đổi các cột string thành float nếu có thể
+        for col in result_df.columns:
+            if col not in df.columns:  # Chỉ kiểm tra các cột mới
+                if result_df[col].dtype == 'object' or result_df[col].dtype == 'string':
+                    try:
+                        # Thử chuyển đổi sang float
+                        result_df[col] = result_df[col].astype(float)
+                        self.logger.debug(f"Đã chuyển đổi cột {col} sang float")
+                    except (ValueError, TypeError):
+                        self.logger.debug(f"Không thể chuyển đổi cột {col} sang float, giữ nguyên kiểu {result_df[col].dtype}")
         
         return result_df
     
