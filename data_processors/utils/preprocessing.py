@@ -328,6 +328,97 @@ def min_max_scale(
         return result_df, new_params
     return result_df
 
+def handle_extreme_values(
+    df: pd.DataFrame,
+    columns: List[str] = None,
+    method: str = "winsorize",
+    lower_quantile: float = 0.01,
+    upper_quantile: float = 0.99,
+    log_transform_columns: List[str] = None,
+    **kwargs
+) -> pd.DataFrame:
+    """
+    Xử lý các giá trị cực đại/cực tiểu trong DataFrame.
+    
+    Args:
+        df: DataFrame cần xử lý
+        columns: Danh sách các cột cần xử lý (None để tự phát hiện)
+        method: Phương pháp xử lý ('winsorize', 'clip', 'log')
+        lower_quantile: Phân vị dưới cho winsorize
+        upper_quantile: Phân vị trên cho winsorize
+        log_transform_columns: Các cột cần áp dụng log transform
+        **kwargs: Các tham số bổ sung
+    
+    Returns:
+        DataFrame đã xử lý giá trị cực đoan
+    """
+    result_df = df.copy()
+    
+    # Nếu không cung cấp columns, tự phát hiện các cột số
+    if columns is None:
+        columns = result_df.select_dtypes(include=[np.number]).columns.tolist()
+    
+    # Nếu không cung cấp log_transform_columns, mặc định là các cột về khối lượng
+    if log_transform_columns is None:
+        log_transform_columns = [col for col in columns if any(substr in col.lower() for substr in ['volume', 'vol', 'quantity', 'amount'])]
+    
+    # Xử lý từng cột
+    for col in columns:
+        if col not in result_df.columns:
+            logger.warning(f"Cột {col} không tồn tại trong DataFrame")
+            continue
+        
+        # Lấy dữ liệu không null
+        non_null_mask = result_df[col].notnull()
+        col_data = result_df.loc[non_null_mask, col]
+        
+        try:
+            if method == "winsorize":
+                # Winsorize (cắt bớt giá trị ngoại lệ)
+                lower_bound = col_data.quantile(lower_quantile)
+                upper_bound = col_data.quantile(upper_quantile)
+                
+                # Lưu bản sao của dữ liệu gốc trước khi winsorize
+                original_data = col_data.copy()
+                
+                # Áp dụng winsorize
+                winsorized_data = col_data.clip(lower=lower_bound, upper=upper_bound)
+                result_df.loc[non_null_mask, col] = winsorized_data
+                
+                # Tạo cột marker để đánh dấu các giá trị đã được winsorize
+                result_df[f"{col}_winsorized"] = 0
+                outliers_mask = (original_data < lower_bound) | (original_data > upper_bound)
+                result_df.loc[outliers_mask, f"{col}_winsorized"] = 1
+                
+                logger.debug(f"Đã winsorize cột {col} trong phạm vi [{lower_bound}, {upper_bound}]")
+                
+            elif method == "clip":
+                # Clip theo số độ lệch chuẩn
+                std_multiplier = kwargs.get("std_multiplier", 3.0)
+                mean = col_data.mean()
+                std = col_data.std()
+                
+                lower_bound = mean - std_multiplier * std
+                upper_bound = mean + std_multiplier * std
+                
+                result_df.loc[non_null_mask, col] = col_data.clip(lower=lower_bound, upper=upper_bound)
+                logger.debug(f"Đã clip cột {col} trong phạm vi [{lower_bound}, {upper_bound}]")
+                
+            # Log transform được áp dụng sau winsorize/clip nếu cột thuộc log_transform_columns
+            if col in log_transform_columns:
+                # Đảm bảo giá trị không âm trước khi áp dụng log
+                min_val = result_df.loc[non_null_mask, col].min()
+                offset = abs(min_val) + 1.0 if min_val < 0 else 1.0
+                
+                # Áp dụng log transform
+                result_df.loc[non_null_mask, f"{col}_log"] = np.log1p(result_df.loc[non_null_mask, col] + offset - 1.0)
+                logger.debug(f"Đã áp dụng log transform cho cột {col}")
+            
+        except Exception as e:
+            logger.error(f"Lỗi khi xử lý giá trị cực đoan cho cột {col}: {e}")
+    
+    return result_df
+
 def log_transform(
     df: pd.DataFrame, 
     columns: List[str],

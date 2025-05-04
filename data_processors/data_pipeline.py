@@ -503,7 +503,8 @@ class DataPipeline:
         # Thêm tham số mới
         handle_leading_nan: bool = True,
         leading_nan_method: str = 'backfill',
-        min_periods: int = 5
+        min_periods: int = 5,
+        handle_extreme_volume: bool = True
     ) -> Dict[str, pd.DataFrame]:
         """
         Làm sạch dữ liệu.
@@ -518,6 +519,7 @@ class DataPipeline:
             handle_leading_nan: Xử lý NaN ở đầu dữ liệu
             leading_nan_method: Phương pháp xử lý NaN ở đầu ('backfill', 'zero', 'mean', 'median')
             min_periods: Số lượng giá trị tối thiểu để tính giá trị thay thế
+            handle_extreme_volume: Xử lý giá trị cực đại của khối lượng
             
         Returns:
             Dict với key là symbol và value là DataFrame đã làm sạch
@@ -588,6 +590,32 @@ class DataPipeline:
                     )
                     
                     self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu tâm lý")
+
+                    # Sau khi làm sạch dữ liệu cơ bản, thêm bước xử lý giá trị cực đại của volume
+                    if handle_extreme_volume and 'volume' in cleaned_df.columns:
+                        # Import các hàm cần thiết
+                        from data_processors.utils.preprocessing import handle_extreme_values
+                        from data_processors.feature_engineering.market_features.volume_features import normalize_volume_features
+
+                        # Xử lý giá trị cực đại
+                        cleaned_df = handle_extreme_values(
+                            cleaned_df,
+                            columns=['volume'],
+                            method="winsorize",
+                            lower_quantile=0.01,
+                            upper_quantile=0.99,
+                            log_transform_columns=['volume']
+                        )
+
+                        # Chuẩn hóa khối lượng
+                        cleaned_df = normalize_volume_features(
+                             cleaned_df,
+                             volume_column='volume',
+                             method='log',
+                             winsorize=True
+                        )
+
+                        self.logger.info(f"Đã xử lý giá trị cực đại của khối lượng cho {symbol}")
                     
                 elif all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
                     # Làm sạch dữ liệu OHLCV
@@ -1417,6 +1445,7 @@ class DataPipeline:
                         handle_leading_nan=step_params.get("handle_leading_nan", True),
                         leading_nan_method=step_params.get("leading_nan_method", "backfill"),
                         min_periods=step_params.get("min_periods", 5),
+                        handle_extreme_volume=step_params.get("handle_extreme_volume", True),
                         **{k: v for k, v in step_params.items() if k not in ["handle_leading_nan", "leading_nan_method", "min_periods"]}
                     )
                     current_data = cleaned_data

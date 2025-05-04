@@ -681,3 +681,108 @@ def calculate_vwap_features(
         logger.error(f"Lỗi khi tính đặc trưng VWAP: {e}")
     
     return result_df
+
+def normalize_volume_features(
+    df: pd.DataFrame,
+    volume_column: str = 'volume',
+    method: str = 'log',
+    winsorize: bool = True,
+    lower_quantile: float = 0.01,
+    upper_quantile: float = 0.99,
+    prefix: str = ''
+) -> pd.DataFrame:
+    """
+    Chuẩn hóa đặc trưng khối lượng để giảm ảnh hưởng của các giá trị cực đoan.
+    
+    Args:
+        df: DataFrame chứa dữ liệu khối lượng
+        volume_column: Tên cột khối lượng
+        method: Phương pháp chuẩn hóa ('log', 'z-score', 'minmax', 'robust')
+        winsorize: Cắt bớt giá trị ngoại lệ trước khi chuẩn hóa
+        lower_quantile: Phân vị dưới khi winsorize
+        upper_quantile: Phân vị trên khi winsorize
+        prefix: Tiền tố cho tên cột kết quả
+        
+    Returns:
+        DataFrame với các cột khối lượng đã chuẩn hóa
+    """
+    result_df = df.copy()
+    
+    # Kiểm tra cột khối lượng tồn tại
+    if volume_column not in result_df.columns:
+        logger.error(f"Cột khối lượng {volume_column} không tồn tại")
+        return result_df
+    
+    try:
+        # Tạo bản sao của cột volume để xử lý
+        vol_data = result_df[volume_column].copy()
+        
+        # Xử lý giá trị âm hoặc NaN
+        vol_data = vol_data.clip(lower=0)  # Khối lượng không thể âm
+        vol_data = vol_data.fillna(vol_data.median())  # Điền giá trị thiếu bằng trung vị
+        
+        # Winsorize (cắt giá trị ngoại lệ)
+        if winsorize:
+            lower_bound = vol_data.quantile(lower_quantile)
+            upper_bound = vol_data.quantile(upper_quantile)
+            vol_data = vol_data.clip(lower=lower_bound, upper=upper_bound)
+            logger.debug(f"Đã cắt bớt giá trị ngoại lệ khối lượng trong phạm vi [{lower_bound}, {upper_bound}]")
+        
+        # Áp dụng phương pháp chuẩn hóa
+        if method == 'log':
+            # Log transform (sử dụng log1p để tránh log(0))
+            norm_vol = np.log1p(vol_data)
+            result_df[f"{prefix}volume_log"] = norm_vol
+            logger.debug("Đã áp dụng log transform cho khối lượng")
+            
+        elif method == 'z-score':
+            # Z-score chuẩn hóa
+            mean = vol_data.mean()
+            std = vol_data.std()
+            if std > 0:
+                norm_vol = (vol_data - mean) / std
+                result_df[f"{prefix}volume_zscore"] = norm_vol
+                logger.debug("Đã áp dụng z-score cho khối lượng")
+            else:
+                logger.warning("Không thể áp dụng z-score: độ lệch chuẩn bằng 0")
+                
+        elif method == 'minmax':
+            # Min-max scaling
+            min_val = vol_data.min()
+            max_val = vol_data.max()
+            if max_val > min_val:
+                norm_vol = (vol_data - min_val) / (max_val - min_val)
+                result_df[f"{prefix}volume_minmax"] = norm_vol
+                logger.debug("Đã áp dụng min-max scaling cho khối lượng")
+            else:
+                logger.warning("Không thể áp dụng min-max: min và max bằng nhau")
+                
+        elif method == 'robust':
+            # Robust scaling sử dụng IQR
+            q1 = vol_data.quantile(0.25)
+            q3 = vol_data.quantile(0.75)
+            iqr = q3 - q1
+            if iqr > 0:
+                norm_vol = (vol_data - vol_data.median()) / iqr
+                result_df[f"{prefix}volume_robust"] = norm_vol
+                logger.debug("Đã áp dụng robust scaling cho khối lượng")
+            else:
+                logger.warning("Không thể áp dụng robust scaling: IQR bằng 0")
+        
+        else:
+            logger.warning(f"Phương pháp chuẩn hóa không hợp lệ: {method}")
+        
+        # Tính phần trăm so với trung bình di động
+        for window in [5, 10, 20, 50]:
+            vol_ma = vol_data.rolling(window=window).mean()
+            vol_ma_non_zero = vol_ma.replace(0, np.nan)  # Tránh chia cho 0
+            vol_ratio = vol_data / vol_ma_non_zero
+            result_df[f"{prefix}volume_ratio_{window}"] = vol_ratio
+            logger.debug(f"Đã tính tỷ lệ khối lượng so với MA{window}")
+        
+        logger.info("Đã chuẩn hóa đặc trưng khối lượng thành công")
+        
+    except Exception as e:
+        logger.error(f"Lỗi khi chuẩn hóa đặc trưng khối lượng: {e}")
+    
+    return result_df

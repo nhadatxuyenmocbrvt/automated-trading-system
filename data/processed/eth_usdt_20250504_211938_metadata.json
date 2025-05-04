@@ -1,0 +1,221 @@
+{
+    "symbol": "ETH/USDT",
+    "rows": 27000,
+    "columns": [
+        "high",
+        "low",
+        "open",
+        "ema_14",
+        "bb_middle_20",
+        "sma_20",
+        "bb_lower_20",
+        "bb_upper_20",
+        "supertrend_10_3.0",
+        "atr_14",
+        "obv",
+        "volume",
+        "macd_signal",
+        "macd_line",
+        "rsi_14",
+        "bb_percent_b_20",
+        "minus_di_14",
+        "plus_di_14",
+        "supertrend_trend_10_3.0",
+        "macd_histogram",
+        "atr_pct_14",
+        "atr_norm_14",
+        "bb_bandwidth_20",
+        "adx_14",
+        "vo_pct_5_10",
+        "close"
+    ],
+    "dtypes": {
+        "high": "float64",
+        "low": "float64",
+        "open": "float64",
+        "ema_14": "float64",
+        "bb_middle_20": "float64",
+        "sma_20": "float64",
+        "bb_lower_20": "float64",
+        "bb_upper_20": "float64",
+        "supertrend_10_3.0": "float64",
+        "atr_14": "float64",
+        "obv": "float64",
+        "volume": "float64",
+        "macd_signal": "float64",
+        "macd_line": "float64",
+        "rsi_14": "float64",
+        "bb_percent_b_20": "float64",
+        "minus_di_14": "float64",
+        "plus_di_14": "float64",
+        "supertrend_trend_10_3.0": "float64",
+        "macd_histogram": "float64",
+        "atr_pct_14": "float64",
+        "atr_norm_14": "float64",
+        "bb_bandwidth_20": "float64",
+        "adx_14": "float64",
+        "vo_pct_5_10": "float64",
+        "close": "float64"
+    },
+    "saved_at": "2025-05-04T21:19:39.037590",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\eth_usdt_20250504_211938.parquet",
+    "data_stats": {
+        "high": {
+            "min": -1.7527518648093845,
+            "max": 2.269719723234786,
+            "mean": -3.36849889545529e-17,
+            "null_count": 0
+        },
+        "low": {
+            "min": -1.8060840271730874,
+            "max": 2.2671266964812524,
+            "mean": 6.73699779091058e-17,
+            "null_count": 0
+        },
+        "open": {
+            "min": -1.7787973765854377,
+            "max": 2.265813707782095,
+            "mean": -5.052748343182935e-17,
+            "null_count": 0
+        },
+        "ema_14": {
+            "min": -1.7037271677774974,
+            "max": 2.2142652517172086,
+            "mean": 1.0110364639710915e-16,
+            "null_count": 13
+        },
+        "bb_middle_20": {
+            "min": -1.7050855424516072,
+            "max": 2.2186715167738544,
+            "mean": 4.04504518782667e-16,
+            "null_count": 19
+        },
+        "sma_20": {
+            "min": -1.7050855424516072,
+            "max": 2.2186715167738544,
+            "mean": 4.04504518782667e-16,
+            "null_count": 19
+        },
+        "bb_lower_20": {
+            "min": -1.7730144446043627,
+            "max": 2.286483133810316,
+            "mean": -3.0337838908700025e-16,
+            "null_count": 19
+        },
+        "bb_upper_20": {
+            "min": -1.662154581078655,
+            "max": 2.242551599997972,
+            "mean": 4.719219385797781e-16,
+            "null_count": 19
+        },
+        "supertrend_10_3.0": {
+            "min": -2.9156089741749183,
+            "max": 2.278745434533531,
+            "mean": -4.2106236193191124e-16,
+            "null_count": 0
+        },
+        "atr_14": {
+            "min": -1.4634447212570112,
+            "max": 7.322106031174274,
+            "mean": -1.0110364639710915e-16,
+            "null_count": 13
+        },
+        "obv": {
+            "min": -1.6924084731225972,
+            "max": 1.8655538210026552,
+            "mean": -1.1789746134093514e-16,
+            "null_count": 0
+        },
+        "volume": {
+            "min": -0.8432183520185192,
+            "max": 14.739627884596405,
+            "mean": -1.0789723024505225e-16,
+            "null_count": 0
+        },
+        "macd_signal": {
+            "min": -7.781836701910225,
+            "max": 7.589822961466454,
+            "mean": 0.0,
+            "null_count": 0
+        },
+        "macd_line": {
+            "min": -8.209716200639903,
+            "max": 8.309402851613667,
+            "mean": 1.4737182667616893e-17,
+            "null_count": 0
+        },
+        "rsi_14": {
+            "min": -3.6774820620772166,
+            "max": 3.488398687533527,
+            "mean": -1.9789931010799828e-16,
+            "null_count": 0
+        },
+        "bb_percent_b_20": {
+            "min": -3.1812849365844684,
+            "max": 3.148672755772446,
+            "mean": -2.844172397690627e-17,
+            "null_count": 19
+        },
+        "minus_di_14": {
+            "min": -2.5947496721741694,
+            "max": 6.397147603890085,
+            "mean": 6.315935428978668e-17,
+            "null_count": 0
+        },
+        "plus_di_14": {
+            "min": -2.5813724507750075,
+            "max": 5.769996231203312,
+            "mean": 4.7369515717340015e-17,
+            "null_count": 0
+        },
+        "supertrend_trend_10_3.0": {
+            "min": -0.9810499186354507,
+            "max": 1.0196561354570126,
+            "mean": -1.1579214953127558e-16,
+            "null_count": 0
+        },
+        "macd_histogram": {
+            "min": -1.5432551433801809,
+            "max": 1.5554339333305294,
+            "mean": -5.26327952414889e-18,
+            "null_count": 0
+        },
+        "atr_pct_14": {
+            "min": -1.6030440311014782,
+            "max": 9.537732632333789,
+            "mean": -2.1063259666064408e-17,
+            "null_count": 13
+        },
+        "atr_norm_14": {
+            "min": -1.6030440311014782,
+            "max": 9.537732632333787,
+            "mean": -6.74024309314061e-17,
+            "null_count": 13
+        },
+        "bb_bandwidth_20": {
+            "min": -1.1626784862112394,
+            "max": 9.401683408972485,
+            "mean": -6.952421416577089e-17,
+            "null_count": 19
+        },
+        "adx_14": {
+            "min": -1.7766165116165575,
+            "max": 5.909760640674685,
+            "mean": 1.7631986405898782e-16,
+            "null_count": 0
+        },
+        "vo_pct_5_10": {
+            "min": -2.9014357785380156,
+            "max": 2.9310530661450294,
+            "mean": -2.306743255936378e-17,
+            "null_count": 9
+        },
+        "close": {
+            "min": -1.7788443598012722,
+            "max": 2.2659599785914772,
+            "mean": -5.052748343182935e-17,
+            "null_count": 0
+        }
+    }
+}

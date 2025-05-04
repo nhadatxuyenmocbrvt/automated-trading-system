@@ -25,9 +25,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from config.logging_config import setup_logger
 from config.system_config import BASE_DIR, MODEL_DIR
 from data_processors.utils.validation import validate_features, check_feature_integrity
-from data_processors.utils.preprocessing import normalize_features, standardize_features, min_max_scale
+from data_processors.utils.preprocessing import normalize_features, standardize_features, min_max_scale, handle_extreme_values, log_transform
 from data_processors.feature_engineering.feature_selector.statistical_methods import correlation_selector
-
 
 class FeatureGenerator:
     """
@@ -402,6 +401,28 @@ class FeatureGenerator:
             preprocessor_func=min_max_scale,
             params={"min_val": 0, "max_val": 1},
             apply_by_default=False
+        )
+
+        # Thêm bộ tiền xử lý mới cho giá trị cực đoan
+        self.register_preprocessor(
+            name="handle_extreme_values",
+            preprocessor_func=handle_extreme_values,
+            params={
+                "method": "winsorize", 
+                "lower_quantile": 0.01, 
+                "upper_quantile": 0.99,
+                "log_transform_columns": ["volume"]
+            },
+            apply_by_default=True  # Áp dụng mặc định
+        )
+        
+        # Thêm bộ tiền xử lý log transform cho volume
+        self.register_preprocessor(
+            name="log_transform_volume",
+            preprocessor_func=log_transform,
+            params={"base": np.e, "offset": 1.0},
+            target_columns=["volume"],
+            apply_by_default=True  # Áp dụng mặc định cho volume
         )
     
     def _register_default_transformers(self) -> None:

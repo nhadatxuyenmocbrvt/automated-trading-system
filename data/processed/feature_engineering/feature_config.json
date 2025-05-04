@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "last_updated": "2025-05-04T20:29:58.859847",
+    "last_updated": "2025-05-04T21:19:35.488327",
     "features": {
         "trend_ema": {
             "type": "technical",
@@ -101,6 +101,28 @@
                 "max_val": 1
             },
             "target_columns": []
+        },
+        "handle_extreme_values": {
+            "apply_by_default": true,
+            "params": {
+                "method": "winsorize",
+                "lower_quantile": 0.01,
+                "upper_quantile": 0.99,
+                "log_transform_columns": [
+                    "volume"
+                ]
+            },
+            "target_columns": []
+        },
+        "log_transform_volume": {
+            "apply_by_default": true,
+            "params": {
+                "base": 2.718281828459045,
+                "offset": 1.0
+            },
+            "target_columns": [
+                "volume"
+            ]
         }
     },
     "transformers": {},
