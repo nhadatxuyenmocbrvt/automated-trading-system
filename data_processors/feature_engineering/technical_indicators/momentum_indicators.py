@@ -70,7 +70,18 @@ def relative_strength_index(
     
     # Thay thế NaN bằng 50 (giá trị trung tính cho RSI)
     rsi = rsi.fillna(50)
-    
+
+    # Đảm bảo RSI luôn nằm trong khoảng [0, 100]
+    rsi = np.clip(rsi, 0, 100)
+
+    # Kiểm tra và sửa các giá trị ngoại lệ (NaN, Inf)
+    is_invalid = ~np.isfinite(rsi)
+    if is_invalid.any():
+        invalid_count = is_invalid.sum()
+        print(f"Cảnh báo: Phát hiện {invalid_count} giá trị RSI không hợp lệ, tự động sửa lại")
+        # Đặt giá trị không hợp lệ thành 50 (giá trị trung tính)
+        rsi = np.where(is_invalid, 50, rsi)
+        
     # Chuẩn hóa về [0,1] nếu yêu cầu
     if normalize:
         rsi = rsi / 100.0

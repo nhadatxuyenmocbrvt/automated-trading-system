@@ -24,8 +24,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from config.logging_config import setup_logger
 from config.system_config import BASE_DIR, MODEL_DIR
-from data_processors.feature_engineering.utils.validation import validate_features, check_feature_integrity
-from data_processors.feature_engineering.utils.preprocessing import normalize_features, standardize_features, min_max_scale
+from data_processors.utils.validation import validate_features, check_feature_integrity
+from data_processors.utils.preprocessing import normalize_features, standardize_features, min_max_scale
 from data_processors.feature_engineering.feature_selector.statistical_methods import correlation_selector
 
 

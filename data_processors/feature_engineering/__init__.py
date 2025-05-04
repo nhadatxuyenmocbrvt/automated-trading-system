@@ -6,9 +6,9 @@ cung cấp giao diện đơn giản cho việc tạo và quản lý đặc trưn
 
 # Import các module con
 from data_processors.feature_engineering.feature_generator import FeatureGenerator
-from data_processors.feature_engineering.utils.validation import validate_features, check_feature_integrity
-from data_processors.feature_engineering.utils.preprocessing import normalize_features, standardize_features, min_max_scale
-from data_processors.feature_engineering.utils.visualization import plot_feature_importance, plot_feature_correlation, visualize_feature_distribution
+from data_processors.utils.validation import validate_features, check_feature_integrity
+from data_processors.utils.preprocessing import normalize_features, standardize_features, min_max_scale
+from data_processors.utils.visualization import plot_feature_importance, plot_feature_correlation, visualize_feature_distribution
 
 # Import khi đã phát triển đầy đủ các module con
 try:

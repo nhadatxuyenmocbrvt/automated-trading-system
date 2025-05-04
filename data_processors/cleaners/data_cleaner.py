@@ -202,6 +202,19 @@ class DataCleaner:
                 self.logger.info(f"Đã loại bỏ {original_len - new_len} hàng có giá trị NA")
         
         self.logger.info(f"Đã hoàn thành làm sạch dữ liệu, kết quả có {len(cleaned_df)} hàng")
+
+        # Kiểm tra và xử lý các chỉ báo kỹ thuật nếu có
+        if self.use_outlier_detection:
+            technical_indicator_cols = [col for col in cleaned_df.columns 
+                                    if any(ind in col.lower() for ind in 
+                                        ['rsi_', 'macd', 'stoch_', 'williams_r', 'cci', 'obv', 'volume'])]
+            
+            if technical_indicator_cols:
+                self.logger.info(f"Kiểm tra tính hợp lệ của {len(technical_indicator_cols)} chỉ báo kỹ thuật")
+                cleaned_df = self.outlier_detector.check_technical_indicators(cleaned_df)
+
+        self.logger.info(f"Đã hoàn thành làm sạch dữ liệu, kết quả có {len(cleaned_df)} hàng")        
+
         return cleaned_df
     
     def _normalize_columns(

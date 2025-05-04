@@ -178,6 +178,9 @@ def moving_average_convergence_divergence(
     fast_period: int = 12,
     slow_period: int = 26,
     signal_period: int = 9,
+    normalize: bool = False,
+    norm_method: str = 'zscore',
+    norm_window: int = 100,
     prefix: str = ''
 ) -> pd.DataFrame:
     """
@@ -216,6 +219,18 @@ def moving_average_convergence_divergence(
     result_df[f"{prefix}macd_signal"] = signal_line
     result_df[f"{prefix}macd_histogram"] = histogram
     
+    # Chuẩn hóa nếu yêu cầu
+    if normalize:
+        result_df = standardize_macd(
+            result_df,
+            macd_col=f"{prefix}macd_line",
+            signal_col=f"{prefix}macd_signal",
+            histogram_col=f"{prefix}macd_histogram",
+            window=norm_window,
+            method=norm_method,
+            prefix=""  # Đặt là chuỗi rỗng để tránh lặp prefix
+        )
+        
     return result_df
 
 def average_directional_index(
@@ -672,5 +687,81 @@ def supertrend(
     # Đặt tên các cột kết quả
     result_df[f"{prefix}supertrend_{period}_{multiplier}"] = supertrend
     result_df[f"{prefix}supertrend_trend_{period}_{multiplier}"] = trend
+    
+    return result_df
+
+def standardize_macd(
+    df: pd.DataFrame,
+    macd_col: str = 'macd_line',
+    signal_col: str = 'macd_signal',
+    histogram_col: str = 'macd_histogram',
+    window: int = 100,
+    method: str = 'zscore',
+    prefix: str = ''
+) -> pd.DataFrame:
+    """
+    Chuẩn hóa các thành phần của MACD.
+    
+    Args:
+        df: DataFrame chứa dữ liệu MACD
+        macd_col: Tên cột MACD line
+        signal_col: Tên cột MACD signal
+        histogram_col: Tên cột MACD histogram
+        window: Cửa sổ dùng cho chuẩn hóa (nếu sử dụng chuẩn hóa động)
+        method: Phương pháp chuẩn hóa ('zscore', 'minmax', 'static')
+        prefix: Tiền tố cho tên cột kết quả
+        
+    Returns:
+        DataFrame với các cột mới chứa các giá trị MACD đã chuẩn hóa
+    """
+    result_df = df.copy()
+    
+    # Danh sách các cột cần chuẩn hóa
+    macd_columns = [col for col in [macd_col, signal_col, histogram_col] if col in result_df.columns]
+    
+    for col in macd_columns:
+        if method == 'zscore':
+            # Z-score normalization
+            if window is None or window <= 0:
+                # Sử dụng toàn bộ dữ liệu
+                mean = result_df[col].mean()
+                std = result_df[col].std()
+                if std > 0:  # Tránh chia cho 0
+                    result_df[f"{prefix}{col}_norm"] = (result_df[col] - mean) / std
+                else:
+                    result_df[f"{prefix}{col}_norm"] = 0
+            else:
+                # Sử dụng rolling window
+                mean = result_df[col].rolling(window=window).mean()
+                std = result_df[col].rolling(window=window).std()
+                # Tránh chia cho 0
+                std_non_zero = std.replace(0, np.nan)
+                result_df[f"{prefix}{col}_norm"] = (result_df[col] - mean) / std_non_zero
+                result_df[f"{prefix}{col}_norm"] = result_df[f"{prefix}{col}_norm"].fillna(0)
+        
+        elif method == 'minmax':
+            # Min-max normalization
+            if window is None or window <= 0:
+                # Sử dụng toàn bộ dữ liệu
+                min_val = result_df[col].min()
+                max_val = result_df[col].max()
+                range_val = max_val - min_val
+                if range_val > 0:  # Tránh chia cho 0
+                    result_df[f"{prefix}{col}_norm"] = (result_df[col] - min_val) / range_val
+                else:
+                    result_df[f"{prefix}{col}_norm"] = 0.5  # Giá trị trung bình nếu không có biến thiên
+            else:
+                # Sử dụng rolling window
+                min_val = result_df[col].rolling(window=window).min()
+                max_val = result_df[col].rolling(window=window).max()
+                range_val = max_val - min_val
+                # Tránh chia cho 0
+                range_non_zero = range_val.replace(0, np.nan)
+                result_df[f"{prefix}{col}_norm"] = (result_df[col] - min_val) / range_non_zero
+                result_df[f"{prefix}{col}_norm"] = result_df[f"{prefix}{col}_norm"].fillna(0.5)
+        
+        elif method == 'static':
+            # Chuẩn hóa dùng biên cố định (-2, 2) là giá trị thường gặp của MACD
+            result_df[f"{prefix}{col}_norm"] = (result_df[col] / 2).clip(-1, 1) * 0.5 + 0.5
     
     return result_df

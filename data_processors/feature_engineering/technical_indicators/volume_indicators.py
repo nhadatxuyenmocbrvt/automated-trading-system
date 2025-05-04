@@ -513,3 +513,41 @@ def price_volume_trend(
     result_df[f"{prefix}pvt"] = pvt
     
     return result_df
+
+def log_transform_volume(
+    df: pd.DataFrame,
+    volume_column: str = 'volume',
+    log_base: float = 10.0,
+    add_constant: float = 1.0,
+    prefix: str = ''
+) -> pd.DataFrame:
+    """
+    Áp dụng log transform cho dữ liệu khối lượng để ổn định phân phối.
+    
+    Args:
+        df: DataFrame chứa dữ liệu khối lượng
+        volume_column: Tên cột khối lượng
+        log_base: Cơ số log (10.0 cho log10, np.e cho log tự nhiên)
+        add_constant: Hằng số cộng thêm để tránh log(0)
+        prefix: Tiền tố cho tên cột kết quả
+        
+    Returns:
+        DataFrame với cột mới chứa khối lượng đã transform
+    """
+    if not validate_price_data(df, [volume_column]):
+        raise ValueError(f"Dữ liệu không hợp lệ: thiếu cột {volume_column}")
+    
+    result_df = df.copy()
+    
+    # Tính log(volume + constant)
+    if log_base == np.e:  # Sử dụng np.e thay vì math.e
+        # Log tự nhiên
+        log_volume = np.log1p(result_df[volume_column])
+    else:
+        # Log với cơ số tùy chọn
+        log_volume = np.log10(result_df[volume_column] + add_constant)
+    
+    # Đặt tên cột kết quả
+    result_df[f"{prefix}{volume_column}_log"] = log_volume
+    
+    return result_df
