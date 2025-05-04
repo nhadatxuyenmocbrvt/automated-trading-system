@@ -452,3 +452,115 @@ def get_lowest_low(
         Series chứa giá thấp nhất
     """
     return low.rolling(window=window, min_periods=min_periods).min()
+
+def scale_macd_components(
+    macd_line: pd.Series, 
+    signal_line: pd.Series, 
+    histogram: pd.Series,
+    method: str = 'zscore',
+    window: int = 50
+) -> Tuple[pd.Series, pd.Series, pd.Series]:
+    """
+    Chuẩn hóa các thành phần của MACD để tránh chênh lệch quá lớn.
+    
+    Args:
+        macd_line: Series chứa MACD line
+        signal_line: Series chứa Signal line
+        histogram: Series chứa Histogram
+        method: Phương pháp chuẩn hóa ('zscore', 'minmax', 'robust', 'clipping')
+        window: Kích thước cửa sổ cho chuẩn hóa động
+        
+    Returns:
+        Tuple của các Series (macd_line, signal_line, histogram) đã được chuẩn hóa
+    """
+    # Sao chép để tránh thay đổi dữ liệu gốc
+    macd = macd_line.copy()
+    signal = signal_line.copy()
+    hist = histogram.copy()
+    
+    # Xử lý các giá trị không hợp lệ
+    invalid_mask = ~np.isfinite(macd) | ~np.isfinite(signal) | ~np.isfinite(hist)
+    if invalid_mask.any():
+        macd[invalid_mask] = 0
+        signal[invalid_mask] = 0
+        hist[invalid_mask] = 0
+    
+    if method == 'zscore':
+        # Chuẩn hóa theo z-score với cửa sổ động
+        def apply_zscore(series):
+            means = series.rolling(window=window, min_periods=1).mean()
+            stds = series.rolling(window=window, min_periods=1).std()
+            stds = stds.replace(0, 1e-8)  # Tránh chia cho 0
+            return (series - means) / stds
+        
+        macd = apply_zscore(macd)
+        signal = apply_zscore(signal)
+        hist = apply_zscore(hist)
+        
+        # Giới hạn z-score trong khoảng [-3, 3]
+        macd = np.clip(macd, -3, 3)
+        signal = np.clip(signal, -3, 3)
+        hist = np.clip(hist, -3, 3)
+        
+    elif method == 'minmax':
+        # Chuẩn hóa theo min-max với cửa sổ động
+        def apply_minmax(series):
+            mins = series.rolling(window=window, min_periods=1).min()
+            maxs = series.rolling(window=window, min_periods=1).max()
+            ranges = maxs - mins
+            ranges = ranges.replace(0, 1e-8)  # Tránh chia cho 0
+            return (series - mins) / ranges
+        
+        macd = apply_minmax(macd)
+        signal = apply_minmax(signal)
+        hist = apply_minmax(hist)
+        
+    elif method == 'robust':
+        # Chuẩn hóa theo median và MAD với cửa sổ động
+        def apply_robust(series):
+            def mad_calc(x):
+                median = np.median(x)
+                return np.median(np.abs(x - median))
+            
+            medians = series.rolling(window=window, min_periods=1).apply(
+                lambda x: np.median(x), raw=True
+            )
+            mads = series.rolling(window=window, min_periods=1).apply(
+                mad_calc, raw=True
+            )
+            # Điều chỉnh MAD để tương đương với độ lệch chuẩn khi phân phối chuẩn
+            mads = mads * 1.4826
+            mads = mads.replace(0, 1e-8)  # Tránh chia cho 0
+            return (series - medians) / mads
+        
+        macd = apply_robust(macd)
+        signal = apply_robust(signal)
+        hist = apply_robust(hist)
+        
+        # Giới hạn trong khoảng [-3, 3]
+        macd = np.clip(macd, -3, 3)
+        signal = np.clip(signal, -3, 3)
+        hist = np.clip(hist, -3, 3)
+        
+    elif method == 'clipping':
+        # Đơn giản chỉ cắt bớt các giá trị ngoại lệ
+        # Tính ngưỡng dựa trên phân vị
+        q1_macd, q3_macd = macd.quantile(0.25), macd.quantile(0.75)
+        q1_signal, q3_signal = signal.quantile(0.25), signal.quantile(0.75)
+        q1_hist, q3_hist = hist.quantile(0.25), hist.quantile(0.75)
+        
+        iqr_macd = q3_macd - q1_macd
+        iqr_signal = q3_signal - q1_signal
+        iqr_hist = q3_hist - q1_hist
+        
+        # Ngưỡng cắt: Q1 - 1.5*IQR và Q3 + 1.5*IQR
+        lower_macd, upper_macd = q1_macd - 1.5*iqr_macd, q3_macd + 1.5*iqr_macd
+        lower_signal, upper_signal = q1_signal - 1.5*iqr_signal, q3_signal + 1.5*iqr_signal
+        lower_hist, upper_hist = q1_hist - 1.5*iqr_hist, q3_hist + 1.5*iqr_hist
+        
+        # Áp dụng clipping
+        macd = np.clip(macd, lower_macd, upper_macd)
+        signal = np.clip(signal, lower_signal, upper_signal)
+        hist = np.clip(hist, lower_hist, upper_hist)
+    
+    return macd, signal, hist

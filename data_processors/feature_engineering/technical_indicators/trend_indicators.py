@@ -211,9 +211,37 @@ def moving_average_convergence_divergence(
     # Signal line = EMA của MACD line
     signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
     
-    # Histogram = MACD line - Signal line
+    # Tìm vị trí sau dòng code:
     histogram = macd_line - signal_line
-    
+
+    # Thêm đoạn code sau:
+    # Kiểm tra và xử lý các giá trị lệch
+    max_diff = 5.0  # Ngưỡng chênh lệch tối đa giữa MACD và Signal
+    extreme_diff_mask = np.abs(macd_line - signal_line) > max_diff
+    if extreme_diff_mask.any():
+        # Ghi log số lượng giá trị lệch
+        extreme_count = extreme_diff_mask.sum()
+        print(f"Cảnh báo: Phát hiện {extreme_count} giá trị chênh lệch quá lớn giữa MACD và Signal")
+        
+        # Điều chỉnh histogram trong trường hợp có chênh lệch lớn
+        # Giới hạn biên độ histogram để tránh ảnh hưởng đến biểu đồ
+        histogram = np.clip(histogram, -max_diff, max_diff)
+
+    # Kiểm tra giá trị không hợp lệ (NaN, Inf)
+    invalid_macd = ~np.isfinite(macd_line)
+    invalid_signal = ~np.isfinite(signal_line)
+    invalid_hist = ~np.isfinite(histogram)
+
+    if invalid_macd.any() or invalid_signal.any() or invalid_hist.any():
+        # Đếm số lượng giá trị không hợp lệ
+        invalid_count = max(invalid_macd.sum(), invalid_signal.sum(), invalid_hist.sum())
+        print(f"Cảnh báo: Phát hiện {invalid_count} giá trị không hợp lệ trong MACD/Signal/Histogram")
+        
+        # Thay thế các giá trị không hợp lệ bằng 0
+        macd_line = np.where(invalid_macd, 0, macd_line)
+        signal_line = np.where(invalid_signal, 0, signal_line)
+        histogram = np.where(invalid_hist, 0, histogram)    
+
     # Đặt tên các cột kết quả
     result_df[f"{prefix}macd_line"] = macd_line
     result_df[f"{prefix}macd_signal"] = signal_line
@@ -763,5 +791,26 @@ def standardize_macd(
         elif method == 'static':
             # Chuẩn hóa dùng biên cố định (-2, 2) là giá trị thường gặp của MACD
             result_df[f"{prefix}{col}_norm"] = (result_df[col] / 2).clip(-1, 1) * 0.5 + 0.5
-    
+
+        # Thêm đoạn code sau:
+        elif method == 'robust':
+            # Chuẩn hóa dùng median và MAD (Median Absolute Deviation)
+            # Phù hợp hơn cho dữ liệu có ngoại lệ
+            for col in macd_columns:
+                median = result_df[col].median()
+                # Sử dụng numpy để tránh phụ thuộc vào scipy
+                mad = np.median(np.abs(result_df[col] - median))
+                # Điều chỉnh MAD để tương đương với độ lệch chuẩn khi phân phối chuẩn
+                mad_adjusted = mad * 1.4826  # Hằng số chuẩn hóa
+                
+                if mad_adjusted > 1e-8:  # Tránh chia cho giá trị quá nhỏ
+                    z_scores = (result_df[col] - median) / mad_adjusted
+                    # Giới hạn z-scores trong khoảng [-3, 3]
+                    z_scores_clipped = np.clip(z_scores, -3, 3)
+                    # Chuyển từ [-3, 3] sang [0, 1]
+                    result_df[f"{prefix}{col}_norm"] = (z_scores_clipped + 3) / 6
+                else:
+                    # Nếu MAD quá nhỏ, đặt tất cả giá trị về 0.5
+                    result_df[f"{prefix}{col}_norm"] = 0.5    
+                    
     return result_df

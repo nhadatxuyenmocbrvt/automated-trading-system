@@ -830,7 +830,56 @@ def normalize_technical_indicators(
                     # Tránh chia cho 0
                     price = result_df[price_col].replace(0, np.nan)
                     result_df[f"{col}_pct"] = (result_df[col] / price) * 100
-    
+
+        # Thêm đoạn code sau:
+        elif indicator_type.lower() == 'macd':
+            # Xử lý chỉ báo MACD một cách đặc biệt
+            for col in indicator_cols:
+                # Kiểm tra giá trị không hợp lệ và cực đoan
+                invalid_mask = ~np.isfinite(result_df[col])
+                if invalid_mask.any():
+                    # Thay thế các giá trị không hợp lệ bằng 0
+                    logger.warning(f"Thay thế {invalid_mask.sum()} giá trị không hợp lệ trong {col}")
+                    result_df.loc[invalid_mask, col] = 0
+                
+                # Nếu cần chuẩn hóa về phạm vi cụ thể
+                if config.get('normalize', False):
+                    # Tính toán thống kê mô tả
+                    median = result_df[col].median()
+                    q1 = result_df[col].quantile(0.25)
+                    q3 = result_df[col].quantile(0.75)
+                    iqr = q3 - q1
+                    
+                    if iqr > 1e-8:  # Tránh chia cho giá trị quá nhỏ
+                        # Phát hiện và xử lý ngoại lệ
+                        lower_bound = median - 3 * iqr
+                        upper_bound = median + 3 * iqr
+                        
+                        # Đếm số lượng ngoại lệ
+                        outliers = (result_df[col] < lower_bound) | (result_df[col] > upper_bound)
+                        if outliers.any():
+                            logger.warning(f"Phát hiện {outliers.sum()} ngoại lệ trong {col}")
+                            
+                            # Giới hạn giá trị trong phạm vi [lower_bound, upper_bound]
+                            result_df.loc[outliers, col] = result_df.loc[outliers, col].clip(lower=lower_bound, upper=upper_bound)
+                        
+                        # Áp dụng chuẩn hóa min-max sau khi xử lý ngoại lệ
+                        min_val = result_df[col].min()
+                        max_val = result_df[col].max()
+                        range_val = max_val - min_val
+                        
+                        if range_val > 1e-8:
+                            norm_col = f"{col}_norm"
+                            result_df[norm_col] = (result_df[col] - min_val) / range_val
+                            logger.debug(f"Đã chuẩn hóa {col} về phạm vi [0, 1]")
+                        else:
+                            # Nếu range quá nhỏ, đặt tất cả giá trị về 0.5
+                            norm_col = f"{col}_norm"
+                            result_df[norm_col] = 0.5
+                    else:
+                        # Nếu IQR quá nhỏ, không chuẩn hóa
+                        logger.warning(f"Không thể chuẩn hóa {col} do biến thiên quá nhỏ")
+
     return result_df
 
 def detect_and_fix_indicator_outliers(
