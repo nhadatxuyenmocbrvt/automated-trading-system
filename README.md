@@ -328,7 +328,7 @@ pip install -r requirements.txt
 python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --days 730
 
 # Thu thập dữ liệu thị trường futures
-python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2023-09-01 --end-date 2023-12-31 --futures
+python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures
 
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
@@ -340,7 +340,7 @@ python main.py process clean --data-type ohlcv --symbols BTC/USDT ETH/USDT --tim
 python main.py process features --data-type ohlcv --symbols BTC/USDT ETH/USDT --all-indicators
 
 # Chạy toàn bộ pipeline xử lý dữ liệu
-python main.py process pipeline --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2023-09-01 --end-date 2023-12-31
+python main.py process pipeline --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2024-12-30
 ```
 
 ## 3. Chạy backtest (chưa triển khai đầy đủ)

@@ -118,6 +118,9 @@ class DataPipeline:
                 "enabled": True,
                 "remove_outliers": False,
                 "handle_missing_values": True,
+                "handle_leading_nan": True,
+                "leading_nan_method": "backfill",
+                "min_periods": 5,
                 "remove_duplicates": True,
                 "outlier_method": OutlierDetectionMethod.Z_SCORE,
                 "missing_value_method": MissingValueMethod.INTERPOLATE
@@ -127,7 +130,16 @@ class DataPipeline:
                 "normalize": True,
                 "normalize_method": "z-score",
                 "feature_selection": True,
+                "remove_redundant": True,
+                "correlation_threshold": 0.95,
                 "max_features": 100
+            },
+            "target_generation": {
+                "enabled": True,
+                "price_column": "close",
+                "target_types": ["direction", "return", "volatility"],
+                "horizons": [1, 3, 5, 10],
+                "threshold": 0.001
             },
             "collectors": {
                 "enabled": DATA_COLLECTORS_AVAILABLE,
@@ -490,8 +502,8 @@ class DataPipeline:
         configs: Optional[Dict[str, Dict[str, Any]]] = None,
         # Thêm tham số mới
         handle_leading_nan: bool = True,
-        leading_nan_method: str = 'backfill'
-
+        leading_nan_method: str = 'backfill',
+        min_periods: int = 5
     ) -> Dict[str, pd.DataFrame]:
         """
         Làm sạch dữ liệu.
@@ -503,6 +515,9 @@ class DataPipeline:
             clean_trades: Làm sạch dữ liệu giao dịch
             clean_sentiment: Làm sạch dữ liệu tâm lý
             configs: Cấu hình tùy chỉnh cho mỗi loại dữ liệu
+            handle_leading_nan: Xử lý NaN ở đầu dữ liệu
+            leading_nan_method: Phương pháp xử lý NaN ở đầu ('backfill', 'zero', 'mean', 'median')
+            min_periods: Số lượng giá trị tối thiểu để tính giá trị thay thế
             
         Returns:
             Dict với key là symbol và value là DataFrame đã làm sạch
@@ -549,6 +564,16 @@ class DataPipeline:
         
         for symbol, df in data.items():
             try:
+                # Trước tiên xử lý giá trị NaN ở đầu nếu được yêu cầu
+                if handle_leading_nan:
+                    df = self.missing_data_handler.handle_leading_nan(
+                        df,
+                        columns=None,
+                        method=leading_nan_method,
+                        min_periods=min_periods
+                    )
+                    self.logger.info(f"Đã xử lý giá trị NaN ở đầu cho {symbol} bằng phương pháp {leading_nan_method}")
+
                 # Xác định loại dữ liệu
                 if symbol.lower() == "sentiment" and clean_sentiment:
                     # Làm sạch dữ liệu tâm lý
@@ -567,34 +592,14 @@ class DataPipeline:
                 elif all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
                     # Làm sạch dữ liệu OHLCV
                     config = default_configs["ohlcv"]
-                    # Trước hết xử lý các giá trị thiếu, đặc biệt là NaN ở đầu
-                    if handle_leading_nan:
-                        df_temp = self.missing_data_handler.handle_missing_values(
-                            df,
-                            columns=None,
-                            handle_leading_nan=handle_leading_nan,
-                            leading_nan_method=leading_nan_method
-                        )
-                        # Tiếp tục với phương thức làm sạch OHLCV
-                        cleaned_df = self.data_cleaner.clean_ohlcv_data(
-                            df_temp,
-                            handle_gaps=config.get("handle_gaps", True),
-                            handle_negative_values=config.get("handle_negative_values", True),
-                            verify_high_low=config.get("verify_high_low", True),
-                            verify_open_close=config.get("verify_open_close", True),
-                            flag_outliers_only=config.get("flag_outliers_only", False)
-                        )
-                    else:
-                        # Phương thức gốc nếu không xử lý NaN ở đầu
-                        cleaned_df = self.data_cleaner.clean_ohlcv_data(
-                            df,
-                            handle_gaps=config.get("handle_gaps", True),
-                            handle_negative_values=config.get("handle_negative_values", True),
-                            verify_high_low=config.get("verify_high_low", True),
-                            verify_open_close=config.get("verify_open_close", True),
-                            flag_outliers_only=config.get("flag_outliers_only", False)
-                        )
-                    
+                    cleaned_df = self.data_cleaner.clean_ohlcv_data(
+                        df,
+                        handle_gaps=config.get("handle_gaps", True),
+                        handle_negative_values=config.get("handle_negative_values", True),
+                        verify_high_low=config.get("verify_high_low", True),
+                        verify_open_close=config.get("verify_open_close", True),
+                        flag_outliers_only=config.get("flag_outliers_only", False)
+                    )
                     self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu OHLCV cho {symbol}")
                     
                 elif all(col in df.columns for col in ['price', 'amount', 'side']) and clean_orderbook:
@@ -642,7 +647,7 @@ class DataPipeline:
                 self.logger.error(f"Lỗi khi làm sạch dữ liệu cho {symbol}: {str(e)}")
                 # Trả về dữ liệu gốc nếu có lỗi
                 results[symbol] = df
-        
+    
         return results
     
     def generate_features(
@@ -1310,6 +1315,7 @@ class DataPipeline:
             end_time: Thời gian kết thúc (dùng để thu thập dữ liệu)
             output_dir: Thư mục đầu ra
             save_results: Lưu kết quả hay không
+            is_futures: Là thị trường hợp đồng tương lai hay không
             
         Returns:
             Dict với key là symbol và value là DataFrame kết quả
@@ -1326,10 +1332,27 @@ class DataPipeline:
             pipeline_steps = [
                 {"name": "collect_data", "enabled": exchange_id is not None},
                 {"name": "load_data", "enabled": input_files is not None},
-                {"name": "clean_data", "enabled": True},
+                {"name": "clean_data", "enabled": True, "params": {
+                    "handle_leading_nan": True,
+                    "leading_nan_method": "backfill",
+                    "min_periods": 5
+                }},
                 {"name": "generate_features", "enabled": self.config.get("feature_engineering", {}).get("enabled", True)},
-                {"name": "remove_redundant_indicators", "enabled": True},  # Thêm bước mới
-                {"name": "create_target_features", "enabled": True},  # Thêm bước mới
+                {"name": "remove_redundant_indicators", "enabled": True, "params": {
+                    "correlation_threshold": 0.95,
+                    "redundant_groups": [
+                        ['macd_line', 'macd_signal', 'macd_histogram'],
+                        ['atr_14', 'atr_pct_14', 'atr_norm_14'],
+                        ['bb_middle_20', 'sma_20', 'bb_upper_20', 'bb_lower_20', 'bb_percent_b_20'],
+                        ['plus_di_14', 'minus_di_14', 'adx_14']
+                    ]
+                }},
+                {"name": "create_target_features", "enabled": True, "params": {
+                    "price_column": "close",
+                    "target_types": ["direction", "return", "volatility"],
+                    "horizons": [1, 3, 5, 10],
+                    "threshold": 0.001
+                }},
                 {"name": "merge_sentiment", "enabled": self.config.get("collectors", {}).get("include_sentiment", True)},
                 {"name": "prepare_training", "enabled": False},  # Mặc định không chuẩn bị dữ liệu huấn luyện
                 {"name": "save_data", "enabled": save_results}
@@ -1389,7 +1412,13 @@ class DataPipeline:
                 
                 elif step_name == "clean_data":
                     # Làm sạch dữ liệu
-                    cleaned_data = self.clean_data(current_data, **step_params)
+                    cleaned_data = self.clean_data(
+                        current_data,
+                        handle_leading_nan=step_params.get("handle_leading_nan", True),
+                        leading_nan_method=step_params.get("leading_nan_method", "backfill"),
+                        min_periods=step_params.get("min_periods", 5),
+                        **{k: v for k, v in step_params.items() if k not in ["handle_leading_nan", "leading_nan_method", "min_periods"]}
+                    )
                     current_data = cleaned_data
                     step_results["clean_data"] = cleaned_data
                 
@@ -1399,12 +1428,12 @@ class DataPipeline:
                     current_data = featured_data
                     step_results["generate_features"] = featured_data
 
-                    # Thêm các trường hợp mới tại đây
                 elif step_name == "remove_redundant_indicators":
                     # Loại bỏ các chỉ báo trùng lặp
                     pruned_data = self.remove_redundant_indicators(
                         current_data,
-                        **step_params
+                        correlation_threshold=step_params.get("correlation_threshold", 0.95),
+                        redundant_groups=step_params.get("redundant_groups", None)
                     )
                     current_data = pruned_data
                     step_results["remove_redundant_indicators"] = pruned_data
@@ -1413,7 +1442,10 @@ class DataPipeline:
                     # Tạo cột mục tiêu cho huấn luyện có giám sát
                     data_with_targets = self.create_target_features(
                         current_data,
-                        **step_params
+                        price_column=step_params.get("price_column", "close"),
+                        target_types=step_params.get("target_types", ["direction", "return"]),
+                        horizons=step_params.get("horizons", [1, 3, 5]),
+                        threshold=step_params.get("threshold", 0.0)
                     )
                     current_data = data_with_targets
                     step_results["create_target_features"] = data_with_targets
