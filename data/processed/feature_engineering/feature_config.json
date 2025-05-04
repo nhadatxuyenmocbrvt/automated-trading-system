@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "last_updated": "2025-05-04T22:10:14.044487",
+    "last_updated": "2025-05-04T23:38:28.131150",
     "features": {
         "trend_ema": {
             "type": "technical",
@@ -79,6 +79,19 @@
                 "long_window": 10
             },
             "description": "Volume Oscillator 5,10"
+        },
+        "target_labels": {
+            "type": "target",
+            "is_enabled": false,
+            "params": {
+                "price_col": "close",
+                "target_type": "price_movement",
+                "lookforward_period": 10,
+                "threshold": 0.01,
+                "target_column": "label",
+                "add_return_cols": true
+            },
+            "description": "T\u1ea1o nh\u00e3n target d\u1ef1a tr\u00ean bi\u1ebfn \u0111\u1ed9ng gi\u00e1 t\u01b0\u01a1ng lai"
         }
     },
     "preprocessors": {

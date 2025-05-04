@@ -61,6 +61,12 @@ class TradingEnv(BaseEnvironment, gym.Env):
         stoploss_percentage: Optional[float] = None,
         takeprofit_percentage: Optional[float] = None,
         logger: Optional[logging.Logger] = None,
+        # Thêm các tham số mới cho target/action
+        generate_target_labels: bool = True,
+        target_type: str = "price_movement",  # price_movement, binary, multi_class
+        target_lookforward: int = 10,  # Số nến nhìn trước
+        target_threshold: float = 0.01,  # Ngưỡng % thay đổi giá để xác định nhãn
+        target_column: str = "target",  # Tên cột target
         **kwargs
     ):
         """
@@ -114,6 +120,17 @@ class TradingEnv(BaseEnvironment, gym.Env):
         self.render_mode = render_mode
         self.stoploss_percentage = stoploss_percentage
         self.takeprofit_percentage = takeprofit_percentage
+        # Thêm vào đây: Thuộc tính để hỗ trợ target trong observation
+        self.generate_target_labels = generate_target_labels
+        self.target_type = target_type
+        self.target_lookforward = target_lookforward
+        self.target_threshold = target_threshold
+        self.target_column = target_column
+        self.include_target = kwargs.get('include_target', True)  # Mặc định bật
+        if self.target_type == "multi_class":
+            self.target_dim = 5  # 5 lớp cho multi_class
+        else:
+            self.target_dim = 1  # 1 chiều cho price_movement và binary        
         
         # Xác định các cột đặc trưng cần sử dụng
         if self.features is None:
@@ -140,7 +157,9 @@ class TradingEnv(BaseEnvironment, gym.Env):
             window_size=self.window_size,
             include_positions=self.include_positions,
             include_balance=self.include_balance,
-            max_positions=self.max_positions
+            max_positions=self.max_positions,
+            include_target=hasattr(self, 'include_target') and self.include_target,
+            target_dim=getattr(self, 'target_dim', 1)
         )
         
         # Thiết lập không gian hành động
@@ -182,6 +201,9 @@ class TradingEnv(BaseEnvironment, gym.Env):
         Returns:
             Quan sát ban đầu
         """
+        # Tạo nhãn target nếu cần
+        self._generate_target_labels()
+
         # Đặt lại vị trí bắt đầu
         if self.random_start:
             self.current_idx = np.random.randint(self.window_size, len(self.data) - 1)
@@ -229,6 +251,87 @@ class TradingEnv(BaseEnvironment, gym.Env):
         observation = self.get_observation()
         return observation
     
+    def _generate_target_labels(self) -> None:
+        """
+        Tạo nhãn target dựa trên sự thay đổi giá tương lai.
+        Kết quả sẽ được lưu vào một cột mới trong self.data.
+        """
+        if not hasattr(self, 'generate_target_labels') or not self.generate_target_labels:
+            return
+        
+        if not hasattr(self, 'target_type'):
+            self.target_type = "price_movement"
+        
+        if not hasattr(self, 'target_lookforward'):
+            self.target_lookforward = 10
+        
+        if not hasattr(self, 'target_threshold'):
+            self.target_threshold = 0.01
+        
+        if not hasattr(self, 'target_column'):
+            self.target_column = "target"
+        
+        # Nếu cột target đã tồn tại, không tạo lại
+        if self.target_column in self.data.columns:
+            self.logger.debug(f"Cột target '{self.target_column}' đã tồn tại, bỏ qua bước tạo target")
+            return
+        
+        self.logger.info(f"Tạo nhãn target với kiểu '{self.target_type}', lookforward={self.target_lookforward}, threshold={self.target_threshold}")
+        
+        # Lấy dữ liệu giá đóng cửa
+        close_prices = self.data['close']
+        
+        if self.target_type == "price_movement":
+            # Tính % thay đổi giá trong tương lai
+            future_returns = close_prices.shift(-self.target_lookforward) / close_prices - 1
+            
+            # Tạo nhãn: 1 (mua) nếu lợi nhuận > threshold, -1 (bán) nếu lỗ > threshold, 0 (giữ nguyên) nếu khác
+            self.data[self.target_column] = 0
+            self.data.loc[future_returns > self.target_threshold, self.target_column] = 1  # Long signal
+            self.data.loc[future_returns < -self.target_threshold, self.target_column] = -1  # Short signal
+            
+            # Thêm cột future_return để tiện phân tích
+            self.data['future_return'] = future_returns
+            
+        elif self.target_type == "binary":
+            # Tính % thay đổi giá trong tương lai
+            future_returns = close_prices.shift(-self.target_lookforward) / close_prices - 1
+            
+            # Tạo nhãn nhị phân: 1 (mua) nếu lợi nhuận > threshold, 0 (không mua) nếu khác
+            self.data[self.target_column] = 0
+            self.data.loc[future_returns > self.target_threshold, self.target_column] = 1
+            
+            # Thêm cột future_return để tiện phân tích
+            self.data['future_return'] = future_returns
+            
+        elif self.target_type == "multi_class":
+            # Tính % thay đổi giá trong tương lai
+            future_returns = close_prices.shift(-self.target_lookforward) / close_prices - 1
+            
+            # Tạo nhãn đa lớp:
+            # 0: Giảm mạnh (< -threshold*2)
+            # 1: Giảm nhẹ (-threshold*2 <= x < -threshold)
+            # 2: Đi ngang (-threshold <= x <= threshold)
+            # 3: Tăng nhẹ (threshold < x <= threshold*2)
+            # 4: Tăng mạnh (> threshold*2)
+            self.data[self.target_column] = 2  # Mặc định là đi ngang
+            self.data.loc[future_returns < -self.target_threshold*2, self.target_column] = 0  # Giảm mạnh
+            self.data.loc[(future_returns >= -self.target_threshold*2) & (future_returns < -self.target_threshold), self.target_column] = 1  # Giảm nhẹ
+            self.data.loc[(future_returns > self.target_threshold) & (future_returns <= self.target_threshold*2), self.target_column] = 3  # Tăng nhẹ
+            self.data.loc[future_returns > self.target_threshold*2, self.target_column] = 4  # Tăng mạnh
+            
+            # Thêm cột future_return để tiện phân tích
+            self.data['future_return'] = future_returns
+        
+        else:
+            self.logger.warning(f"Kiểu target không hợp lệ: {self.target_type}")
+            return
+        
+        # Bỏ qua các hàng cuối không có dữ liệu nhãn
+        self.data.loc[self.data.index[-self.target_lookforward:], self.target_column] = np.nan
+        
+        self.logger.info(f"Đã tạo thành công nhãn target '{self.target_column}' với phân bố: {self.data[self.target_column].value_counts(dropna=True)}") 
+
     def step(self, action: Any) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
         """
         Thực hiện một bước trong môi trường.
@@ -451,11 +554,30 @@ class TradingEnv(BaseEnvironment, gym.Env):
             # Chuẩn hóa số dư
             balance_info = [self.current_balance / self.initial_balance]
         
+        # Thêm target vào quan sát nếu được yêu cầu
+        target_info = []
+        if hasattr(self, 'include_target') and self.include_target and hasattr(self, 'target_column'):
+            if self.target_column in self.data.columns:
+                current_target = self.data.iloc[self.current_idx][self.target_column]
+                if np.isnan(current_target):
+                    target_info = [0.0]  # Nếu không có giá trị, mặc định là 0
+                else:
+                    # Chuẩn hóa target nếu cần
+                    if self.target_type == "price_movement" or self.target_type == "binary":
+                        target_info = [float(current_target)]
+                    elif self.target_type == "multi_class":
+                        # One-hot encoding cho target đa lớp
+                        num_classes = 5  # 0, 1, 2, 3, 4
+                        one_hot = np.zeros(num_classes)
+                        one_hot[int(current_target)] = 1.0
+                        target_info = one_hot.tolist()
+        
         # Kết hợp tất cả thông tin
         observation = self.observation_space_manager.create_observation(
             window_data=window_data,
             position_data=np.array(position_info) if position_info else None,
-            balance_data=np.array(balance_info) if balance_info else None
+            balance_data=np.array(balance_info) if balance_info else None,
+            target_data=np.array(target_info) if target_info else None  # Thêm dòng này
         )
         
         return observation

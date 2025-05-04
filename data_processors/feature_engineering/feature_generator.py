@@ -353,9 +353,40 @@ class FeatureGenerator:
         # Đăng ký các bộ chọn lọc đặc trưng mặc định
         self._register_default_feature_selectors()
         
+        # Đăng ký tính năng tạo nhãn
+        try:
+            from functools import partial
+            
+            # Tạo một wrapper cho hàm generate_target_labels
+            def target_label_wrapper(df, **kwargs):
+                return self.generate_target_labels(df, **kwargs)
+            
+            # Đăng ký chức năng tạo nhãn như một đặc trưng có thể gọi
+            self.register_feature(
+                feature_name="target_labels",
+                feature_func=target_label_wrapper,
+                feature_params={
+                    "price_col": "close",
+                    "target_type": "price_movement",
+                    "lookforward_period": 10,
+                    "threshold": 0.01,
+                    "target_column": "label",
+                    "add_return_cols": True
+                },
+                dependencies=["close"],
+                feature_type="target",
+                description="Tạo nhãn target dựa trên biến động giá tương lai",
+                is_enabled=False  # Mặc định tắt
+            )
+            
+            self.logger.info("Đã đăng ký tính năng tạo nhãn target")
+            
+        except Exception as e:
+            self.logger.warning(f"Không thể đăng ký tính năng tạo nhãn target: {e}")
+
         # Ghi log danh sách đặc trưng đã đăng ký
         self.logger.info(f"Đã đăng ký {len(self.registered_features)} đặc trưng: {list(self.registered_features.keys())}")
-    
+
     def _register_default_technical_indicators(self) -> None:
         """
         Đăng ký các chỉ báo kỹ thuật mặc định.
@@ -645,7 +676,9 @@ class FeatureGenerator:
         self,
         df: pd.DataFrame,
         feature_names: Optional[List[str]] = None,
-        parallel: bool = True
+        parallel: bool = True,
+        generate_labels: bool = False,  # Thêm tham số này
+        label_config: Optional[Dict[str, Any]] = None  # Thêm tham số này
     ) -> pd.DataFrame:
         """
         Tính toán nhiều đặc trưng.
@@ -654,10 +687,26 @@ class FeatureGenerator:
             df: DataFrame chứa dữ liệu
             feature_names: Danh sách tên đặc trưng cần tính (None để tính tất cả)
             parallel: Tính toán song song
+            generate_labels: Tạo nhãn cho huấn luyện
+            label_config: Cấu hình tạo nhãn
             
         Returns:
             DataFrame với các đặc trưng mới
         """
+        # Tạo nhãn nếu được yêu cầu (thêm vào cuối phương thức, trước return)
+        if generate_labels:
+            if label_config is None:
+                label_config = {
+                    'price_col': 'close',
+                    'target_type': 'price_movement',
+                    'lookforward_period': 10,
+                    'threshold': 0.01,
+                    'target_column': 'label',
+                    'add_return_cols': True
+                }
+
+            result_df = self.generate_target_labels(result_df, **label_config)
+            self.logger.info(f"Đã tạo nhãn target với cấu hình: {label_config}")
 
         # Ghi log các cột ban đầu
         self.logger.debug(f"Cột ban đầu trước khi tính toán đặc trưng: {df.columns.tolist()}")
@@ -1131,7 +1180,9 @@ class FeatureGenerator:
         self,
         df: pd.DataFrame,
         pipeline_name: Optional[str] = None,
-        fit: bool = True
+        fit: bool = True,
+        generate_labels: bool = False,  # Thêm tham số này
+        label_config: Optional[Dict[str, Any]] = None  # Thêm tham số này
     ) -> pd.DataFrame:
         """
         Áp dụng toàn bộ pipeline lên dữ liệu.
@@ -1140,6 +1191,8 @@ class FeatureGenerator:
             df: DataFrame cần xử lý
             pipeline_name: Tên pipeline cần áp dụng
             fit: Học các tham số mới hay không
+            generate_labels: Tạo nhãn cho huấn luyện
+            label_config: Cấu hình tạo nhãn
             
         Returns:
             DataFrame đã xử lý
@@ -1326,3 +1379,142 @@ class FeatureGenerator:
             "is_fitted": self.is_fitted,
             "feature_info": self.feature_info
         }
+    
+def generate_target_labels(
+    self,
+    df: pd.DataFrame,
+    price_col: str = 'close',
+    target_type: str = 'price_movement',
+    lookforward_period: int = 10,
+    threshold: float = 0.01,
+    target_column: str = 'label',
+    smooth_target: bool = False,
+    smooth_window: int = 5,
+    generate_labels: bool = False,
+    add_return_cols: bool = True,
+    **kwargs
+) -> pd.DataFrame:
+    """
+    Tạo nhãn target dựa trên sự thay đổi giá tương lai.
+    
+    Args:
+        df: DataFrame chứa dữ liệu giá
+        price_col: Tên cột giá sử dụng để tính toán
+        target_type: Loại target (price_movement, binary, multi_class, regression)
+        lookforward_period: Số nến nhìn trước
+        threshold: Ngưỡng % thay đổi giá để xác định nhãn
+        target_column: Tên cột target
+        smooth_target: Làm mịn target bằng MA
+        smooth_window: Kích thước cửa sổ làm mịn
+        add_return_cols: Thêm các cột return để dễ dàng phân tích
+        **kwargs: Tham số bổ sung
+    
+    Returns:
+        DataFrame với cột target mới
+    """
+    self.logger.info(f"Tạo nhãn target '{target_column}' với kiểu '{target_type}', lookforward={lookforward_period}, threshold={threshold}")
+    
+    result_df = df.copy()
+    
+    # Kiểm tra xem cột giá có tồn tại không
+    if price_col not in result_df.columns:
+        self.logger.warning(f"Cột giá '{price_col}' không tồn tại trong DataFrame")
+        return result_df
+    
+    # Tính % thay đổi giá trong tương lai
+    future_price = result_df[price_col].shift(-lookforward_period)
+    current_price = result_df[price_col]
+    future_return = future_price / current_price - 1
+    
+    # Thêm cột future_return nếu cần
+    if add_return_cols:
+        result_df[f'future_return_{lookforward_period}'] = future_return
+    
+    # Tạo nhãn dựa trên loại target
+    if target_type == 'price_movement':
+        # -1: Short, 0: Hold, 1: Long
+        result_df[target_column] = 0
+        result_df.loc[future_return > threshold, target_column] = 1  # Long signal
+        result_df.loc[future_return < -threshold, target_column] = -1  # Short signal
+        
+    elif target_type == 'binary':
+        # 0: Không mua, 1: Mua
+        result_df[target_column] = 0
+        result_df.loc[future_return > threshold, target_column] = 1
+        
+    elif target_type == 'multi_class':
+        # 0: Giảm mạnh, 1: Giảm nhẹ, 2: Đi ngang, 3: Tăng nhẹ, 4: Tăng mạnh
+        result_df[target_column] = 2  # Mặc định là đi ngang
+        result_df.loc[future_return < -threshold*2, target_column] = 0  # Giảm mạnh
+        result_df.loc[(future_return >= -threshold*2) & (future_return < -threshold), target_column] = 1  # Giảm nhẹ
+        result_df.loc[(future_return > threshold) & (future_return <= threshold*2), target_column] = 3  # Tăng nhẹ
+        result_df.loc[future_return > threshold*2, target_column] = 4  # Tăng mạnh
+        
+    elif target_type == 'regression':
+        # Sử dụng giá trị return thực tế làm target
+        result_df[target_column] = future_return
+        
+    else:
+        self.logger.warning(f"Kiểu target không hợp lệ: {target_type}")
+        return result_df
+    
+    # Làm mịn target bằng MA nếu cần
+    if smooth_target and target_type != 'regression':
+        if target_type == 'multi_class':
+            # Tạo cột target_smooth riêng cho target đa lớp
+            smooth_col = f"{target_column}_smooth"
+            result_df[smooth_col] = result_df[target_column].rolling(window=smooth_window, min_periods=1).mean()
+        else:
+            # Áp dụng MA cho target price_movement và binary
+            smooth_values = result_df[target_column].rolling(window=smooth_window, min_periods=1).mean()
+            result_df[target_column] = smooth_values
+    
+    # Thêm các feature phụ khác nếu cần
+    if add_return_cols:
+        # Thêm biến động giá trong tương lai
+        result_df[f'future_volatility_{lookforward_period}'] = result_df[price_col].rolling(window=lookforward_period).std().shift(-lookforward_period)
+        
+        # Thêm giá cao nhất/thấp nhất trong tương lai nếu có dữ liệu high/low
+        if 'high' in result_df.columns and 'low' in result_df.columns:
+            # Tính giá cao nhất trong tương lai
+            for i in range(1, lookforward_period + 1):
+                col_name = f'future_high_{i}'
+                result_df[col_name] = result_df['high'].shift(-i)
+            
+            result_df[f'future_max_high_{lookforward_period}'] = result_df[[f'future_high_{i}' for i in range(1, lookforward_period + 1)]].max(axis=1)
+            
+            # Tính giá thấp nhất trong tương lai
+            for i in range(1, lookforward_period + 1):
+                col_name = f'future_low_{i}'
+                result_df[col_name] = result_df['low'].shift(-i)
+            
+            result_df[f'future_min_low_{lookforward_period}'] = result_df[[f'future_low_{i}' for i in range(1, lookforward_period + 1)]].min(axis=1)
+            
+            # Tính drawdown tiềm năng
+            result_df[f'future_max_drawdown_{lookforward_period}'] = (result_df[f'future_min_low_{lookforward_period}'] / result_df[price_col] - 1) * 100
+            
+            # Xóa các cột tạm thời
+            for i in range(1, lookforward_period + 1):
+                result_df.drop(columns=[f'future_high_{i}', f'future_low_{i}'], inplace=True)
+    
+    # Ghi log phân bố nhãn
+    if target_type != 'regression':
+        dist = result_df[target_column].value_counts(dropna=True)
+        self.logger.info(f"Phân bố nhãn '{target_column}': {dist}")
+
+    # Bước 5: Tạo nhãn nếu cần (thêm vào trước return cuối cùng)
+    if generate_labels:
+        if label_config is None:
+            label_config = {
+                'price_col': 'close',
+                'target_type': 'price_movement',
+                'lookforward_period': 10,
+                'threshold': 0.01,
+                'target_column': 'label',
+                'add_return_cols': True
+            }
+        
+        result_df = self.generate_target_labels(result_df, **label_config)
+        self.logger.info(f"Đã tạo nhãn target với cấu hình: {label_config}")   
+    
+    return result_df

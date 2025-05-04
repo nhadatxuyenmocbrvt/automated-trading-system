@@ -25,6 +25,8 @@ class ObservationSpace:
         max_positions: int = 5,
         normalize: bool = True,
         flattened: bool = True,
+        include_target: bool = False,  # Thêm tham số này
+        target_dim: int = 1,  # Thêm tham số này
         logger: Optional[logging.Logger] = None
     ):
         """
@@ -38,6 +40,8 @@ class ObservationSpace:
             max_positions: Số vị thế tối đa được theo dõi
             normalize: Chuẩn hóa dữ liệu hay không
             flattened: Làm phẳng không gian quan sát hay không
+            include_target: Bao gồm nhãn target trong quan sát
+            target_dim: Số chiều của target (1 cho price_movement/binary, nhiều hơn cho multi_class)
             logger: Logger tùy chỉnh
         """
         self.feature_columns = feature_columns
@@ -47,17 +51,22 @@ class ObservationSpace:
         self.max_positions = max_positions
         self.normalize = normalize
         self.flattened = flattened
+        self.include_target = include_target  # Thêm thuộc tính này
+        self.target_dim = target_dim  # Thêm thuộc tính này
         self.logger = logger or get_logger("observation_space")
         
         # Thông tin về kích thước
         self.num_features = len(feature_columns)
         self.position_dim = 4 * max_positions if include_positions else 0  # [side, size, entry_price, entry_time]
         self.balance_dim = 1 if include_balance else 0
+        self.target_dim = target_dim if include_target else 0  # Thêm dòng này
         
         # Tính toán không gian quan sát
         self._create_observation_space()
         
         self.logger.info(f"Đã khởi tạo ObservationSpace với {self.num_features} đặc trưng, window_size={window_size}")
+        if self.include_target:
+            self.logger.info(f"Không gian quan sát bao gồm target với {self.target_dim} chiều")
     
     def _create_observation_space(self) -> None:
         """
@@ -65,7 +74,7 @@ class ObservationSpace:
         """
         if self.flattened:
             # Không gian quan sát dạng phẳng
-            total_dim = self.window_size * self.num_features + self.position_dim + self.balance_dim
+            total_dim = self.window_size * self.num_features + self.position_dim + self.balance_dim + self.target_dim  # Cập nhật dòng này
             self.observation_space = spaces.Box(
                 low=-np.inf, high=np.inf, shape=(total_dim,), dtype=np.float32
             )
@@ -93,6 +102,14 @@ class ObservationSpace:
                     dtype=np.float32
                 )
             
+            # Thêm target vào spaces_dict
+            if self.include_target:
+                spaces_dict["target"] = spaces.Box(
+                    low=-np.inf, high=np.inf, 
+                    shape=(self.target_dim,), 
+                    dtype=np.float32
+                )
+            
             self.observation_space = spaces.Dict(spaces_dict)
     
     def get_observation_space(self) -> spaces.Space:
@@ -108,7 +125,8 @@ class ObservationSpace:
         self,
         window_data: np.ndarray,
         position_data: Optional[np.ndarray] = None,
-        balance_data: Optional[np.ndarray] = None
+        balance_data: Optional[np.ndarray] = None,
+        target_data: Optional[np.ndarray] = None  # Thêm tham số này
     ) -> np.ndarray:
         """
         Tạo quan sát từ dữ liệu.
@@ -117,7 +135,8 @@ class ObservationSpace:
             window_data: Mảng NumPy chứa dữ liệu cửa sổ
             position_data: Mảng NumPy chứa dữ liệu vị thế
             balance_data: Mảng NumPy chứa dữ liệu số dư
-            
+            target_data: Mảng NumPy chứa dữ liệu target
+                
         Returns:
             Mảng NumPy chứa quan sát
         """
@@ -137,6 +156,10 @@ class ObservationSpace:
             if self.include_balance and balance_data is not None:
                 observation = np.concatenate([observation, balance_data])
             
+            # Thêm thông tin target nếu có
+            if self.include_target and target_data is not None:
+                observation = np.concatenate([observation, target_data])
+            
             return observation.astype(np.float32)
         else:
             # Trả về dưới dạng Dict
@@ -147,6 +170,10 @@ class ObservationSpace:
             
             if self.include_balance and balance_data is not None:
                 observation["balance"] = balance_data.astype(np.float32)
+            
+            # Thêm target vào Dict
+            if self.include_target and target_data is not None:
+                observation["target"] = target_data.astype(np.float32)
             
             return observation
     
@@ -203,14 +230,20 @@ class ObservationSpace:
                 
                 result = {"market": market_data}
                 
+                # Điểm bắt đầu của các thành phần khác
+                offset = market_size
+                
                 if self.include_positions:
-                    position_start = market_size
-                    position_end = position_start + self.position_dim
-                    result["positions"] = observation[position_start:position_end]
+                    result["positions"] = observation[offset:offset + self.position_dim]
+                    offset += self.position_dim
                 
                 if self.include_balance:
-                    balance_start = market_size + self.position_dim
-                    result["balance"] = observation[balance_start:]
+                    result["balance"] = observation[offset:offset + self.balance_dim]
+                    offset += self.balance_dim
+                
+                # Thêm target vào kết quả
+                if self.include_target:
+                    result["target"] = observation[offset:offset + self.target_dim]
                 
                 return result
             else:
@@ -240,15 +273,21 @@ class ObservationSpace:
             
             result = {"market": denormalized_market}
             
+            # Điểm bắt đầu của các thành phần khác
+            offset = market_size
+            
             # Các phần còn lại không cần khôi phục vì chúng đã được chuẩn hóa theo cách riêng
             if self.include_positions:
-                position_start = market_size
-                position_end = position_start + self.position_dim
-                result["positions"] = observation[position_start:position_end]
+                result["positions"] = observation[offset:offset + self.position_dim]
+                offset += self.position_dim
             
             if self.include_balance:
-                balance_start = market_size + self.position_dim
-                result["balance"] = observation[balance_start:]
+                result["balance"] = observation[offset:offset + self.balance_dim]
+                offset += self.balance_dim
+            
+            # Thêm target vào kết quả
+            if self.include_target:
+                result["target"] = observation[offset:offset + self.target_dim]
             
             return result
         else:
@@ -277,4 +316,39 @@ class ObservationSpace:
             if "balance" in observation:
                 result["balance"] = observation["balance"]
             
+            # Thêm target vào kết quả
+            if "target" in observation:
+                result["target"] = observation["target"]
+            
             return result
+        
+    def extract_target(self, observation: np.ndarray) -> Optional[np.ndarray]:
+        """
+        Trích xuất phần target từ quan sát.
+        
+        Args:
+            observation: Quan sát chứa target
+            
+        Returns:
+            Phần target của quan sát, hoặc None nếu không có
+        """
+        if not self.include_target:
+            return None
+            
+        if self.flattened:
+            # Tính toán vị trí bắt đầu của target
+            offset = self.window_size * self.num_features
+            
+            if self.include_positions:
+                offset += self.position_dim
+                
+            if self.include_balance:
+                offset += self.balance_dim
+                
+            # Trích xuất target
+            return observation[offset:offset + self.target_dim]
+        else:
+            # Trường hợp Dict
+            if isinstance(observation, dict) and "target" in observation:
+                return observation["target"]
+            return None
