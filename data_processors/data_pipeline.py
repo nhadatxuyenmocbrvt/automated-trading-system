@@ -628,6 +628,33 @@ class DataPipeline:
                         verify_open_close=config.get("verify_open_close", True),
                         flag_outliers_only=config.get("flag_outliers_only", False)
                     )
+                    # THÊM ĐOẠN CODE NÀY: Làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+                    if handle_extreme_volume or config.get("handle_technical_indicators", True):
+                        # Import các hàm cần thiết
+                        from data_processors.utils.preprocessing import clean_technical_features
+
+                        # Cấu hình cho việc làm sạch và chuẩn hóa chỉ báo kỹ thuật
+                        tech_indicator_config = {
+                            'fix_outliers': True,
+                            'outlier_method': 'zscore',
+                            'outlier_threshold': config.get("outlier_threshold", 3.0),
+                            'normalize_indicators': True,
+                            'standardize_indicators': True,
+                            'add_trend_strength': True,
+                            'add_volatility_zscore': True,
+                            'generate_labels': config.get("generate_labels", False),
+                            'label_window': config.get("label_window", 10),
+                            'label_threshold': config.get("label_threshold", 0.01),
+                            'price_col': 'close',
+                            'high_col': 'high',
+                            'low_col': 'low',
+                            'close_col': 'close'
+                        }
+
+                        # Áp dụng clean_technical_features
+                        cleaned_df = clean_technical_features(cleaned_df, tech_indicator_config)
+                        self.logger.info(f"Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho {symbol}")
+
                     self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu OHLCV cho {symbol}")
                     
                 elif all(col in df.columns for col in ['price', 'amount', 'side']) and clean_orderbook:
@@ -684,7 +711,8 @@ class DataPipeline:
         feature_configs: Optional[Dict[str, Dict[str, Any]]] = None,
         use_pipeline: Optional[str] = None,
         fit_pipeline: bool = True,
-        all_indicators: bool = False  # Thêm tham số này
+        all_indicators: bool = False,  # Thêm tham số này
+        clean_indicators: bool = True
     ) -> Dict[str, pd.DataFrame]:
         """
         Tạo đặc trưng cho dữ liệu.
@@ -765,6 +793,32 @@ class DataPipeline:
                     results[symbol] = df
                     continue
                 
+                # THÊM ĐOẠN CODE NÀY: Làm sạch và chuẩn hóa các chỉ báo kỹ thuật trước khi tạo đặc trưng
+                if clean_indicators:
+                    # Import các hàm cần thiết
+                    from data_processors.utils.preprocessing import clean_technical_features
+                    
+                    # Cấu hình làm sạch chỉ báo
+                    clean_config = {
+                        'fix_outliers': True,
+                        'outlier_method': 'zscore',
+                        'outlier_threshold': 3.0,
+                        'normalize_indicators': True,
+                        'standardize_indicators': True,
+                        'add_trend_strength': True,
+                        'add_volatility_zscore': True,
+                        'generate_labels': symbol_config.get("generate_labels", False),
+                        'label_window': symbol_config.get("label_window", 10),
+                        'label_threshold': symbol_config.get("label_threshold", 0.01)
+                    }
+
+                    # Áp dụng clean_technical_features
+                    df = clean_technical_features(df, clean_config)
+                    self.logger.info(f"Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho {symbol} trước khi tạo đặc trưng")                    
+
+                # Tạo danh sách đặc trưng cần tính
+                feature_names = symbol_config.get("feature_names")
+
                 # Tạo danh sách đặc trưng cần tính
                 feature_names = symbol_config.get("feature_names")
                 
@@ -986,6 +1040,88 @@ class DataPipeline:
                 results[symbol] = df
     
         return results
+    
+    def clean_and_standardize_indicators(
+        self,
+        data: Dict[str, pd.DataFrame],
+        fix_outliers: bool = True,
+        normalize_indicators: bool = True,
+        standardize_indicators: bool = True,
+        add_trend_strength: bool = True,
+        add_volatility_zscore: bool = True,
+        generate_labels: bool = False,
+        label_config: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Làm sạch và chuẩn hóa các chỉ báo kỹ thuật trong dữ liệu.
+        
+        Args:
+            data: Dict với key là symbol và value là DataFrame
+            fix_outliers: Sửa các giá trị ngoại lệ
+            normalize_indicators: Chuẩn hóa các chỉ báo về khoảng [0, 1]
+            standardize_indicators: Chuẩn hóa các chỉ báo về trung bình 0, độ lệch chuẩn 1
+            add_trend_strength: Thêm chỉ báo độ mạnh xu hướng
+            add_volatility_zscore: Thêm chỉ báo Z-score của biến động
+            generate_labels: Tạo nhãn cho huấn luyện
+            label_config: Cấu hình cho việc tạo nhãn
+        
+        Returns:
+            Dict với key là symbol và value là DataFrame đã xử lý
+        """
+        from data_processors.utils.preprocessing import clean_technical_features
+        
+        if label_config is None:
+            label_config = {
+                'label_window': 10,
+                'label_threshold': 0.01
+            }
+        
+        results = {}
+        
+        for symbol, df in data.items():
+            self.logger.info(f"Làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho {symbol}")
+            try:
+                # Bỏ qua dữ liệu tâm lý
+                if symbol.lower() == "sentiment":
+                    results[symbol] = df
+                    continue
+                
+                # Kiểm tra xem có đủ cột OHLC không
+                required_cols = ['open', 'high', 'low', 'close']
+                if not all(col in df.columns for col in required_cols):
+                    self.logger.warning(f"Bỏ qua {symbol}: Thiếu các cột OHLC cần thiết: {[col for col in required_cols if col not in df.columns]}")
+                    results[symbol] = df
+                    continue
+                
+                # Tạo cấu hình cho việc làm sạch và chuẩn hóa
+                config = {
+                    'fix_outliers': fix_outliers,
+                    'outlier_method': 'zscore',
+                    'outlier_threshold': 3.0,
+                    'normalize_indicators': normalize_indicators,
+                    'standardize_indicators': standardize_indicators,
+                    'add_trend_strength': add_trend_strength,
+                    'add_volatility_zscore': add_volatility_zscore,
+                    'generate_labels': generate_labels,
+                    'label_window': label_config.get('label_window', 10),
+                    'label_threshold': label_config.get('label_threshold', 0.01)
+                }
+                
+                # Áp dụng clean_technical_features
+                processed_df = clean_technical_features(df, config)
+                
+                # Ghi log các cột mới được thêm vào
+                new_cols = set(processed_df.columns) - set(df.columns)
+                if new_cols:
+                    self.logger.info(f"Đã thêm {len(new_cols)} cột mới cho {symbol}: {', '.join(new_cols)}")
+                
+                results[symbol] = processed_df
+                
+            except Exception as e:
+                self.logger.error(f"Lỗi khi làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho {symbol}: {str(e)}")
+                results[symbol] = df
+        
+        return results 
     
     def create_target_features(
         self,
@@ -1363,16 +1499,54 @@ class DataPipeline:
                 {"name": "clean_data", "enabled": True, "params": {
                     "handle_leading_nan": True,
                     "leading_nan_method": "backfill",
-                    "min_periods": 5
+                    "min_periods": 5,
+                    "handle_extreme_volume": True,
+                    "configs": {
+                        "ohlcv": {
+                            "handle_gaps": True,
+                            "handle_negative_values": True,
+                            "verify_high_low": True,
+                            "verify_open_close": True,
+                            "handle_technical_indicators": True,
+                            "generate_labels": True,
+                            "label_window": 10,
+                            "label_threshold": 0.01,
+                            "outlier_threshold": 3.0
+                        }
+                    }
                 }},
-                {"name": "generate_features", "enabled": self.config.get("feature_engineering", {}).get("enabled", True)},
+                {"name": "clean_and_standardize_indicators", "enabled": True, "params": {
+                    "fix_outliers": True,
+                    "normalize_indicators": True,
+                    "standardize_indicators": True,
+                    "add_trend_strength": True,
+                    "add_volatility_zscore": True,
+                    "generate_labels": True,
+                    "label_config": {
+                        "label_window": 10,
+                        "label_threshold": 0.01
+                    }
+                }},
+                {"name": "generate_features", "enabled": self.config.get("feature_engineering", {}).get("enabled", True), "params": {
+                    "all_indicators": True,
+                    "clean_indicators": True,
+                    "feature_configs": {
+                        "_default_": {
+                            "generate_labels": True,
+                            "label_window": 10,
+                            "label_threshold": 0.01
+                        }
+                    }
+                }},
                 {"name": "remove_redundant_indicators", "enabled": True, "params": {
                     "correlation_threshold": 0.95,
                     "redundant_groups": [
                         ['macd_line', 'macd_signal', 'macd_histogram'],
-                        ['atr_14', 'atr_pct_14', 'atr_norm_14'],
+                        ['atr_14', 'atr_pct_14', 'atr_norm_14', 'atr_norm_14_std'],
                         ['bb_middle_20', 'sma_20', 'bb_upper_20', 'bb_lower_20', 'bb_percent_b_20'],
-                        ['plus_di_14', 'minus_di_14', 'adx_14']
+                        ['plus_di_14', 'minus_di_14', 'adx_14'],
+                        ['volume', 'volume_log'],  # Thêm cặp volume và volume_log
+                        ['rsi_14', 'rsi_14_norm']  # Thêm cặp rsi và rsi chuẩn hóa
                     ]
                 }},
                 {"name": "create_target_features", "enabled": True, "params": {
@@ -1451,9 +1625,25 @@ class DataPipeline:
                     current_data = cleaned_data
                     step_results["clean_data"] = cleaned_data
                 
+                elif step_name == "clean_and_standardize_indicators":
+                    # Làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+                    cleaned_indicators = self.clean_and_standardize_indicators(
+                        current_data,
+                        **step_params
+                    )
+                    current_data = cleaned_indicators
+                    step_results["clean_and_standardize_indicators"] = cleaned_indicators
+
                 elif step_name == "generate_features":
                     # Tạo đặc trưng
-                    featured_data = self.generate_features(current_data, **step_params)
+                    featured_data = self.generate_features(
+                        current_data,
+                        feature_configs=step_params.get("feature_configs", None),
+                        use_pipeline=step_params.get("use_pipeline", None),
+                        fit_pipeline=step_params.get("fit_pipeline", True),
+                        all_indicators=step_params.get("all_indicators", True),
+                        clean_indicators=step_params.get("clean_indicators", True)
+                    )
                     current_data = featured_data
                     step_results["generate_features"] = featured_data
 

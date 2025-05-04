@@ -973,6 +973,154 @@ def normalize_technical_indicators(
 
     return result_df
 
+def standardize_technical_indicators(
+    df: pd.DataFrame,
+    indicators_config: Optional[Dict[str, Dict[str, Any]]] = None,
+    window: int = 100,
+    auto_detect: bool = True,
+    **kwargs
+) -> pd.DataFrame:
+    """
+    Chuẩn hóa các chỉ báo kỹ thuật để có trung bình 0 và độ lệch chuẩn 1.
+    
+    Args:
+        df: DataFrame chứa các chỉ báo kỹ thuật
+        indicators_config: Cấu hình cho từng loại chỉ báo
+            Ví dụ: {
+                'macd': {'cols': ['macd', 'macd_signal'], 'method': 'zscore'},
+                'volume': {'cols': ['volume'], 'method': 'log'},
+                'obv': {'cols': ['obv'], 'method': 'rolling_zscore'},
+                'adx': {'cols': ['adx'], 'method': 'minmax'}
+            }
+        window: Cỡ cửa sổ cho chuẩn hóa rolling
+        auto_detect: Tự động phát hiện các chỉ báo để chuẩn hóa
+        **kwargs: Các tham số bổ sung
+    
+    Returns:
+        DataFrame đã chuẩn hóa
+    """
+    result_df = df.copy()
+    
+    # Cấu hình mặc định nếu không được cung cấp
+    if indicators_config is None:
+        indicators_config = {
+            'macd': {'method': 'zscore'},
+            'obv': {'method': 'rolling_zscore'},
+            'volume': {'method': 'log'},
+            'adx': {'method': 'minmax_01'},
+            'rsi': {'method': 'minmax_01'},
+            'cci': {'method': 'robust'},
+            'atr': {'method': 'rolling_zscore'}
+        }
+    
+    # Tự động phát hiện các cột cho mỗi loại chỉ báo
+    if auto_detect:
+        for indicator_type, config in indicators_config.items():
+            if 'cols' not in config:
+                # Tìm tất cả các cột có chứa tên chỉ báo
+                indicator_cols = [col for col in result_df.columns if indicator_type.lower() in col.lower()]
+                config['cols'] = indicator_cols
+    
+    # Xử lý từng loại chỉ báo
+    for indicator_type, config in indicators_config.items():
+        # Lấy phương pháp chuẩn hóa
+        method = config.get('method', 'zscore')
+        cols = config.get('cols', [])
+        
+        if not cols:
+            continue
+        
+        logger.info(f"Chuẩn hóa {len(cols)} cột của loại chỉ báo {indicator_type} bằng phương pháp {method}")
+        
+        for col in cols:
+            if col not in result_df.columns:
+                continue
+                
+            # Bỏ qua nếu cột đã được chuẩn hóa
+            if col.endswith('_std') or col.endswith('_norm') or col.endswith('_scaled'):
+                continue
+                
+            # Xử lý giá trị NaN/Inf
+            invalid_mask = ~np.isfinite(result_df[col])
+            if invalid_mask.any():
+                valid_data = result_df.loc[~invalid_mask, col]
+                if not valid_data.empty:
+                    result_df.loc[invalid_mask, col] = valid_data.median()
+                else:
+                    result_df.loc[invalid_mask, col] = 0
+            
+            # Áp dụng phương pháp chuẩn hóa
+            if method == 'zscore':
+                # Standard z-score: (x - mean) / std
+                mean = result_df[col].mean()
+                std = result_df[col].std()
+                
+                if std > 1e-8:  # Tránh chia cho 0
+                    result_df[f"{col}_std"] = (result_df[col] - mean) / std
+                else:
+                    result_df[f"{col}_std"] = 0
+                    logger.warning(f"Không thể áp dụng z-score cho cột {col} do std quá nhỏ")
+            
+            elif method == 'rolling_zscore':
+                # Rolling z-score trong cửa sổ
+                rolling_mean = result_df[col].rolling(window=window, min_periods=1).mean()
+                rolling_std = result_df[col].rolling(window=window, min_periods=1).std()
+                
+                # Tránh chia cho 0
+                rolling_std = rolling_std.replace(0, np.nan).fillna(1e-8)
+                
+                result_df[f"{col}_std"] = (result_df[col] - rolling_mean) / rolling_std
+                
+                # Xử lý các giá trị không hợp lệ
+                result_df[f"{col}_std"] = result_df[f"{col}_std"].replace([np.inf, -np.inf], np.nan).fillna(0)
+            
+            elif method == 'log':
+                # Log transform
+                if (result_df[col] <= 0).any():
+                    # Đảm bảo giá trị dương trước khi áp dụng log
+                    min_val = result_df[col].min()
+                    offset = abs(min_val) + 1 if min_val <= 0 else 1
+                    result_df[f"{col}_log"] = np.log1p(result_df[col] + offset - 1)
+                else:
+                    result_df[f"{col}_log"] = np.log1p(result_df[col])
+            
+            elif method == 'minmax_01':
+                # Min-max scaling to [0, 1]
+                min_val = result_df[col].min()
+                max_val = result_df[col].max()
+                
+                if max_val - min_val > 1e-8:  # Tránh chia cho 0
+                    result_df[f"{col}_norm"] = (result_df[col] - min_val) / (max_val - min_val)
+                else:
+                    result_df[f"{col}_norm"] = 0.5
+                    logger.warning(f"Không thể áp dụng min-max cho cột {col} do phạm vi quá nhỏ")
+            
+            elif method == 'minmax_11':
+                # Min-max scaling to [-1, 1]
+                min_val = result_df[col].min()
+                max_val = result_df[col].max()
+                
+                if max_val - min_val > 1e-8:  # Tránh chia cho 0
+                    result_df[f"{col}_norm"] = 2 * (result_df[col] - min_val) / (max_val - min_val) - 1
+                else:
+                    result_df[f"{col}_norm"] = 0
+                    logger.warning(f"Không thể áp dụng min-max cho cột {col} do phạm vi quá nhỏ")
+            
+            elif method == 'robust':
+                # Robust scaling: (x - median) / IQR
+                median = result_df[col].median()
+                q1 = result_df[col].quantile(0.25)
+                q3 = result_df[col].quantile(0.75)
+                iqr = q3 - q1
+                
+                if iqr > 1e-8:  # Tránh chia cho 0
+                    result_df[f"{col}_scaled"] = (result_df[col] - median) / iqr
+                else:
+                    result_df[f"{col}_scaled"] = 0
+                    logger.warning(f"Không thể áp dụng robust scaling cho cột {col} do IQR quá nhỏ")
+    
+    return result_df
+
 def detect_and_fix_indicator_outliers(
     df: pd.DataFrame,
     columns: Optional[List[str]] = None,
@@ -1266,6 +1414,46 @@ def generate_labels(
     
     return result_df
 
+def generate_labels(
+    df: pd.DataFrame,
+    price_col: str = 'close',
+    window: int = 10,
+    threshold: float = 0.01,
+    **kwargs
+) -> pd.DataFrame:
+    """
+    Tạo nhãn cho dữ liệu dựa trên biến động giá tương lai.
+    
+    Args:
+        df: DataFrame với dữ liệu giá
+        price_col: Tên cột giá
+        window: Cửa sổ thời gian tương lai (số candle)
+        threshold: Ngưỡng % thay đổi giá để xác định nhãn
+        **kwargs: Tham số bổ sung
+    
+    Returns:
+        DataFrame với cột nhãn mới
+    """
+    result_df = df.copy()
+    
+    # Kiểm tra xem cột giá tồn tại không
+    if price_col not in result_df.columns:
+        logger.warning(f"Cột giá {price_col} không tồn tại trong DataFrame")
+        return result_df
+    
+    # Tính % thay đổi giá trong tương lai
+    future_returns = result_df[price_col].shift(-window) / result_df[price_col] - 1
+    
+    # Tạo nhãn: 1 (mua) nếu lợi nhuận > threshold, -1 (bán) nếu lỗ > threshold, 0 (giữ nguyên) nếu khác
+    result_df['label'] = 0
+    result_df.loc[future_returns > threshold, 'label'] = 1  # Long signal
+    result_df.loc[future_returns < -threshold, 'label'] = -1  # Short signal
+    
+    # Thêm các biến trợ giúp
+    result_df['future_return_pct'] = future_returns * 100  # Dưới dạng %
+    
+    return result_df
+
 def clean_technical_features(
     df: pd.DataFrame,
     config: Optional[Dict[str, Any]] = None,
@@ -1289,9 +1477,10 @@ def clean_technical_features(
             'outlier_method': 'zscore',
             'outlier_threshold': 3.0,
             'normalize_indicators': True,
+            'standardize_indicators': True,
             'add_trend_strength': True,
             'add_volatility_zscore': True,
-            'generate_labels': False,
+            'generate_labels': True,
             'label_window': 10,
             'label_threshold': 0.01
         }
@@ -1300,30 +1489,62 @@ def clean_technical_features(
     
     # Bước 1: Sửa chữa các giá trị ngoại lệ
     if config.get('fix_outliers', True):
-        result_df = detect_and_fix_indicator_outliers(
-            result_df,
+        from config.logging_config import setup_logger
+        from data_processors.cleaners.outlier_detector import OutlierDetector
+        
+        logger = setup_logger("clean_technical_features")
+        logger.info("Bắt đầu sửa chữa các giá trị ngoại lệ...")
+        
+        # Tạo detector
+        detector = OutlierDetector(
             method=config.get('outlier_method', 'zscore'),
-            threshold=config.get('outlier_threshold', 3.0)
+            threshold=config.get('outlier_threshold', 3.0),
+            use_robust=config.get('use_robust', True)
         )
+        
+        # Phát hiện và sửa ngoại lệ
+        result_df = detector.check_technical_indicators(result_df)
+        
+        # Sử dụng phương thức nâng cao nếu có
+        if hasattr(detector, 'check_and_fix_technical_indicators_advanced'):
+            result_df = detector.check_and_fix_technical_indicators_advanced(result_df)
+        
+        logger.info("Đã hoàn thành sửa chữa giá trị ngoại lệ")
     
     # Bước 2: Chuẩn hóa các chỉ báo
     if config.get('normalize_indicators', True):
+        logger.info("Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...")
         result_df = normalize_technical_indicators(
             result_df,
             indicators_config=config.get('indicators_config')
         )
+        logger.info("Đã hoàn thành chuẩn hóa các chỉ báo")
+    
+    # Bước 2b: Standardize các chỉ báo
+    if config.get('standardize_indicators', True):
+        logger.info("Bắt đầu standardize các chỉ báo kỹ thuật...")
+        result_df = standardize_technical_indicators(
+            result_df,
+            indicators_config=config.get('standardize_config'),
+            window=config.get('standardize_window', 100),
+            auto_detect=config.get('auto_detect', True)
+        )
+        logger.info("Đã hoàn thành standardize các chỉ báo")
     
     # Bước 3: Thêm trend_strength nếu cần
     if config.get('add_trend_strength', True):
+        logger.info("Thêm chỉ báo độ mạnh xu hướng...")
         result_df = add_trend_strength_indicator(
             result_df,
             price_col=config.get('price_col', 'close'),
             ema_period=config.get('ema_period', 89),
             slope_period=config.get('slope_period', 5)
         )
+        logger.info("Đã thêm chỉ báo độ mạnh xu hướng")
     
     # Bước 4: Thêm volatility_zscore nếu cần
     if config.get('add_volatility_zscore', True):
+        logger.info("Thêm chỉ báo Z-score của biến động...")
         result_df = add_volatility_zscore(
             result_df,
             high_col=config.get('high_col', 'high'),
@@ -1332,14 +1553,191 @@ def clean_technical_features(
             atr_period=config.get('atr_period', 14),
             zscore_window=config.get('zscore_window', 50)
         )
+        logger.info("Đã thêm chỉ báo Z-score của biến động")
     
     # Bước 5: Tạo nhãn nếu cần
     if config.get('generate_labels', False):
+        logger.info("Tạo nhãn cho dữ liệu...")
         result_df = generate_labels(
             result_df,
             price_col=config.get('price_col', 'close'),
             window=config.get('label_window', 10),
             threshold=config.get('label_threshold', 0.01)
         )
+        logger.info("Đã tạo nhãn cho dữ liệu")
+    
+    logger.info("Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật")
+    return result_df
+
+def add_trend_strength_indicator(
+    df: pd.DataFrame,
+    price_col: str = 'close',
+    ema_period: int = 89,
+    slope_period: int = 5,
+    normalize: bool = True,
+    **kwargs
+) -> pd.DataFrame:
+    """
+    Thêm chỉ báo độ mạnh xu hướng dựa trên độ dốc (slope) của EMA.
+    
+    Args:
+        df: DataFrame chứa dữ liệu giá
+        price_col: Tên cột giá
+        ema_period: Kích thước cửa sổ cho EMA
+        slope_period: Kích thước cửa sổ cho việc tính độ dốc
+        normalize: Chuẩn hóa kết quả
+        **kwargs: Tham số bổ sung
+    
+    Returns:
+        DataFrame với các chỉ báo xu hướng mới
+    """
+    result_df = df.copy()
+    
+    # Kiểm tra xem cột giá tồn tại không
+    if price_col not in result_df.columns:
+        logger.warning(f"Cột giá {price_col} không tồn tại trong DataFrame")
+        return result_df
+    
+    # Tính EMA
+    ema_col = f"ema_{ema_period}"
+    if ema_col not in result_df.columns:
+        result_df[ema_col] = result_df[price_col].ewm(span=ema_period, adjust=False).mean()
+    
+    # Tính slope (độ dốc)
+    slope = result_df[ema_col].diff(slope_period) / slope_period
+    
+    # Tính acceleration (gia tốc) - đạo hàm bậc 2
+    acceleration = slope.diff()
+    
+    # Chuẩn hóa nếu được yêu cầu
+    if normalize:
+        # Sử dụng cửa sổ 100 period để chuẩn hóa
+        window = kwargs.get('window', 100)
+        
+        # Đối với slope
+        slope_rolling_std = slope.rolling(window=window, min_periods=1).std()
+        slope_rolling_mean = slope.rolling(window=window, min_periods=1).mean()
+        
+        # Tránh chia cho 0
+        slope_rolling_std = slope_rolling_std.replace(0, np.nan)
+        
+        # Z-score chuẩn hóa
+        norm_slope = (slope - slope_rolling_mean) / slope_rolling_std
+        
+        # Xử lý các giá trị không hợp lệ
+        norm_slope = norm_slope.replace([np.inf, -np.inf], np.nan)
+        norm_slope = norm_slope.fillna(0)
+        
+        # Đối với acceleration
+        acc_rolling_std = acceleration.rolling(window=window, min_periods=1).std()
+        acc_rolling_mean = acceleration.rolling(window=window, min_periods=1).mean()
+        
+        # Tránh chia cho 0
+        acc_rolling_std = acc_rolling_std.replace(0, np.nan)
+        
+        # Z-score chuẩn hóa
+        norm_acceleration = (acceleration - acc_rolling_mean) / acc_rolling_std
+        
+        # Xử lý các giá trị không hợp lệ
+        norm_acceleration = norm_acceleration.replace([np.inf, -np.inf], np.nan)
+        norm_acceleration = norm_acceleration.fillna(0)
+        
+        # Đặt tên các cột kết quả
+        result_df["trend_strength"] = norm_slope
+        result_df["trend_acceleration"] = norm_acceleration
+    else:
+        # Đặt tên các cột kết quả không chuẩn hóa
+        result_df["trend_slope"] = slope
+        result_df["trend_acceleration"] = acceleration
+    
+    return result_df
+
+def add_volatility_zscore(
+    df: pd.DataFrame,
+    high_col: str = 'high',
+    low_col: str = 'low',
+    close_col: str = 'close',
+    atr_period: int = 14,
+    zscore_window: int = 50,
+    **kwargs
+) -> pd.DataFrame:
+    """
+    Thêm chỉ báo Z-score của biến động (ATR).
+    
+    Args:
+        df: DataFrame chứa dữ liệu giá
+        high_col: Tên cột giá cao
+        low_col: Tên cột giá thấp
+        close_col: Tên cột giá đóng cửa
+        atr_period: Kích thước cửa sổ cho ATR
+        zscore_window: Kích thước cửa sổ cho việc tính Z-score
+        **kwargs: Tham số bổ sung
+    
+    Returns:
+        DataFrame với các chỉ báo biến động mới
+    """
+    result_df = df.copy()
+    
+    # Kiểm tra xem các cột tồn tại không
+    required_cols = [high_col, low_col, close_col]
+    missing_cols = [col for col in required_cols if col not in result_df.columns]
+    if missing_cols:
+        logger.warning(f"Các cột sau không tồn tại trong DataFrame: {missing_cols}")
+        return result_df
+    
+    # Kiểm tra xem ATR đã được tính toán chưa
+    atr_col = f"atr_{atr_period}"
+    if atr_col not in result_df.columns:
+        # Tính True Range
+        high = result_df[high_col]
+        low = result_df[low_col]
+        close = result_df[close_col]
+        
+        tr1 = high - low
+        tr2 = abs(high - close.shift(1))
+        tr3 = abs(low - close.shift(1))
+        
+        tr = pd.DataFrame({'tr1': tr1, 'tr2': tr2, 'tr3': tr3}).max(axis=1)
+        
+        # Tính ATR
+        result_df[atr_col] = tr.ewm(span=atr_period, min_periods=atr_period, adjust=False).mean()
+    
+    # Tính ATR percent (ATR/Close)
+    atr_pct_col = f"atr_pct_{atr_period}"
+    if atr_pct_col not in result_df.columns:
+        # Tránh chia cho 0
+        close_non_zero = result_df[close_col].replace(0, np.nan)
+        result_df[atr_pct_col] = result_df[atr_col] / close_non_zero * 100
+    
+    # Tính Z-score của ATR
+    # Tính trung bình và độ lệch chuẩn của ATR trong cửa sổ
+    rolling_mean = result_df[atr_col].rolling(window=zscore_window, min_periods=1).mean()
+    rolling_std = result_df[atr_col].rolling(window=zscore_window, min_periods=1).std()
+    
+    # Tránh chia cho 0
+    rolling_std = rolling_std.replace(0, np.nan)
+    
+    # Tính Z-score
+    volatility_zscore = (result_df[atr_col] - rolling_mean) / rolling_std
+    
+    # Xử lý các giá trị không hợp lệ
+    volatility_zscore = volatility_zscore.replace([np.inf, -np.inf], np.nan)
+    volatility_zscore = volatility_zscore.fillna(0)
+    
+    # Đặt tên cột kết quả
+    result_df["volatility_zscore"] = volatility_zscore
+    
+    # Tính biến động tương đối so với quá khứ (percentile)
+    def rolling_rank(x):
+        ranks = x.rank(pct=True)
+        return ranks.iloc[-1] if not ranks.empty else np.nan
+    
+    volatility_rank = result_df[atr_col].rolling(window=zscore_window, min_periods=1).apply(
+        rolling_rank, 
+        raw=False  # Cần False để xử lý Series
+    )
+    
+    # Đặt tên cột kết quả
+    result_df["volatility_rank"] = volatility_rank
     
     return result_df

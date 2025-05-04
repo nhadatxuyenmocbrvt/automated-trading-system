@@ -873,31 +873,47 @@ class OutlierDetector:
         
         Args:
             df: DataFrame chứa các chỉ báo kỹ thuật
-            
+                
         Returns:
             DataFrame đã được kiểm tra và sửa
         """
         result_df = df.copy()
         
-        # 1. Kiểm tra các cột RSI (các cột có tên chứa 'rsi_')
-        rsi_columns = [col for col in result_df.columns if 'rsi_' in col.lower() and not col.endswith('_is_outlier')]
-        for col in rsi_columns:
-            # Kiểm tra giá trị RSI nằm ngoài phạm vi [0, 100]
-            invalid_mask = (result_df[col] < 0) | (result_df[col] > 100) | ~np.isfinite(result_df[col])
-            invalid_count = invalid_mask.sum()
-            
-            if invalid_count > 0:
-                self.logger.warning(f"Phát hiện {invalid_count} giá trị không hợp lệ trong cột {col}")
-                
-                # Sửa giá trị không hợp lệ
-                if '_norm_' in col:
-                    # Nếu là RSI đã chuẩn hóa (0-1), sửa về 0.5
-                    result_df.loc[invalid_mask, col] = 0.5
-                else:
-                    # Nếu là RSI chưa chuẩn hóa (0-100), sửa về 50
-                    result_df.loc[invalid_mask, col] = 50
+        # Kiểm tra tất cả các cột chỉ báo đã biết
+        indicators_to_check = {
+            'rsi': {'min': 0, 'max': 100, 'default': 50},
+            'stoch': {'min': 0, 'max': 100, 'default': 50},
+            'williams_r': {'min': -100, 'max': 0, 'default': -50},
+            'cci': {'min': -300, 'max': 300, 'default': 0},
+            'mfi': {'min': 0, 'max': 100, 'default': 50},
+            'adx': {'min': 0, 'max': 100, 'default': 25},
+            'aroon': {'min': -100, 'max': 100, 'default': 0}
+        }
         
-        # 2. Kiểm tra các cột MACD (không có phạm vi cố định, nhưng kiểm tra NaN, Inf)
+        # 1. Xử lý các giá trị không hợp lệ cho mỗi loại chỉ báo
+        for indicator, limits in indicators_to_check.items():
+            # Tìm tất cả các cột liên quan đến chỉ báo này
+            related_columns = [col for col in result_df.columns 
+                            if indicator in col.lower() and not col.endswith('_is_outlier')]
+            
+            for col in related_columns:
+                # Kiểm tra giá trị nằm ngoài phạm vi hoặc không hợp lệ (NaN, inf)
+                if '_norm_' in col:
+                    # Phiên bản chuẩn hóa (0-1)
+                    invalid_mask = (result_df[col] < 0) | (result_df[col] > 1) | ~np.isfinite(result_df[col])
+                    replace_value = limits['default'] / (limits['max'] - limits['min']) if limits['max'] != limits['min'] else 0.5
+                else:
+                    # Phiên bản thông thường
+                    invalid_mask = (result_df[col] < limits['min']) | (result_df[col] > limits['max']) | ~np.isfinite(result_df[col])
+                    replace_value = limits['default']
+                    
+                invalid_count = invalid_mask.sum()
+                
+                if invalid_count > 0:
+                    self.logger.warning(f"Sửa {invalid_count} giá trị không hợp lệ trong cột {col}")
+                    result_df.loc[invalid_mask, col] = replace_value
+        
+        # 2. Kiểm tra và xử lý MACD (không có phạm vi cố định)
         macd_columns = [col for col in result_df.columns if 'macd' in col.lower() and not col.endswith('_is_outlier')]
         for col in macd_columns:
             # Kiểm tra giá trị không hợp lệ (NaN, inf)
@@ -907,78 +923,64 @@ class OutlierDetector:
             if invalid_count > 0:
                 self.logger.warning(f"Phát hiện {invalid_count} giá trị không hợp lệ trong cột {col}")
                 
-                # Thay thế bằng giá trị trung bình có điều kiện
+                # Thay thế bằng giá trị trung bình có điều kiện hoặc 0
                 valid_values = result_df.loc[~invalid_mask, col]
                 if len(valid_values) > 0:
-                    replacement = valid_values.mean()
+                    replacement = valid_values.median()  # Sử dụng trung vị thay vì trung bình
                 else:
-                    replacement = 0  # Nếu không có giá trị hợp lệ nào
+                    replacement = 0
                 
                 result_df.loc[invalid_mask, col] = replacement
-        
-        # 3. Kiểm tra Stochastic Oscillator (giá trị 0-100)
-        stoch_columns = [col for col in result_df.columns if ('stoch_' in col.lower() or 'stochastic' in col.lower()) 
-                        and not col.endswith('_is_outlier')]
-        for col in stoch_columns:
-            invalid_mask = (result_df[col] < 0) | (result_df[col] > 100) | ~np.isfinite(result_df[col])
-            invalid_count = invalid_mask.sum()
-            
-            if invalid_count > 0:
-                self.logger.warning(f"Phát hiện {invalid_count} giá trị không hợp lệ trong cột {col}")
                 
-                # Sửa giá trị không hợp lệ
-                if '_norm_' in col:
-                    result_df.loc[invalid_mask, col] = 0.5
-                else:
-                    result_df.loc[invalid_mask, col] = 50
+            # Phát hiện các giá trị cực đoan
+            if ~invalid_mask.all():  # Nếu có ít nhất một giá trị hợp lệ
+                median = result_df.loc[~invalid_mask, col].median()
+                mad = stats.median_abs_deviation(result_df.loc[~invalid_mask, col], nan_policy='omit')
+                
+                if mad > 0:
+                    # Phát hiện outlier sử dụng MAD (Median Absolute Deviation)
+                    # Ngưỡng thường là 3 hoặc 3.5
+                    threshold = 5.0
+                    outlier_mask = (np.abs(result_df[col] - median) / mad) > threshold
+                    outlier_count = outlier_mask.sum()
+                    
+                    if outlier_count > 0:
+                        self.logger.warning(f"Phát hiện {outlier_count} giá trị cực đoan trong cột {col}")
+                        
+                        # Giới hạn các giá trị cực đoan (không loại bỏ hoàn toàn)
+                        upper_bound = median + threshold * mad
+                        lower_bound = median - threshold * mad
+                        
+                        # Áp dụng giới hạn
+                        result_df.loc[result_df[col] > upper_bound, col] = upper_bound
+                        result_df.loc[result_df[col] < lower_bound, col] = lower_bound
         
-        # 4. Kiểm tra Williams %R (giá trị -100 đến 0)
-        williams_columns = [col for col in result_df.columns if 'williams_r' in col.lower() and not col.endswith('_is_outlier')]
-        for col in williams_columns:
-            if '_norm_' in col:
-                # Kiểm tra Williams %R đã chuẩn hóa (0-1)
-                invalid_mask = (result_df[col] < 0) | (result_df[col] > 1) | ~np.isfinite(result_df[col])
-                if invalid_mask.sum() > 0:
-                    self.logger.warning(f"Sửa {invalid_mask.sum()} giá trị Williams %R chuẩn hóa không hợp lệ")
-                    result_df.loc[invalid_mask, col] = 0.5
-            else:
-                # Kiểm tra Williams %R thông thường (-100 đến 0)
-                invalid_mask = (result_df[col] < -100) | (result_df[col] > 0) | ~np.isfinite(result_df[col])
-                if invalid_mask.sum() > 0:
-                    self.logger.warning(f"Sửa {invalid_mask.sum()} giá trị Williams %R không hợp lệ")
-                    result_df.loc[invalid_mask, col] = -50
-        
-        # 5. Kiểm tra On-Balance Volume (không có giới hạn cụ thể, chỉ kiểm tra NaN, Inf)
+        # 3. Kiểm tra On-Balance Volume (OBV)
         obv_columns = [col for col in result_df.columns if 'obv' in col.lower() and not col.endswith('_is_outlier')]
         for col in obv_columns:
+            # Kiểm tra giá trị không hợp lệ
             invalid_mask = ~np.isfinite(result_df[col])
             invalid_count = invalid_mask.sum()
             
             if invalid_count > 0:
                 self.logger.warning(f"Phát hiện {invalid_count} giá trị OBV không hợp lệ")
                 
-                # Xử lý các giá trị không hợp lệ
-                # Sử dụng việc nội suy nếu có thể, hoặc thay thế bằng 0
-                if invalid_mask.all():
-                    # Nếu tất cả đều không hợp lệ, thay thế bằng 0
-                    result_df[col] = 0
+                # Kiểm tra có nên sử dụng nội suy hay không
+                if invalid_count < len(result_df) * 0.5:  # Nếu ít hơn 50% là không hợp lệ
+                    # Sử dụng nội suy
+                    temp_series = result_df[col].copy()
+                    temp_series[invalid_mask] = np.nan
+                    interpolated = temp_series.interpolate(method='linear').fillna(method='ffill').fillna(method='bfill')
+                    
+                    # Nếu vẫn còn NaN, thay thế bằng 0
+                    interpolated = interpolated.fillna(0)
+                    
+                    result_df.loc[:, col] = interpolated
                 else:
-                    # Thử nội suy
-                    temp_col = result_df[col].copy()
-                    temp_col[invalid_mask] = np.nan
-                    interpolated = temp_col.interpolate(method='linear')
-                    
-                    # Nếu vẫn còn NA sau nội suy (ở đầu hoặc cuối)
-                    if interpolated.isna().any():
-                        interpolated = interpolated.fillna(method='ffill').fillna(method='bfill')
-                        
-                        # Nếu vẫn còn NA, thay thế bằng 0
-                        if interpolated.isna().any():
-                            interpolated = interpolated.fillna(0)
-                    
-                    result_df[col] = interpolated
+                    # Nếu quá nhiều giá trị không hợp lệ, thiết lập về 0
+                    result_df.loc[invalid_mask, col] = 0
         
-        # 6. Kiểm tra và xử lý các giá trị volume cực đại
+        # 4. Kiểm tra giá trị volume
         volume_columns = [col for col in result_df.columns if col.lower() == 'volume' or col.lower().endswith('_volume')]
         for col in volume_columns:
             # Kiểm tra giá trị âm (volume không thể âm)
@@ -986,19 +988,121 @@ class OutlierDetector:
             if invalid_mask.sum() > 0:
                 self.logger.warning(f"Sửa {invalid_mask.sum()} giá trị {col} không hợp lệ (âm hoặc NaN/Inf)")
                 result_df.loc[invalid_mask, col] = 0
-            
-            # Kiểm tra giá trị cực đại (outlier)
-            mean_vol = result_df[col].mean()
-            std_vol = result_df[col].std()
-            if std_vol > 0:
-                # Phát hiện outlier với z-score cao (> 10)
-                z_scores = (result_df[col] - mean_vol) / std_vol
-                extreme_mask = z_scores > 10
-                if extreme_mask.sum() > 0:
-                    self.logger.warning(f"Phát hiện {extreme_mask.sum()} giá trị {col} cực đại")
-                    # Không thay đổi giá trị này, chỉ ghi nhận
+        
+        # 5. Thêm cột đánh dấu cho chỉ báo đã được sửa
+        result_df['indicators_fixed'] = False
+        for indicator in indicators_to_check:
+            related_columns = [col for col in result_df.columns if indicator in col.lower() and not col.endswith('_is_outlier')]
+            for col in related_columns:
+                if f"{col}_fixed" in result_df.columns:
+                    result_df.loc[result_df[f"{col}_fixed"], 'indicators_fixed'] = True
+        
+        # 6. Chuẩn bị áp dụng Log transform cho volume nếu chưa có
+        for col in volume_columns:
+            if f"{col}_log" not in result_df.columns:
+                # Thêm biến đổi log1p cho volume để giảm ảnh hưởng của các giá trị cực đoan
+                result_df[f"{col}_log"] = np.log1p(result_df[col])
         
         return result_df
+
+    def check_and_fix_technical_indicators_advanced(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Kiểm tra và sửa chữa các chỉ báo kỹ thuật nâng cao, bao gồm các cặp chỉ báo liên quan.
+        
+        Args:
+            df: DataFrame chứa các chỉ báo kỹ thuật
+            
+        Returns:
+            DataFrame đã được kiểm tra và sửa
+        """
+        result_df = df.copy()
+        
+        # 1. Kiểm tra mối quan hệ giữa MACD và MACD Signal
+        macd_columns = [col for col in result_df.columns if 'macd' in col.lower() and not 'signal' in col.lower() and not col.endswith('_is_outlier')]
+        signal_columns = [col for col in result_df.columns if 'macd_signal' in col.lower() and not col.endswith('_is_outlier')]
+        
+        if macd_columns and signal_columns:
+            for macd_col, signal_col in zip(macd_columns, signal_columns):
+                # Kiểm tra chênh lệch quá lớn giữa MACD và Signal
+                diff = (result_df[macd_col] - result_df[signal_col]).abs()
+                median_diff = diff.median()
+                mad = stats.median_abs_deviation(diff, nan_policy='omit')
+                
+                if mad > 0:
+                    # Phát hiện chênh lệch bất thường (>5 lần độ lệch trung vị tuyệt đối)
+                    outlier_threshold = median_diff + 5 * mad
+                    outlier_mask = diff > outlier_threshold
+                    
+                    if outlier_mask.sum() > 0:
+                        self.logger.warning(f"Phát hiện {outlier_mask.sum()} trường hợp chênh lệch bất thường giữa {macd_col} và {signal_col}")
+                        
+                        # Điều chỉnh các giá trị MACD bất thường về giá trị hợp lý hơn
+                        for idx in result_df.index[outlier_mask]:
+                            # Kiểm tra xem MACD hay Signal có vấn đề (lấy giá trị xa trung vị hơn)
+                            macd_val = result_df.loc[idx, macd_col]
+                            signal_val = result_df.loc[idx, signal_col]
+                            
+                            macd_zscore = abs((macd_val - result_df[macd_col].median()) / result_df[macd_col].std())
+                            signal_zscore = abs((signal_val - result_df[signal_col].median()) / result_df[signal_col].std())
+                            
+                            if macd_zscore > signal_zscore:
+                                # MACD có vẻ bất thường hơn, điều chỉnh nó
+                                result_df.loc[idx, macd_col] = signal_val + np.sign(macd_val - signal_val) * median_diff
+                            else:
+                                # Signal có vẻ bất thường hơn, điều chỉnh nó
+                                result_df.loc[idx, signal_col] = macd_val - np.sign(macd_val - signal_val) * median_diff
+        
+        # 2. Kiểm tra ngoại lệ trong khối lượng giao dịch (Volume)
+        volume_columns = [col for col in result_df.columns if col.lower() == 'volume' or 'vol_' in col.lower() or '_vol' in col.lower()]
+        
+        for col in volume_columns:
+            if col not in result_df.columns:
+                continue
+                
+            # Phát hiện giá trị cực lớn (>10 lần trung vị)
+            vol_median = result_df[col].median()
+            extreme_threshold = vol_median * 10
+            
+            extreme_mask = (result_df[col] > extreme_threshold) & np.isfinite(result_df[col])
+            extreme_count = extreme_mask.sum()
+            
+            if extreme_count > 0:
+                self.logger.warning(f"Phát hiện {extreme_count} giá trị cực lớn trong cột {col}")
+                
+                # Ghi nhận giá trị cực lớn (không thay đổi chúng, chỉ đánh dấu)
+                # Thêm cột đánh dấu nếu chưa có
+                if f"{col}_extreme" not in result_df.columns:
+                    result_df[f"{col}_extreme"] = False
+                    
+                result_df.loc[extreme_mask, f"{col}_extreme"] = True
+                
+                # Tạo cột log-transformed cho volume
+                if f"{col}_log" not in result_df.columns:
+                    result_df[f"{col}_log"] = np.log1p(result_df[col])
+                    
+        # 3. Kiểm tra cụ thể chỉ báo RSI nằm ngoài phạm vi [0, 100]
+        rsi_columns = [col for col in result_df.columns if 'rsi' in col.lower() and not col.endswith('_is_outlier')]
+        
+        for col in rsi_columns:
+            invalid_mask = (result_df[col] < 0) | (result_df[col] > 100) | ~np.isfinite(result_df[col])
+            invalid_count = invalid_mask.sum()
+            
+            if invalid_count > 0:
+                self.logger.warning(f"Sửa {invalid_count} giá trị RSI không hợp lệ trong cột {col}")
+                
+                # Đánh dấu các giá trị không hợp lệ
+                if f"{col}_fixed" not in result_df.columns:
+                    result_df[f"{col}_fixed"] = False
+                    
+                result_df.loc[invalid_mask, f"{col}_fixed"] = True
+                
+                # Clip các giá trị RSI vào phạm vi hợp lệ
+                result_df.loc[invalid_mask, col] = np.clip(
+                    result_df.loc[invalid_mask, col].replace([np.inf, -np.inf], np.nan).fillna(50), 
+                    0, 100
+                )
+        
+        return result_df    
 
 class OutlierDetectionMethod:
     """
