@@ -358,6 +358,10 @@ python main.py backtest --strategy dqn
 ```bash
 # Huấn luyện agent DQN
 python main.py train --agent dqn
+python main.py train --agent dqn --symbol BTC/USDT --timeframe 1h --episodes 1000
+python main.py train --agent ppo --symbol BTC/USDT --timeframe 1h --episodes 1000
+python main.py train --agent a2c --symbol BTC/USDT --timeframe 1h --episodes 1000
+python main.py train --agent dqn --symbol BTC/USDT --timeframe 1h --episodes 1000 --output-dir ./models
 
 # Huấn luyện agent PPO
 python main.py train --agent ppo

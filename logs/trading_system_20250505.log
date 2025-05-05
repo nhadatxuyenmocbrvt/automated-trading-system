@@ -1,0 +1,62 @@
+2025-05-05 10:57:44,195 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 10:57:44,202 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 10:57:44,208 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 10:57:45,016 - trading_system - INFO - [main.py:27] - Khởi động hệ thống giao dịch tự động
+2025-05-05 10:57:45,035 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 10:57:45,036 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 10:57:45,041 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 10:57:45,042 - trading_system.module_manager - INFO - [trading_system.py:137] - ==== Trạng thái khả dụng của module ====
+2025-05-05 10:57:45,043 - trading_system.module_manager - INFO - [trading_system.py:138] - Agents: Khả dụng
+2025-05-05 10:57:45,043 - trading_system.module_manager - INFO - [trading_system.py:139] - Environments: Khả dụng
+2025-05-05 10:57:45,044 - trading_system.module_manager - INFO - [trading_system.py:140] - Data Collectors: Không khả dụng
+2025-05-05 10:57:45,044 - trading_system.trading_system - INFO - [trading_system.py:221] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-05 10:57:45,045 - trading_system.train_command - INFO - [train_commands.py:205] - Tự động tìm thấy file dữ liệu: E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet
+2025-05-05 10:57:45,046 - trading_system.train_command - INFO - [train_commands.py:239] - Bắt đầu huấn luyện agent ppo trên BTC/USDT, 1h
+2025-05-05 10:57:45,048 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 10:57:45,048 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 10:57:45,053 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 10:57:45,066 - trading_system.module_manager - DEBUG - [trading_system.py:105] - Agent PPO khả dụng
+2025-05-05 10:57:45,068 - trading_system.trading_system - INFO - [trading_system.py:512] - Bắt đầu huấn luyện agent ppo cho BTC/USDT, khung thời gian 1h
+2025-05-05 10:57:45,069 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-05 10:57:45,070 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-05 10:57:45,070 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-05 10:57:45,071 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-05 10:57:45,071 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-05 10:57:45,072 - trading_system.trading_system - INFO - [feature_generator.py:98] - Đã khởi tạo FeatureGenerator
+2025-05-05 10:57:45,072 - trading_system.trading_system - INFO - [feature_generator.py:326] - Đăng ký các đặc trưng mặc định
+2025-05-05 10:57:45,073 - trading_system.trading_system - DEBUG - [feature_generator.py:497] - Import thành công từ technical_indicators package
+2025-05-05 10:57:45,073 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_ema
+2025-05-05 10:57:45,073 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_sma
+2025-05-05 10:57:45,074 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_rsi
+2025-05-05 10:57:45,074 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_macd
+2025-05-05 10:57:45,075 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_atr
+2025-05-05 10:57:45,075 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_bbands
+2025-05-05 10:57:45,076 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_obv
+2025-05-05 10:57:45,076 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_adx
+2025-05-05 10:57:45,076 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_supertrend
+2025-05-05 10:57:45,077 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_osc
+2025-05-05 10:57:45,077 - trading_system.trading_system - INFO - [feature_generator.py:515] - Đã đăng ký tất cả technical indicators có sẵn
+2025-05-05 10:57:45,078 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: normalize
+2025-05-05 10:57:45,078 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: standardize
+2025-05-05 10:57:45,079 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: min_max_scale
+2025-05-05 10:57:45,079 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: handle_extreme_values
+2025-05-05 10:57:45,080 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: log_transform_volume
+2025-05-05 10:57:45,080 - trading_system.trading_system - DEBUG - [feature_generator.py:219] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
+2025-05-05 10:57:45,081 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: target_labels
+2025-05-05 10:57:45,081 - trading_system.trading_system - INFO - [feature_generator.py:382] - Đã đăng ký tính năng tạo nhãn target
+2025-05-05 10:57:45,082 - trading_system.trading_system - INFO - [feature_generator.py:388] - Đã đăng ký 11 đặc trưng: ['trend_ema', 'trend_sma', 'momentum_rsi', 'momentum_macd', 'volatility_atr', 'volatility_bbands', 'volume_obv', 'trend_adx', 'trend_supertrend', 'volume_osc', 'target_labels']
+2025-05-05 10:57:45,082 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-05-05 10:57:45,171 - trading_system.trading_system - INFO - [data_pipeline.py:489] - Đã tải 27000 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet cho BTC/USDT
+2025-05-05 10:57:45,174 - trading_system.environment - INFO - [base_environment.py:103] - Đã khởi tạo môi trường cơ sở với 27000 dòng dữ liệu
+2025-05-05 10:57:45,176 - trading_system.observation_space - INFO - [observation_space.py:67] - Đã khởi tạo ObservationSpace với 37 đặc trưng, window_size=100
+2025-05-05 10:57:45,176 - trading_system.observation_space - INFO - [observation_space.py:69] - Không gian quan sát bao gồm target với 1 chiều
+2025-05-05 10:57:45,177 - trading_system.action_space - INFO - [action_space.py:53] - Đã khởi tạo ActionSpace với loại discrete, max_positions=5
+2025-05-05 10:57:45,178 - trading_system.environment - INFO - [trading_env.py:195] - Đã khởi tạo môi trường giao dịch với 27000 dòng dữ liệu, 37 đặc trưng
+2025-05-05 10:57:45,178 - trading_system.trading_system - ERROR - [trading_system.py:635] - Lỗi khi huấn luyện agent: Can't instantiate abstract class PPOAgent with abstract methods _load_model_impl, _save_model_impl, act, learn
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\trading_system.py", line 587, in train_agent
+    agent = PPOAgent(**agent_kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Can't instantiate abstract class PPOAgent with abstract methods _load_model_impl, _save_model_impl, act, learn
+2025-05-05 10:57:45,181 - trading_system.train_command - ERROR - [train_commands.py:279] - Huấn luyện thất bại
+2025-05-05 10:57:45,182 - trading_system - INFO - [main.py:53] - Đóng hệ thống giao dịch tự động

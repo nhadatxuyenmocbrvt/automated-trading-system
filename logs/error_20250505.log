@@ -1,0 +1,7 @@
+2025-05-05 10:57:45,178 - trading_system.trading_system - ERROR - [trading_system.py:635] - Lỗi khi huấn luyện agent: Can't instantiate abstract class PPOAgent with abstract methods _load_model_impl, _save_model_impl, act, learn
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\trading_system.py", line 587, in train_agent
+    agent = PPOAgent(**agent_kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Can't instantiate abstract class PPOAgent with abstract methods _load_model_impl, _save_model_impl, act, learn
+2025-05-05 10:57:45,181 - trading_system.train_command - ERROR - [train_commands.py:279] - Huấn luyện thất bại

@@ -678,7 +678,8 @@ class FeatureGenerator:
         feature_names: Optional[List[str]] = None,
         parallel: bool = True,
         generate_labels: bool = False,  # Thêm tham số này
-        label_config: Optional[Dict[str, Any]] = None  # Thêm tham số này
+        label_config: Optional[Dict[str, Any]] = None,  # Thêm tham số này
+        preserve_timestamp: bool = True  # Thêm tham số này
     ) -> pd.DataFrame:
         """
         Tính toán nhiều đặc trưng.
@@ -689,24 +690,15 @@ class FeatureGenerator:
             parallel: Tính toán song song
             generate_labels: Tạo nhãn cho huấn luyện
             label_config: Cấu hình tạo nhãn
+            preserve_timestamp: Giữ lại cột timestamp
             
         Returns:
             DataFrame với các đặc trưng mới
         """
-        # Tạo nhãn nếu được yêu cầu (thêm vào cuối phương thức, trước return)
-        if generate_labels:
-            if label_config is None:
-                label_config = {
-                    'price_col': 'close',
-                    'target_type': 'price_movement',
-                    'lookforward_period': 10,
-                    'threshold': 0.01,
-                    'target_column': 'label',
-                    'add_return_cols': True
-                }
-
-            result_df = self.generate_target_labels(result_df, **label_config)
-            self.logger.info(f"Đã tạo nhãn target với cấu hình: {label_config}")
+        # Lưu cột timestamp nếu có
+        timestamp_col = None
+        if preserve_timestamp and 'timestamp' in df.columns:
+            timestamp_col = df['timestamp'].copy()
 
         # Ghi log các cột ban đầu
         self.logger.debug(f"Cột ban đầu trước khi tính toán đặc trưng: {df.columns.tolist()}")
@@ -722,6 +714,13 @@ class FeatureGenerator:
         result_df = df.copy()
         
         if not feature_names:
+            # Nếu không có đặc trưng nào cần tính, trả về ngay
+            # Khôi phục cột timestamp nếu cần
+            if timestamp_col is not None:
+                result_df['timestamp'] = timestamp_col
+                # Đảm bảo timestamp là cột đầu tiên
+                cols = ['timestamp'] + [col for col in result_df.columns if col != 'timestamp']
+                result_df = result_df[cols]
             return result_df
         
         # Xây dựng đồ thị phụ thuộc và sắp xếp thứ tự tính toán
@@ -794,6 +793,28 @@ class FeatureGenerator:
                         self.logger.debug(f"Đã chuyển đổi cột {col} sang float")
                     except (ValueError, TypeError):
                         self.logger.debug(f"Không thể chuyển đổi cột {col} sang float, giữ nguyên kiểu {result_df[col].dtype}")
+        
+        # Tạo nhãn nếu được yêu cầu
+        if generate_labels:
+            if label_config is None:
+                label_config = {
+                    'price_col': 'close',
+                    'target_type': 'price_movement',
+                    'lookforward_period': 10,
+                    'threshold': 0.01,
+                    'target_column': 'label',
+                    'add_return_cols': True
+                }
+
+            result_df = self.generate_target_labels(result_df, **label_config)
+            self.logger.info(f"Đã tạo nhãn target với cấu hình: {label_config}")
+        
+        # Khôi phục cột timestamp cuối cùng, sau khi đã xử lý xong
+        if timestamp_col is not None:
+            result_df['timestamp'] = timestamp_col
+            # Đảm bảo timestamp là cột đầu tiên
+            cols = ['timestamp'] + [col for col in result_df.columns if col != 'timestamp']
+            result_df = result_df[cols]
         
         return result_df
     
@@ -1181,8 +1202,9 @@ class FeatureGenerator:
         df: pd.DataFrame,
         pipeline_name: Optional[str] = None,
         fit: bool = True,
-        generate_labels: bool = False,  # Thêm tham số này
-        label_config: Optional[Dict[str, Any]] = None  # Thêm tham số này
+        generate_labels: bool = False,
+        label_config: Optional[Dict[str, Any]] = None,
+        preserve_timestamp: bool = True
     ) -> pd.DataFrame:
         """
         Áp dụng toàn bộ pipeline lên dữ liệu.
@@ -1193,10 +1215,16 @@ class FeatureGenerator:
             fit: Học các tham số mới hay không
             generate_labels: Tạo nhãn cho huấn luyện
             label_config: Cấu hình tạo nhãn
+            preserve_timestamp: Giữ lại cột timestamp
             
         Returns:
             DataFrame đã xử lý
         """
+        # Lưu cột timestamp nếu có
+        timestamp_col = None
+        if preserve_timestamp and 'timestamp' in df.columns:
+            timestamp_col = df['timestamp'].copy()
+
         # Kiểm tra pipeline tồn tại
         if pipeline_name is not None:
             if "pipelines" not in self.feature_config or pipeline_name not in self.feature_config["pipelines"]:
@@ -1225,7 +1253,12 @@ class FeatureGenerator:
         # Bước 1: Tính toán các đặc trưng
         if feature_names:
             self.logger.info(f"Bắt đầu tính toán {len(feature_names)} đặc trưng: {feature_names}")
-            result_df = self.calculate_features(result_df, feature_names, parallel=True)
+            result_df = self.calculate_features(
+                result_df, 
+                feature_names, 
+                parallel=True, 
+                preserve_timestamp=False  # Không cần bảo toàn timestamp trong calculate_features vì sẽ thêm lại sau
+            )
         
         # Bước 2: Áp dụng các bộ tiền xử lý
         if preprocessor_names:
@@ -1252,6 +1285,28 @@ class FeatureGenerator:
             
             if num_cols_before > num_cols_after:
                 self.logger.warning(f"Feature selection đã loại bỏ {num_cols_before - num_cols_after} cột")
+
+        # Bước 5: Tạo nhãn nếu cần
+        if generate_labels:
+            if label_config is None:
+                label_config = {
+                    'price_col': 'close',
+                    'target_type': 'price_movement',
+                    'lookforward_period': 10,
+                    'threshold': 0.01,
+                    'target_column': 'label',
+                    'add_return_cols': True
+                }
+            
+            result_df = self.generate_target_labels(result_df, **label_config)
+            self.logger.info(f"Đã tạo nhãn target với cấu hình: {label_config}")
+
+        # Khôi phục cột timestamp cuối cùng, sau khi đã xử lý xong
+        if timestamp_col is not None:
+            result_df['timestamp'] = timestamp_col
+            # Đảm bảo timestamp là cột đầu tiên
+            cols = ['timestamp'] + [col for col in result_df.columns if col != 'timestamp']
+            result_df = result_df[cols]
         
         # Cập nhật trạng thái
         if fit:

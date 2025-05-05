@@ -272,7 +272,8 @@ class DataPipeline:
         include_sentiment: Optional[bool] = None,
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
-        is_futures: bool = False
+        is_futures: bool = False,
+        preserve_timestamp: bool = True  # Thêm tham số này
     ) -> Dict[str, pd.DataFrame]:
         """
         Thu thập dữ liệu từ các nguồn.
@@ -504,7 +505,8 @@ class DataPipeline:
         handle_leading_nan: bool = True,
         leading_nan_method: str = 'backfill',
         min_periods: int = 5,
-        handle_extreme_volume: bool = True
+        handle_extreme_volume: bool = True,
+        preserve_timestamp: bool = True  # Thêm tham số này
     ) -> Dict[str, pd.DataFrame]:
         """
         Làm sạch dữ liệu.
@@ -566,6 +568,11 @@ class DataPipeline:
         
         for symbol, df in data.items():
             try:
+                # Lưu cột timestamp nếu có
+                timestamp_col = None
+                if preserve_timestamp and 'timestamp' in df.columns:
+                    timestamp_col = df['timestamp'].copy()
+
                 # Trước tiên xử lý giá trị NaN ở đầu nếu được yêu cầu
                 if handle_leading_nan:
                     df = self.missing_data_handler.handle_leading_nan(
@@ -696,8 +703,12 @@ class DataPipeline:
                     
                     self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu chung cho {symbol}")
                 
+                # Khôi phục cột timestamp nếu đã lưu
+                if timestamp_col is not None:
+                    cleaned_df['timestamp'] = timestamp_col
+
                 results[symbol] = cleaned_df
-                
+
             except Exception as e:
                 self.logger.error(f"Lỗi khi làm sạch dữ liệu cho {symbol}: {str(e)}")
                 # Trả về dữ liệu gốc nếu có lỗi
@@ -712,7 +723,8 @@ class DataPipeline:
         use_pipeline: Optional[str] = None,
         fit_pipeline: bool = True,
         all_indicators: bool = False,  # Thêm tham số này
-        clean_indicators: bool = True
+        clean_indicators: bool = True,
+        preserve_timestamp: bool = True  # Thêm tham số này
     ) -> Dict[str, pd.DataFrame]:
         """
         Tạo đặc trưng cho dữ liệu.
@@ -764,7 +776,8 @@ class DataPipeline:
                     features_df = self.feature_generator.transform_data(
                         df, 
                         pipeline_name=pipeline_config.get("pipeline_name"),
-                        fit=fit_pipeline
+                        fit=fit_pipeline,
+                        preserve_timestamp=preserve_timestamp  # Truyền tham số
                     )
                     
                     results[symbol] = features_df
@@ -1273,7 +1286,8 @@ class DataPipeline:
         data: Dict[str, pd.DataFrame],
         output_dir: Optional[Path] = None,
         file_format: str = 'parquet',
-        include_metadata: bool = True
+        include_metadata: bool = True,
+        preserve_timestamp: bool = True  # Thêm tham số này
     ) -> Dict[str, str]:
         """
         Lưu dữ liệu đã xử lý.
@@ -1309,8 +1323,14 @@ class DataPipeline:
             try:
                 # Chuyển đổi các cột string thành float nếu có thể
                 df_prepared = df.copy()
+                # Lưu cột timestamp trước khi xử lý
+                timestamp_col = None
+                if preserve_timestamp and 'timestamp' in df.columns:
+                    timestamp_col = df_prepared['timestamp'].copy()
+
+                # Xử lý các cột còn lại    
                 for col in df_prepared.columns:
-                    if df_prepared[col].dtype == 'object' or df_prepared[col].dtype == 'string':
+                    if col != 'timestamp' and (df_prepared[col].dtype == 'object' or df_prepared[col].dtype == 'string'):
                         try:
                             # Thử chuyển đổi sang float
                             df_prepared[col] = df_prepared[col].astype(float)
@@ -1318,6 +1338,10 @@ class DataPipeline:
                         except (ValueError, TypeError):
                             # Giữ nguyên nếu không thể chuyển đổi
                             self.logger.debug(f"Không thể chuyển đổi cột {col} sang float")
+
+                # Khôi phục cột timestamp sau khi xử lý
+                if timestamp_col is not None:
+                    df_prepared['timestamp'] = timestamp_col
 
                 # Tạo tên file
                 filename = f"{symbol.replace('/', '_').lower()}_{timestamp}"
@@ -1463,7 +1487,8 @@ class DataPipeline:
         end_time: Optional[datetime] = None,
         output_dir: Optional[Path] = None,
         save_results: bool = True,
-        is_futures: bool = False
+        is_futures: bool = False,
+        preserve_timestamp: bool = True  # Thêm tham số này
     ) -> Dict[str, pd.DataFrame]:
         """
         Chạy pipeline xử lý dữ liệu đầy đủ.
@@ -1620,6 +1645,7 @@ class DataPipeline:
                         leading_nan_method=step_params.get("leading_nan_method", "backfill"),
                         min_periods=step_params.get("min_periods", 5),
                         handle_extreme_volume=step_params.get("handle_extreme_volume", True),
+                        preserve_timestamp=preserve_timestamp,  # Truyền tham số
                         **{k: v for k, v in step_params.items() if k not in ["handle_leading_nan", "leading_nan_method", "min_periods"]}
                     )
                     current_data = cleaned_data
@@ -1642,7 +1668,8 @@ class DataPipeline:
                         use_pipeline=step_params.get("use_pipeline", None),
                         fit_pipeline=step_params.get("fit_pipeline", True),
                         all_indicators=step_params.get("all_indicators", True),
-                        clean_indicators=step_params.get("clean_indicators", True)
+                        clean_indicators=step_params.get("clean_indicators", True),
+                        preserve_timestamp=preserve_timestamp  # Truyền tham số
                     )
                     current_data = featured_data
                     step_results["generate_features"] = featured_data
@@ -1709,6 +1736,7 @@ class DataPipeline:
                         
                     saved_paths = self.save_data(
                         current_data,
+                        preserve_timestamp=preserve_timestamp,  # Truyền tham số
                         **step_params
                     )
                     step_results["save_data"] = saved_paths

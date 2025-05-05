@@ -174,18 +174,33 @@ def handle_train_command(args: argparse.Namespace, system: AutomatedTradingSyste
         
         # Nếu không có data_path, tìm trong thư mục mặc định
         if not data_path:
+            # Sử dụng đường dẫn tương đối tới thư mục processed
             default_dir = system.data_dir / "processed"
             
-            # Nếu không tồn tại, thử sử dụng thư mục collected
+            # Kiểm tra xem thư mục này có tồn tại không
             if not default_dir.exists():
                 default_dir = system.data_dir / "collected"
             
-            # Tìm file dữ liệu phù hợp
-            symbol_safe = symbol.replace('/', '_')
+            # Tìm tất cả các file .parquet trong thư mục
+            symbol_safe = symbol.replace('/', '_').lower()
+            
+            # Thử tìm file phù hợp với symbol và timeframe
             pattern = f"*{symbol_safe}*{timeframe}*.parquet"
-            matching_files = list(default_dir.glob(f"**/{pattern}"))
+            matching_files = list(default_dir.glob(pattern))
+            
+            # Nếu không tìm thấy, thử tìm chỉ với symbol
+            if not matching_files:
+                pattern = f"*{symbol_safe}*.parquet"
+                matching_files = list(default_dir.glob(pattern))
+            
+            # Nếu vẫn không tìm thấy, thử tìm tất cả các file .parquet
+            if not matching_files:
+                pattern = "*.parquet"
+                matching_files = list(default_dir.glob(pattern))
             
             if matching_files:
+                # Sắp xếp theo thời gian sửa đổi để lấy file mới nhất
+                matching_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
                 data_path = str(matching_files[0])
                 logger.info(f"Tự động tìm thấy file dữ liệu: {data_path}")
             else:

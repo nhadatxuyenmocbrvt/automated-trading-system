@@ -67,6 +67,7 @@ class TradingEnv(BaseEnvironment, gym.Env):
         target_lookforward: int = 10,  # Số nến nhìn trước
         target_threshold: float = 0.01,  # Ngưỡng % thay đổi giá để xác định nhãn
         target_column: str = "target",  # Tên cột target
+        include_timestamp: bool = True,  # Thêm tham số này
         **kwargs
     ):
         """
@@ -120,7 +121,6 @@ class TradingEnv(BaseEnvironment, gym.Env):
         self.render_mode = render_mode
         self.stoploss_percentage = stoploss_percentage
         self.takeprofit_percentage = takeprofit_percentage
-        # Thêm vào đây: Thuộc tính để hỗ trợ target trong observation
         self.generate_target_labels = generate_target_labels
         self.target_type = target_type
         self.target_lookforward = target_lookforward
@@ -519,7 +519,14 @@ class TradingEnv(BaseEnvironment, gym.Env):
         # Lấy cửa sổ dữ liệu hiện tại
         start_idx = self.current_idx - self.window_size + 1
         end_idx = self.current_idx + 1
+
+        feature_columns = self.feature_columns.copy()
         
+        # Nếu cần giữ lại timestamp, thêm vào danh sách cột
+        if hasattr(self, 'include_timestamp') and self.include_timestamp and 'timestamp' in self.data.columns:
+            if 'timestamp' not in feature_columns:
+                feature_columns = ['timestamp'] + feature_columns
+                
         if start_idx < 0:
             # Padding nếu không đủ dữ liệu
             padding_size = abs(start_idx)

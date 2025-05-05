@@ -18,30 +18,146 @@ from config.logging_config import get_logger
 from config.system_config import get_system_config, DATA_DIR, MODEL_DIR
 from config.security_config import get_security_config
 
+# === LỚP MODULE MANAGER ===
+class ModuleManager:
+    """
+    Lớp quản lý tính khả dụng của các module.
+    Kiểm tra và theo dõi tính khả dụng của các module trong hệ thống.
+    """
+    
+    def __init__(self, logger: Optional[logging.Logger] = None):
+        """
+        Khởi tạo ModuleManager.
+        
+        Args:
+            logger: Logger tùy chỉnh
+        """
+        self.logger = logger or get_logger("module_manager")
+        
+        # Khởi tạo trạng thái các module
+        self.agents_available = False
+        self.environments_available = False
+        self.data_collectors_available = False
+        
+        # Kiểm tra tính khả dụng ban đầu
+        self.reset()
+        
+    def reset(self) -> Tuple[bool, bool, bool]:
+        """
+        Đặt lại trạng thái của các module.
+        
+        Returns:
+            Tuple (agents_available, environments_available, data_collectors_available)
+        """
+        # Kiểm tra tính khả dụng của các agent
+        try:
+            # Thử import các module liên quan đến agent
+            from models.agents.dqn_agent import DQNAgent
+            from models.training_pipeline.trainer import Trainer
+            self.agents_available = True
+            self.logger.debug("Các module agent khả dụng")
+        except ImportError as e:
+            self.agents_available = False
+            self.logger.warning(f"Các module agent không khả dụng: {str(e)}")
+        
+        # Kiểm tra tính khả dụng của môi trường
+        try:
+            # Thử import các module liên quan đến môi trường
+            from environments.trading_gym.trading_env import TradingEnv
+            self.environments_available = True
+            self.logger.debug("Các module môi trường khả dụng")
+        except ImportError as e:
+            self.environments_available = False
+            self.logger.warning(f"Các module môi trường không khả dụng: {str(e)}")
+        
+        # Kiểm tra tính khả dụng của data collectors
+        try:
+            # Thử import các module liên quan đến thu thập dữ liệu
+            from data_collectors.market_data.historical_data_collector import create_data_collector
+            self.data_collectors_available = True
+            self.logger.debug("Các module thu thập dữ liệu khả dụng")
+        except ImportError as e:
+            self.data_collectors_available = False
+            self.logger.warning(f"Các module thu thập dữ liệu không khả dụng: {str(e)}")
+        
+        return (self.agents_available, self.environments_available, self.data_collectors_available)
+    
+    def check_agent_availability(self, agent_type: str = "all") -> bool:
+        """
+        Kiểm tra tính khả dụng của loại agent cụ thể.
+        
+        Args:
+            agent_type: Loại agent cần kiểm tra ("dqn", "ppo", "a2c", hoặc "all")
+            
+        Returns:
+            True nếu agent khả dụng, False nếu không
+        """
+        if agent_type.lower() == "all":
+            return self.agents_available
+        
+        try:
+            if agent_type.lower() == "dqn":
+                from models.agents.dqn_agent import DQNAgent
+                self.logger.debug("Agent DQN khả dụng")
+                return True
+            elif agent_type.lower() == "ppo":
+                from models.agents.ppo_agent import PPOAgent
+                self.logger.debug("Agent PPO khả dụng")
+                return True
+            elif agent_type.lower() == "a2c":
+                from models.agents.a2c_agent import A2CAgent
+                self.logger.debug("Agent A2C khả dụng")
+                return True
+            else:
+                self.logger.warning(f"Loại agent không được hỗ trợ: {agent_type}")
+                return False
+        except ImportError as e:
+            self.logger.warning(f"Agent {agent_type} không khả dụng: {str(e)}")
+            return False
+    
+    def check_and_update(self) -> Dict[str, bool]:
+        """
+        Kiểm tra và cập nhật trạng thái của tất cả các module.
+        
+        Returns:
+            Dict với key là tên module và value là trạng thái khả dụng
+        """
+        self.reset()
+        
+        return {
+            "agents": self.agents_available,
+            "environments": self.environments_available,
+            "data_collectors": self.data_collectors_available
+        }
+    
+    def log_status(self) -> None:
+        """
+        Ghi log trạng thái hiện tại của các module.
+        """
+        self.logger.info("==== Trạng thái khả dụng của module ====")
+        self.logger.info(f"Agents: {'Khả dụng' if self.agents_available else 'Không khả dụng'}")
+        self.logger.info(f"Environments: {'Khả dụng' if self.environments_available else 'Không khả dụng'}")
+        self.logger.info(f"Data Collectors: {'Khả dụng' if self.data_collectors_available else 'Không khả dụng'}")
+    
+    def get_status(self) -> Dict[str, bool]:
+        """
+        Lấy trạng thái hiện tại của các module.
+        
+        Returns:
+            Dict với key là tên module và value là trạng thái khả dụng
+        """
+        return {
+            "agents": self.agents_available,
+            "environments": self.environments_available,
+            "data_collectors": self.data_collectors_available
+        }
+
+# Tạo instance toàn cục để sử dụng trong hệ thống
+module_manager = ModuleManager()
+# === KẾT THÚC LỚP MODULE MANAGER ===
+
 # Import các module xử lý dữ liệu
 from data_processors.data_pipeline import DataPipeline
-
-# Import các module thu thập dữ liệu
-try:
-    from data_collectors.market_data.historical_data_collector import create_data_collector
-    DATA_COLLECTORS_AVAILABLE = True
-except ImportError:
-    DATA_COLLECTORS_AVAILABLE = False
-
-# Import môi trường huấn luyện khi có
-try:
-    from environments.trading_gym.trading_env import TradingEnv
-    ENVIRONMENTS_AVAILABLE = True
-except ImportError:
-    ENVIRONMENTS_AVAILABLE = False
-
-# Import các agent khi có
-try:
-    from models.agents.dqn_agent import DQNAgent
-    from models.training_pipeline.trainer import Trainer
-    AGENTS_AVAILABLE = True
-except ImportError:
-    AGENTS_AVAILABLE = False
 
 class AutomatedTradingSystem:
     """
@@ -98,6 +214,10 @@ class AutomatedTradingSystem:
         self.is_training = False
         self.is_trading = False
         
+        # Kiểm tra tính khả dụng của các module và ghi log
+        module_manager.check_and_update()
+        module_manager.log_status()
+        
         self.logger.info("Đã khởi tạo hệ thống giao dịch tự động")
     
     async def collect_data(
@@ -127,7 +247,9 @@ class AutomatedTradingSystem:
         Returns:
             Dict với key là symbol và value là đường dẫn file dữ liệu
         """
-        if not DATA_COLLECTORS_AVAILABLE:
+        # Kiểm tra tính khả dụng của module thu thập dữ liệu
+        module_status = module_manager.check_and_update()
+        if not module_status["data_collectors"]:
             self.logger.error("Không thể thu thập dữ liệu: Module thu thập dữ liệu không khả dụng")
             return {}
         
@@ -229,7 +351,7 @@ class AutomatedTradingSystem:
         pipeline_name: Optional[str] = None,
         clean_data: bool = True,
         generate_features: bool = True,
-         all_indicators: bool = False,
+        all_indicators: bool = False,
         output_dir: Optional[Union[str, Path]] = None,
     ) -> Dict[str, Path]:
         """
@@ -317,7 +439,7 @@ class AutomatedTradingSystem:
                 processed_data = self.data_pipeline.generate_features(
                     data=processed_data,
                     use_pipeline=pipeline_name,
-                    all_indicators=all_indicators  # Truyền tham số này
+                    all_indicators=all_indicators
                 )
             
             # Lưu dữ liệu đã xử lý
@@ -363,8 +485,17 @@ class AutomatedTradingSystem:
         Returns:
             Tuple (success, model_path)
         """
-        if not AGENTS_AVAILABLE or not ENVIRONMENTS_AVAILABLE:
+        # Cập nhật trạng thái module
+        module_status = module_manager.check_and_update()
+        
+        # Kiểm tra tính khả dụng của module
+        if not module_status["agents"] or not module_status["environments"]:
             self.logger.error("Không thể huấn luyện: Module agent hoặc môi trường không khả dụng")
+            return False, Path()
+        
+        # Kiểm tra tính khả dụng của loại agent cụ thể
+        if not module_manager.check_agent_availability(agent_type):
+            self.logger.error(f"Không thể huấn luyện: Agent loại {agent_type} không khả dụng")
             return False, Path()
         
         # Thiết lập trạng thái
@@ -421,6 +552,7 @@ class AutomatedTradingSystem:
                 self.logger.warning(f"Không tìm thấy dữ liệu cho {symbol}, sử dụng {first_symbol} thay thế")
             
             # Tạo môi trường
+            from environments.trading_gym.trading_env import TradingEnv
             env_kwargs = kwargs.get("env_kwargs", {})
             env = TradingEnv(
                 data=df,
@@ -464,6 +596,7 @@ class AutomatedTradingSystem:
             self.current_agent = agent
             
             # Tạo trainer
+            from models.training_pipeline.trainer import Trainer
             trainer_kwargs = kwargs.get("trainer_kwargs", {})
             trainer = Trainer(
                 agent=agent,
@@ -528,10 +661,19 @@ class AutomatedTradingSystem:
         Returns:
             Dict chứa kết quả đánh giá
         """
-        if not AGENTS_AVAILABLE or not ENVIRONMENTS_AVAILABLE:
+        # Cập nhật trạng thái module
+        module_status = module_manager.check_and_update()
+        
+        # Kiểm tra tính khả dụng của module
+        if not module_status["agents"] or not module_status["environments"]:
             self.logger.error("Không thể đánh giá: Module agent hoặc môi trường không khả dụng")
             return {}
         
+        # Kiểm tra tính khả dụng của loại agent cụ thể
+        if not module_manager.check_agent_availability(agent_type):
+            self.logger.error(f"Không thể đánh giá: Agent loại {agent_type} không khả dụng")
+            return {}
+            
         try:
             # Tải dữ liệu
             self.logger.info(f"Bắt đầu đánh giá agent {agent_type} cho {symbol}, khung thời gian {timeframe}")
@@ -577,6 +719,7 @@ class AutomatedTradingSystem:
                 self.logger.warning(f"Không tìm thấy dữ liệu cho {symbol}, sử dụng {first_symbol} thay thế")
             
             # Tạo môi trường
+            from environments.trading_gym.trading_env import TradingEnv
             env_kwargs = kwargs.get("env_kwargs", {})
             env = TradingEnv(
                 data=df,
