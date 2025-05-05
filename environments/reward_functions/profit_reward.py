@@ -89,8 +89,8 @@ def calculate_profit_reward(
             if current_drawdown > 0:
                 drawdown_reward = -current_drawdown * drawdown_penalty
     
-    # Tổng hợp phần thưởng
-    total_reward = base_reward + consecutive_reward + drawdown_reward
+    # Tổng hợp phần thưởng với giới hạn
+    total_reward = np.clip(base_reward + consecutive_reward + drawdown_reward, -1.0, 1.0)
     
     logger.debug(f"Phần thưởng: cơ bản={base_reward:.4f}, liên tiếp={consecutive_reward:.4f}, drawdown={drawdown_reward:.4f}, tổng={total_reward:.4f}")
     

@@ -1,5 +1,5 @@
 {
-    "experiment_name": "ppo_agent_20250505_111521",
+    "experiment_name": "ppo_agent_20250505_142958",
     "agent_name": "ppo_agent",
     "agent_config": {
         "state_dim": [
@@ -37,7 +37,7 @@
         },
         "batch_size": 64
     },
-    "created_at": "2025-05-05T11:15:21.072680",
+    "created_at": "2025-05-05T14:29:58.293590",
     "additional_params": {
         "use_tensorboard": true,
         "save_best_only": true,

@@ -38,20 +38,20 @@ class PPOAgent(BaseAgent):
         action_bound: Optional[Tuple[float, float]] = None,
         hidden_layers: List[int] = [64, 64],
         activation: str = "relu",
-        learning_rate: float = 0.0003,
+        learning_rate: float = 0.00005,
         gamma: float = 0.99,
         lambda_gae: float = 0.95,
-        clip_ratio: float = 0.2,
+        clip_ratio: float = 0.1,
         entropy_coef: float = 0.01,
         value_coef: float = 0.5,
         max_grad_norm: float = 0.5,
-        train_epochs: int = 10,
-        batch_size: int = 64,
+        train_epochs: int = 5,
+        batch_size: int = 128,
         use_shared_network: bool = True,
         normalize_advantages: bool = True,
         normalize_rewards: bool = False,
         use_gae: bool = True,
-        target_kl: Optional[float] = 0.01,
+        target_kl: Optional[float] = 0.05,
         model_dir: Optional[str] = None,
         name: str = "ppo_agent",
         logger: Optional[logging.Logger] = None,
@@ -85,6 +85,17 @@ class PPOAgent(BaseAgent):
             name: Tên của agent
             logger: Logger tùy chỉnh
         """
+        # Lưu trữ kwargs
+        self.kwargs = kwargs  # Di chuyển lên đây để tránh lỗi 'kwargs' không tồn tại
+        
+        # Đảm bảo action_dim là số dương
+        if action_dim <= 0:
+            raise ValueError(f"action_dim phải là số dương, nhưng nhận được {action_dim}")
+        
+        # Thiết lập action_bound mặc định cho continuous actions
+        if action_type == 'continuous' and action_bound is None:
+            action_bound = (-1.0, 1.0)
+            
         # Gọi constructor của lớp cơ sở
         super().__init__(
             state_dim=state_dim,
@@ -114,12 +125,15 @@ class PPOAgent(BaseAgent):
         self.normalize_rewards = normalize_rewards
         self.use_gae = use_gae
         self.target_kl = target_kl
-        self.kwargs = kwargs  # Lưu trữ kwargs
         
         # Các thuộc tính cho việc chuẩn hóa rewards
         self.reward_mean = 0.0
         self.reward_std = 1.0
         self.reward_count = 0
+        
+        # Đặt giá trị mặc định cho các hyperparameter nếu không được cung cấp
+        self.update_freq = kwargs.get('update_freq', 1)
+        self.buffer_size = kwargs.get('buffer_size', 10000)
         
         # Khởi tạo bộ nhớ
         self.memory = {
@@ -210,8 +224,32 @@ class PPOAgent(BaseAgent):
         Returns:
             Hành động được chọn
         """
-        action, _ = self.select_action(state, deterministic=not explore)
-        return action
+        try:
+            action, _ = self.select_action(state, deterministic=not explore)
+            
+            # Đảm bảo action nằm trong giới hạn an toàn
+            if self.action_type == 'discrete':
+                # Đảm bảo action là số nguyên và nằm trong giới hạn
+                try:
+                    if isinstance(action, np.ndarray):
+                        action = int(action.flat[0])
+                    else:
+                        action = int(action)
+                except (TypeError, ValueError):
+                    self.logger.warning(f"Không thể chuyển action '{action}' thành int, sử dụng 0")
+                    action = 0
+                
+                # Đảm bảo nằm trong giới hạn [0, action_dim-1]
+                action = min(max(action, 0), self.action_dim - 1)
+            
+            return action
+        except Exception as e:
+            self.logger.error(f"Lỗi trong phương thức act: {str(e)}")
+            # Trả về hành động mặc định an toàn
+            if self.action_type == 'discrete':
+                return 0  # Hành động 0 thường an toàn
+            else:
+                return np.zeros(self.action_dim)  # Vector 0 thường an toàn
     
     def select_action(self, state: np.ndarray, deterministic: bool = False) -> Tuple[Union[int, np.ndarray], Dict[str, Any]]:
         """
@@ -228,53 +266,101 @@ class PPOAgent(BaseAgent):
         if len(state.shape) == 1:
             state = np.expand_dims(state, axis=0)
         
-        if self.use_shared_network:
-            # Sử dụng mạng chia sẻ
-            policy, value, action = self.network.predict(state)
-            value = value[0][0] if hasattr(value, 'shape') and len(value.shape) > 1 else value[0]
-            
-            if deterministic:
-                # Chọn hành động tốt nhất
-                if self.action_type == 'discrete':
-                    # Đối với discrete action: argmax của logits
-                    action = np.argmax(policy[0]) if hasattr(policy, 'shape') and len(policy.shape) > 1 else np.argmax(policy)
+        try:
+            if self.use_shared_network:
+                # Sử dụng mạng chia sẻ
+                policy, value, sampled_action = self.network.predict(state)
+                
+                # Xử lý value
+                if hasattr(value, 'shape') and len(value.shape) > 1:
+                    value = value[0][0]
                 else:
-                    # Đối với continuous action: mean (không thêm noise)
-                    action = policy[0]  # mean
-            else:
-                # Hành động đã được lấy mẫu bởi network.predict
-                action = action[0]  # Lấy phần tử đầu tiên vì state chỉ có 1 mẫu
-        else:
-            # Sử dụng mạng riêng biệt
-            if deterministic:
-                # Chọn hành động tốt nhất
-                if self.action_type == 'discrete':
-                    # Đối với discrete action: argmax của logits
-                    logits = self.policy_network.predict_policy(state)
-                    action = np.argmax(logits[0]) if hasattr(logits, 'shape') and len(logits.shape) > 1 else np.argmax(logits)
+                    value = value[0]
+                
+                if deterministic:
+                    # Chọn hành động tốt nhất
+                    if self.action_type == 'discrete':
+                        # Đối với discrete action: argmax của logits
+                        if hasattr(policy, 'shape') and len(policy.shape) > 1:
+                            action = np.argmax(policy[0])
+                        else:
+                            action = np.argmax(policy)
+                        
+                        # Đảm bảo action nằm trong khoảng [0, action_dim-1]
+                        action = min(max(int(action), 0), self.action_dim - 1)
+                    else:
+                        # Đối với continuous action: mean (không thêm noise)
+                        action = policy[0]  # mean
                 else:
-                    # Đối với continuous action: mean (không thêm noise)
-                    mean, _ = self.policy_network.predict_policy(state)
-                    action = mean[0]  # mean
+                    # Hành động đã được lấy mẫu
+                    if self.action_type == 'discrete':
+                        # Đảm bảo action nằm trong khoảng [0, action_dim-1]
+                        if isinstance(sampled_action, np.ndarray) and sampled_action.size == 1:
+                            action = min(max(int(sampled_action.item()), 0), self.action_dim - 1)
+                        else:
+                            action = min(max(int(sampled_action[0]), 0), self.action_dim - 1)
+                    else:
+                        action = sampled_action[0]  # Lấy phần tử đầu tiên vì state chỉ có 1 mẫu
             else:
-                # Lấy mẫu hành động từ phân phối
-                action = self.policy_network.predict(state)[0]
+                # Sử dụng mạng riêng biệt
+                if deterministic:
+                    # Chọn hành động tốt nhất
+                    if self.action_type == 'discrete':
+                        # Đối với discrete action: argmax của logits
+                        logits = self.policy_network.predict_policy(state)
+                        if hasattr(logits, 'shape') and len(logits.shape) > 1:
+                            action = np.argmax(logits[0])
+                        else:
+                            action = np.argmax(logits)
+                        
+                        # Đảm bảo action nằm trong khoảng [0, action_dim-1]
+                        action = min(max(int(action), 0), self.action_dim - 1)
+                    else:
+                        # Đối với continuous action: mean (không thêm noise)
+                        mean, _ = self.policy_network.predict_policy(state)
+                        action = mean[0]  # mean
+                else:
+                    # Lấy mẫu hành động từ phân phối
+                    action = self.policy_network.predict(state)[0]
+                    
+                    # Đảm bảo discrete action nằm trong giới hạn hợp lệ
+                    if self.action_type == 'discrete':
+                        if isinstance(action, np.ndarray) and action.size == 1:
+                            action = min(max(int(action.item()), 0), self.action_dim - 1)
+                        else:
+                            action = min(max(int(action), 0), self.action_dim - 1)
+                
+                # Tính giá trị của trạng thái
+                value = self.value_network.predict(state)[0][0]
+                policy = self.policy_network.predict_policy(state)
             
-            # Tính giá trị của trạng thái
-            value = self.value_network.predict(state)[0][0]
-            policy = self.policy_network.predict_policy(state)
-        
-        # Tính log probability của hành động
-        log_prob = self._compute_log_prob(policy, action)
-        
-        # Thông tin bổ sung
-        info = {
-            'value': value,
-            'log_prob': log_prob,
-            'policy': policy
-        }
-        
-        return action, info
+            # Tính log probability của hành động
+            log_prob = self._compute_log_prob(policy, action)
+            
+            # Thông tin bổ sung
+            info = {
+                'value': value,
+                'log_prob': log_prob,
+                'policy': policy
+            }
+            
+            return action, info
+        except Exception as e:
+            self.logger.error(f"Lỗi trong phương thức select_action: {str(e)}")
+            # Fallback: trả về hành động mặc định an toàn
+            if self.action_type == 'discrete':
+                safe_action = 0  # Hành động 0 được coi là an toàn
+            else:
+                safe_action = np.zeros(self.action_dim)  # Không di chuyển là an toàn
+            
+            # Thông tin mặc định
+            info = {
+                'value': 0.0,
+                'log_prob': 0.0,
+                'policy': None
+            }
+            
+            return safe_action, info
     
     def _compute_log_prob(self, policy: Union[np.ndarray, List[np.ndarray]], action: Union[int, np.ndarray]) -> float:
         """
@@ -287,64 +373,136 @@ class PPOAgent(BaseAgent):
         Returns:
             Log probability của hành động
         """
-        if self.action_type == 'discrete':
-            # Chuyển logits thành probabilities
-            if isinstance(policy, list):
-                policy = policy[0]  # Nếu policy là list, lấy phần tử đầu tiên (logits)
-            
-            # Đảm bảo policy có kích thước đúng
-            if hasattr(policy, 'shape') and len(policy.shape) > 1:
-                probs = tf.nn.softmax(policy).numpy()
+        try:
+            if self.action_type == 'discrete':
+                # Chuyển logits thành probabilities
+                if isinstance(policy, list):
+                    policy = policy[0]  # Nếu policy là list, lấy phần tử đầu tiên (logits)
+                
+                # Đảm bảo policy có kích thước đúng [batch_size, action_dim]
+                if hasattr(policy, 'shape'):
+                    # Kiểm tra nếu policy có 3 chiều [batch_size, 1, action_dim]
+                    if len(policy.shape) == 3:
+                        # Reshape từ [batch_size, 1, action_dim] thành [batch_size, action_dim]
+                        policy = np.reshape(policy, (policy.shape[0], policy.shape[2]))
+                    
+                    # Kiểm tra kích thước sau khi reshape
+                    if len(policy.shape) > 1 and policy.shape[1] != self.action_dim:
+                        self.logger.warning(f"Kích thước policy không đúng: {policy.shape}, action_dim: {self.action_dim}")
+                        # Tạo vector zeros với kích thước đúng và đặt giá trị 1 ở vị trí 0
+                        tmp_policy = np.zeros((policy.shape[0], self.action_dim))
+                        tmp_policy[:, 0] = 1.0
+                        probs = tmp_policy
+                    elif len(policy.shape) > 1:
+                        probs = tf.nn.softmax(policy).numpy()
+                    else:
+                        # Nếu policy là vector 1D, kiểm tra kích thước
+                        if isinstance(policy, np.ndarray) and policy.size != self.action_dim:
+                            self.logger.warning(f"Kích thước policy 1D không đúng: {policy.size}, action_dim: {self.action_dim}")
+                            # Tạo vector zeros với kích thước đúng và đặt giá trị 1 ở vị trí 0
+                            tmp_policy = np.zeros(self.action_dim)
+                            tmp_policy[0] = 1.0
+                            probs = np.expand_dims(tmp_policy, axis=0)
+                        else:
+                            # Nếu policy là vector 1D, thêm chiều batch
+                            probs = tf.nn.softmax(np.expand_dims(policy, axis=0)).numpy()
+                else:
+                    # Xử lý trường hợp policy không có thuộc tính shape
+                    self.logger.warning(f"Policy không có thuộc tính shape")
+                    tmp_policy = np.zeros((1, self.action_dim))
+                    tmp_policy[:, 0] = 1.0
+                    probs = tmp_policy
+                
+                # Xử lý action
+                if isinstance(action, np.ndarray):
+                    if action.size == 1:
+                        action = action.item()
+                    else:
+                        # Nếu action là mảng nhiều phần tử, lấy phần tử đầu tiên
+                        self.logger.warning(f"Action là mảng nhiều phần tử: {action}, lấy phần tử đầu tiên")
+                        action = action.flat[0]
+                
+                # Đảm bảo action là số nguyên và nằm trong giới hạn
+                try:
+                    action = int(action)
+                except (TypeError, ValueError):
+                    self.logger.warning(f"Không thể chuyển action thành số nguyên: {action}, sử dụng 0")
+                    action = 0
+                
+                # Đảm bảo action nằm trong giới hạn
+                action = min(max(action, 0), self.action_dim - 1)
+                
+                # Lấy probability của hành động đã chọn
+                if len(probs.shape) > 1:
+                    prob = probs[0, action]
+                else:
+                    prob = probs[action]
+                
+                # Tính log probability
+                return float(np.log(prob + 1e-10))
             else:
-                # Nếu policy là vector 1D, thêm chiều batch
-                probs = tf.nn.softmax(np.expand_dims(policy, axis=0)).numpy()
-            
-            # Lấy probability của hành động đã chọn
-            if isinstance(action, np.ndarray) and action.size == 1:
-                action = action.item()
-            
-            if len(probs.shape) > 1:
-                # Đảm bảo index action nằm trong giới hạn
-                action_index = min(action, probs.shape[1] - 1)
-                prob = probs[0, action_index]
-            else:
-                action_index = min(action, len(probs) - 1)
-                prob = probs[action_index]
-            
-            # Tính log probability
-            return np.log(prob + 1e-10)
-        else:
-            # Đối với continuous action
-            mean, std = policy
-            
-            # Normalize action về phạm vi [-1, 1]
-            low, high = self.action_bound
-            normalized_action = 2.0 * (action - low) / (high - low) - 1.0
-            
-            # Đảm bảo kích thước đúng cho mean và std
-            if hasattr(mean, 'shape') and len(mean.shape) > 1:
-                mean_tensor = tf.convert_to_tensor(mean[0], dtype=tf.float32)
-            else:
-                mean_tensor = tf.convert_to_tensor(mean, dtype=tf.float32)
-            
-            if hasattr(std, 'shape') and len(std.shape) > 1:
-                std_tensor = tf.convert_to_tensor(std[0], dtype=tf.float32)
-            else:
-                std_tensor = tf.convert_to_tensor(std, dtype=tf.float32)
-            
-            # Đảm bảo kích thước đúng cho action
-            if isinstance(normalized_action, np.ndarray):
-                action_tensor = tf.convert_to_tensor(normalized_action, dtype=tf.float32)
-                if len(action_tensor.shape) == 0:
-                    action_tensor = tf.expand_dims(action_tensor, axis=0)
-            else:
-                action_tensor = tf.convert_to_tensor([normalized_action], dtype=tf.float32)
-            
-            # Tạo phân phối normal và tính log prob
-            dist = tfp.distributions.Normal(mean_tensor, std_tensor)
-            log_prob = dist.log_prob(action_tensor)
-            
-            return tf.reduce_sum(log_prob).numpy()
+                # Đối với continuous action
+                try:
+                    if isinstance(policy, list) and len(policy) == 2:
+                        mean, std = policy
+                    else:
+                        self.logger.warning(f"Policy không đúng định dạng cho continuous action: {policy}")
+                        # Fallback: tạo mean và std mặc định
+                        mean = np.zeros(self.action_dim)
+                        std = np.ones(self.action_dim)
+                    
+                    # Normalize action về phạm vi [-1, 1]
+                    low, high = self.action_bound
+                    
+                    # Đảm bảo action có kích thước phù hợp
+                    if isinstance(action, np.ndarray):
+                        if action.size != self.action_dim:
+                            self.logger.warning(f"Kích thước action không khớp với action_dim: {action.size} vs {self.action_dim}")
+                            # Điều chỉnh kích thước action
+                            if action.size < self.action_dim:
+                                # Nếu thiếu, bổ sung thêm 0
+                                padded_action = np.zeros(self.action_dim)
+                                padded_action[:action.size] = action.flat[:action.size]
+                                action = padded_action
+                            else:
+                                # Nếu thừa, cắt bớt
+                                action = action.flat[:self.action_dim]
+                    else:
+                        # Nếu action là scalar, chuyển thành mảng 1 phần tử
+                        action = np.array([action])
+                        if action.size != self.action_dim:
+                            padded_action = np.zeros(self.action_dim)
+                            padded_action[0] = action[0]
+                            action = padded_action
+                    
+                    # Normalize action
+                    normalized_action = 2.0 * (action - low) / (high - low) - 1.0
+                    
+                    # Đảm bảo kích thước đúng cho mean và std
+                    if hasattr(mean, 'shape') and len(mean.shape) > 1:
+                        mean_tensor = tf.convert_to_tensor(mean[0], dtype=tf.float32)
+                    else:
+                        mean_tensor = tf.convert_to_tensor(mean, dtype=tf.float32)
+                    
+                    if hasattr(std, 'shape') and len(std.shape) > 1:
+                        std_tensor = tf.convert_to_tensor(std[0], dtype=tf.float32)
+                    else:
+                        std_tensor = tf.convert_to_tensor(std, dtype=tf.float32)
+                    
+                    # Đảm bảo kích thước đúng cho action
+                    action_tensor = tf.convert_to_tensor(normalized_action, dtype=tf.float32)
+                    
+                    # Tạo phân phối normal và tính log prob
+                    dist = tfp.distributions.Normal(mean_tensor, std_tensor)
+                    log_prob = dist.log_prob(action_tensor)
+                    
+                    return float(tf.reduce_sum(log_prob).numpy())
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi tính log_prob cho continuous action: {str(e)}")
+                    return 0.0
+        except Exception as e:
+            self.logger.error(f"Lỗi trong _compute_log_prob: {str(e)}")
+            return 0.0
     
     def remember(self, state: np.ndarray, action: Union[int, np.ndarray], 
                 reward: float, next_state: np.ndarray, done: bool) -> None:
@@ -360,19 +518,35 @@ class PPOAgent(BaseAgent):
         """
         # Tính giá trị và thông tin bổ sung từ trạng thái hiện tại
         try:
+            # Đảm bảo action là kiểu đúng và nằm trong giới hạn
+            if self.action_type == 'discrete':
+                # Xử lý cho discrete action
+                if isinstance(action, np.ndarray):
+                    if action.size == 1:
+                        action = int(action.item())
+                    else:
+                        self.logger.warning(f"Action có kích thước không mong đợi: {action.shape}, lấy phần tử đầu tiên")
+                        action = int(action.flat[0])
+                else:
+                    # Cố gắng chuyển đổi action thành int
+                    try:
+                        action = int(action)
+                    except (TypeError, ValueError):
+                        self.logger.warning(f"Không thể chuyển action thành số nguyên: {action}, sử dụng 0")
+                        action = 0
+                
+                # Đảm bảo action nằm trong giới hạn
+                action = min(max(action, 0), self.action_dim - 1)
+            
             if self.use_shared_network:
                 policy, value, _ = self.network.predict(np.expand_dims(state, axis=0))
-                value = value[0][0]
+                value = value[0][0] if hasattr(value, 'shape') and len(value.shape) > 1 else value[0]
             else:
                 policy = self.policy_network.predict_policy(np.expand_dims(state, axis=0))
                 value = self.value_network.predict(np.expand_dims(state, axis=0))[0][0]
             
             # Tính log probability của action
             log_prob = self._compute_log_prob(policy, action)
-            
-            # Đảm bảo action nằm trong giới hạn của action_dim
-            if self.action_type == 'discrete' and isinstance(action, (int, np.integer)):
-                action = min(action, self.action_dim - 1)
             
             # Chuẩn hóa reward nếu cần
             normalized_reward = reward
@@ -402,12 +576,33 @@ class PPOAgent(BaseAgent):
             self.memory['policies'].append(policy)
         except Exception as e:
             self.logger.error(f"Lỗi trong phương thức remember: {str(e)}")
-            # Vẫn lưu trạng thái cơ bản nếu có lỗi
+            # Vẫn lưu trạng thái cơ bản nếu có lỗi, đảm bảo action nằm trong giới hạn
+            if self.action_type == 'discrete':
+                # Đảm bảo action là số nguyên và nằm trong khoảng [0, action_dim-1]
+                try:
+                    if isinstance(action, np.ndarray):
+                        action = int(action.flat[0])
+                    else:
+                        action = int(action)
+                except (TypeError, ValueError):
+                    action = 0
+                action = min(max(action, 0), self.action_dim - 1)
+            
             self.memory['states'].append(state)
             self.memory['actions'].append(action)
             self.memory['rewards'].append(reward)
             self.memory['next_states'].append(next_state)
             self.memory['dones'].append(done)
+            # Thêm các giá trị mặc định cho các thuộc tính còn lại
+            self.memory['values'].append(0.0)
+            self.memory['log_probs'].append(0.0)
+            # Tạo policy mặc định
+            if self.action_type == 'discrete':
+                default_policy = np.zeros(self.action_dim)
+                default_policy[0] = 1.0  # Thiên vị hành động 0
+            else:
+                default_policy = [np.zeros(self.action_dim), np.ones(self.action_dim)]  # [mean, std]
+            self.memory['policies'].append(default_policy)
     
     def learn(self) -> Dict[str, float]:
         """
@@ -469,19 +664,56 @@ class PPOAgent(BaseAgent):
         try:
             # Chuyển đổi dữ liệu thành mảng numpy
             states = np.array(self.memory['states'])
-            actions = np.array(self.memory['actions']).reshape(-1, 1)  # Đảm bảo kích thước (n, 1)
             rewards = np.array(self.memory['rewards'])
             next_states = np.array(self.memory['next_states'])
             dones = np.array(self.memory['dones'])
             values = np.array(self.memory['values'])
             old_log_probs = np.array(self.memory['log_probs'])
-            old_policies = self.memory['policies']
+            
+            # Xử lý actions đặc biệt để đảm bảo kích thước đúng
+            memory_actions = self.memory['actions']
+            if self.action_type == 'discrete':
+                # Đảm bảo rằng actions là mảng 1D cho discrete actions và nằm trong giới hạn action_dim
+                actions = []
+                for act in memory_actions:
+                    if isinstance(act, (int, np.integer, float, np.floating)):
+                        # Đảm bảo giá trị action nằm trong giới hạn
+                        act_val = min(max(0, int(act)), self.action_dim - 1)  # FIX: thêm max(0, ...) để đảm bảo không âm
+                        actions.append(act_val)
+                    elif isinstance(act, np.ndarray):
+                        if act.size == 1:
+                            act_val = min(int(act.item()), self.action_dim - 1)
+                            actions.append(act_val)
+                        else:
+                            # Trường hợp hiếm: action là mảng nhiều chiều
+                            act_val = min(max(0, int(act.flat[0])), self.action_dim - 1)
+                            actions.append(act_val)
+                    else:
+                        # FIX: Sử dụng giá trị mặc định an toàn thay vì giữ nguyên
+                        self.logger.warning(f"Loại action không xác định: {type(act)}, sử dụng giá trị mặc định 0")
+                        actions.append(0)
+                # Chuyển đổi thành mảng numpy
+                actions = np.array(actions, dtype=np.int32)
+            else:
+                # Đối với continuous actions, cần xử lý cẩn thận hơn
+                actions = np.array(memory_actions)
+                
+            # Xử lý policies cẩn thận
+            old_policies = []
+            for policy in self.memory['policies']:
+                if isinstance(policy, list) and len(policy) == 2:
+                    # Đây là policy cho continuous actions [mean, std]
+                    old_policies.append(policy)
+                else:
+                    # Policy cho discrete actions hoặc cấu trúc khác
+                    old_policies.append(policy)
             
             # Tính returns và advantages
             returns, advantages = self._compute_returns_and_advantages(rewards, values, dones)
             
             # Chuẩn hóa advantages
             if self.normalize_advantages:
+                advantages = np.clip(advantages, -10.0, 10.0)
                 advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
             
             # Số mẫu và indices
@@ -527,23 +759,55 @@ class PPOAgent(BaseAgent):
                     batch_advantages = advantages[batch_indices]
                     batch_old_log_probs = old_log_probs[batch_indices]
                     
-                    # Đảm bảo batch_actions có kích thước đúng
-                    if len(batch_actions.shape) == 1:
-                        batch_actions = batch_actions.reshape(-1, 1)
-                    
-                    # Tạo batch old_policies (có thể là list hoặc mảng numpy)
-                    if isinstance(old_policies[0], np.ndarray):
+                    # Tạo batch old_policies với cách xử lý cẩn thận hơn
+                    if len(old_policies) == 0:
+                        batch_old_policies = None
+                        self.logger.warning("Không có old_policies để xử lý trong batch")
+                    elif self.action_type == 'discrete':
                         try:
-                            batch_old_policies = np.stack([old_policies[i] for i in batch_indices])
+                            # Lấy các policies tương ứng với batch_indices
+                            selected_policies = [old_policies[i] if i < len(old_policies) else old_policies[0] for i in batch_indices]
+                            
+                            # Kiểm tra xem các policies có kích thước giống nhau không
+                            shapes = [np.array(p).shape for p in selected_policies if hasattr(p, 'shape') or hasattr(p, '__len__')]
+                            
+                            if len(shapes) > 0 and all(s == shapes[0] for s in shapes):
+                                # Nếu tất cả có cùng kích thước, stack chúng
+                                batch_old_policies = np.stack(selected_policies)
+                            else:
+                                # Nếu kích thước khác nhau, giữ dạng list
+                                batch_old_policies = selected_policies
+                                
                         except Exception as e:
-                            # Thử cách khác nếu không stack được
-                            self.logger.warning(f"Không thể stack old_policies: {str(e)}")
-                            batch_old_policies = [old_policies[i] for i in batch_indices]
+                            self.logger.warning(f"Lỗi khi xử lý old_policies cho discrete actions: {str(e)}")
+                            # Fallback an toàn
+                            batch_old_policies = None
                     else:
-                        # Nếu là list của 2 arrays (mean, std)
-                        batch_old_means = np.stack([old_policies[i][0] for i in batch_indices])
-                        batch_old_stds = np.stack([old_policies[i][1] for i in batch_indices])
-                        batch_old_policies = [batch_old_means, batch_old_stds]
+                        # Xử lý cho continuous actions
+                        try:
+                            # Đảm bảo old_policies có định dạng đúng [mean, std]
+                            if all(isinstance(p, (list, tuple)) and len(p) == 2 for p in old_policies if p is not None):
+                                # Lấy các policies tương ứng với batch_indices
+                                selected_policies = [old_policies[i] if i < len(old_policies) else old_policies[0] for i in batch_indices]
+                                
+                                # Tách mean và std
+                                means = [p[0] for p in selected_policies]
+                                stds = [p[1] for p in selected_policies]
+                                
+                                # Stack means và stds riêng biệt
+                                try:
+                                    batch_old_means = np.stack(means)
+                                    batch_old_stds = np.stack(stds)
+                                    batch_old_policies = [batch_old_means, batch_old_stds]
+                                except Exception as e:
+                                    self.logger.warning(f"Không thể stack means/stds: {str(e)}")
+                                    batch_old_policies = None
+                            else:
+                                self.logger.warning("Định dạng old_policies không đúng cho continuous actions")
+                                batch_old_policies = None
+                        except Exception as e:
+                            self.logger.warning(f"Lỗi khi xử lý old_policies cho continuous actions: {str(e)}")
+                            batch_old_policies = None
                     
                     # Huấn luyện trên batch
                     if self.use_shared_network:
@@ -586,7 +850,7 @@ class PPOAgent(BaseAgent):
                     train_info['approx_kl'] = np.mean(approx_kls)
                     
                     # Kiểm tra early stopping dựa trên KL divergence
-                    if self.target_kl is not None and train_info['approx_kl'] > 1.5 * self.target_kl:
+                    if self.target_kl is not None and train_info['approx_kl'] > 2.0 * self.target_kl:
                         self.logger.info(f"Early stopping at epoch {epoch} due to reaching max kl: {train_info['approx_kl']:.4f}")
                         train_info['stop_iteration'] = epoch
                         break
@@ -635,7 +899,11 @@ class PPOAgent(BaseAgent):
                     next_non_terminal = 1.0 - dones[t]
                     try:
                         if self.use_shared_network:
-                            next_value = self.network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))[1][0][0]
+                            _, value_output, _ = self.network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))
+                            if hasattr(value_output, 'shape') and len(value_output.shape) > 1:
+                                next_value = value_output[0][0]
+                            else:
+                                next_value = float(value_output[0]) if isinstance(value_output, (list, np.ndarray)) else float(value_output)
                         else:
                             next_value = self.value_network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))[0][0]
                     except Exception as e:
@@ -659,7 +927,11 @@ class PPOAgent(BaseAgent):
                     next_non_terminal = 1.0 - dones[t]
                     try:
                         if self.use_shared_network:
-                            next_value = self.network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))[1][0][0]
+                            _, value_output, _ = self.network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))
+                            if hasattr(value_output, 'shape') and len(value_output.shape) > 1:
+                                next_value = value_output[0][0]
+                            else:
+                                next_value = float(value_output[0]) if isinstance(value_output, (list, np.ndarray)) else float(value_output)
                         else:
                             next_value = self.value_network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))[0][0]
                     except Exception as e:

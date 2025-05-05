@@ -498,6 +498,27 @@ class SharedNetwork:
         
         # Dự đoán
         policy, value, action = self.model.predict(state, batch_size=batch_size)
+
+        # Chuẩn hóa kích thước của policy output
+        if self.action_type == 'discrete':
+            # Đảm bảo policy có shape [batch_size, action_dim]
+            if isinstance(policy, np.ndarray):
+                if len(policy.shape) == 3:
+                    policy = np.reshape(policy, (policy.shape[0], policy.shape[2]))
+                elif len(policy.shape) == 2 and policy.shape[1] == 1:
+                    # Trường hợp đặc biệt: [batch_size, 1]
+                    # Kiểm tra và mở rộng nếu cần
+                    if hasattr(self, 'action_dim') and self.action_dim > 1:
+                        # Nếu không thể reshaping, tạo mảng mặc định
+                        policy_shape = (policy.shape[0], self.action_dim)
+                        temp_policy = np.zeros(policy_shape)
+                        temp_policy[:, 0] = 1.0  # Thiên vị hành động 0
+                        policy = temp_policy
+        
+        # Chuẩn hóa kích thước của value output
+        if isinstance(value, np.ndarray) and len(value.shape) > 1 and value.shape[1] == 1:
+            value = value.flatten()
+        
         return policy, value, action
     
     def get_action(self, state: np.ndarray) -> np.ndarray:
@@ -592,8 +613,14 @@ class SharedNetwork:
         
         # Tính toán policy loss dựa trên loại hành động
         if self.action_type == 'discrete':
-            # Discrete actions
+            # Chuyển logits thành probabilities
             logits = policy_output
+            
+            # Đảm bảo logits có shape đúng [batch_size, action_dim]
+            if tf.shape(logits).shape[0] > 2:  # Kiểm tra số chiều > 2
+                # Reshape từ [batch_size, 1, action_dim] thành [batch_size, action_dim]
+                logits = tf.reshape(logits, [tf.shape(logits)[0], tf.shape(logits)[-1]])
+            
             action_probs = tf.nn.softmax(logits)
             
             # Tính log probabilities cho hành động đã chọn

@@ -53,6 +53,8 @@ class ModuleManager:
         try:
             # Thử import các module liên quan đến agent
             from models.agents.dqn_agent import DQNAgent
+            from models.agents.ppo_agent import PPOAgent
+            from models.agents.a2c_agent import A2CAgent
             from models.training_pipeline.trainer import Trainer
             self.agents_available = True
             self.logger.debug("Các module agent khả dụng")
