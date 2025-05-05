@@ -1,62 +1,601 @@
-2025-05-05 11:20:07,929 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
-2025-05-05 11:20:07,935 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
-2025-05-05 11:20:07,941 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
-2025-05-05 11:20:08,790 - trading_system - INFO - [main.py:27] - Khởi động hệ thống giao dịch tự động
-2025-05-05 11:20:08,809 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
-2025-05-05 11:20:08,809 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
-2025-05-05 11:20:08,815 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
-2025-05-05 11:20:08,815 - trading_system.module_manager - INFO - [trading_system.py:137] - ==== Trạng thái khả dụng của module ====
-2025-05-05 11:20:08,816 - trading_system.module_manager - INFO - [trading_system.py:138] - Agents: Khả dụng
-2025-05-05 11:20:08,817 - trading_system.module_manager - INFO - [trading_system.py:139] - Environments: Khả dụng
-2025-05-05 11:20:08,817 - trading_system.module_manager - INFO - [trading_system.py:140] - Data Collectors: Không khả dụng
-2025-05-05 11:20:08,818 - trading_system.trading_system - INFO - [trading_system.py:221] - Đã khởi tạo hệ thống giao dịch tự động
-2025-05-05 11:20:08,819 - trading_system.train_command - INFO - [train_commands.py:205] - Tự động tìm thấy file dữ liệu: E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet
-2025-05-05 11:20:08,819 - trading_system.train_command - INFO - [train_commands.py:239] - Bắt đầu huấn luyện agent ppo trên BTC/USDT, 1h
-2025-05-05 11:20:08,821 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
-2025-05-05 11:20:08,821 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
-2025-05-05 11:20:08,826 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
-2025-05-05 11:20:08,851 - trading_system.module_manager - DEBUG - [trading_system.py:105] - Agent PPO khả dụng
-2025-05-05 11:20:08,852 - trading_system.trading_system - INFO - [trading_system.py:512] - Bắt đầu huấn luyện agent ppo cho BTC/USDT, khung thời gian 1h
-2025-05-05 11:20:08,852 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
-2025-05-05 11:20:08,853 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
-2025-05-05 11:20:08,854 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
-2025-05-05 11:20:08,854 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
-2025-05-05 11:20:08,855 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
-2025-05-05 11:20:08,855 - trading_system.trading_system - INFO - [feature_generator.py:98] - Đã khởi tạo FeatureGenerator
-2025-05-05 11:20:08,856 - trading_system.trading_system - INFO - [feature_generator.py:326] - Đăng ký các đặc trưng mặc định
-2025-05-05 11:20:08,857 - trading_system.trading_system - DEBUG - [feature_generator.py:497] - Import thành công từ technical_indicators package
-2025-05-05 11:20:08,857 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_ema
-2025-05-05 11:20:08,858 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_sma
-2025-05-05 11:20:08,858 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_rsi
-2025-05-05 11:20:08,859 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_macd
-2025-05-05 11:20:08,859 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_atr
-2025-05-05 11:20:08,860 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_bbands
-2025-05-05 11:20:08,860 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_obv
-2025-05-05 11:20:08,861 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_adx
-2025-05-05 11:20:08,861 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_supertrend
-2025-05-05 11:20:08,862 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_osc
-2025-05-05 11:20:08,862 - trading_system.trading_system - INFO - [feature_generator.py:515] - Đã đăng ký tất cả technical indicators có sẵn
-2025-05-05 11:20:08,863 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: normalize
-2025-05-05 11:20:08,863 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: standardize
-2025-05-05 11:20:08,864 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: min_max_scale
-2025-05-05 11:20:08,864 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: handle_extreme_values
-2025-05-05 11:20:08,865 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: log_transform_volume
-2025-05-05 11:20:08,865 - trading_system.trading_system - DEBUG - [feature_generator.py:219] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
-2025-05-05 11:20:08,866 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: target_labels
-2025-05-05 11:20:08,866 - trading_system.trading_system - INFO - [feature_generator.py:382] - Đã đăng ký tính năng tạo nhãn target
-2025-05-05 11:20:08,867 - trading_system.trading_system - INFO - [feature_generator.py:388] - Đã đăng ký 11 đặc trưng: ['trend_ema', 'trend_sma', 'momentum_rsi', 'momentum_macd', 'volatility_atr', 'volatility_bbands', 'volume_obv', 'trend_adx', 'trend_supertrend', 'volume_osc', 'target_labels']
-2025-05-05 11:20:08,868 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
-2025-05-05 11:20:08,953 - trading_system.trading_system - INFO - [data_pipeline.py:489] - Đã tải 27000 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet cho BTC/USDT
-2025-05-05 11:20:08,959 - trading_system.environment - INFO - [base_environment.py:103] - Đã khởi tạo môi trường cơ sở với 27000 dòng dữ liệu
-2025-05-05 11:20:08,960 - trading_system.observation_space - INFO - [observation_space.py:67] - Đã khởi tạo ObservationSpace với 37 đặc trưng, window_size=100
-2025-05-05 11:20:08,961 - trading_system.observation_space - INFO - [observation_space.py:69] - Không gian quan sát bao gồm target với 1 chiều
-2025-05-05 11:20:08,961 - trading_system.action_space - INFO - [action_space.py:53] - Đã khởi tạo ActionSpace với loại discrete, max_positions=5
-2025-05-05 11:20:08,962 - trading_system.environment - INFO - [trading_env.py:195] - Đã khởi tạo môi trường giao dịch với 27000 dòng dữ liệu, 37 đặc trưng
-2025-05-05 11:20:08,963 - trading_system.trading_system - ERROR - [trading_system.py:635] - Lỗi khi huấn luyện agent: Can't instantiate abstract class PPOAgent with abstract methods _load_model_impl, _save_model_impl, act, learn
+2025-05-05 11:34:15,423 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:34:15,431 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:34:15,438 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:34:16,256 - trading_system - INFO - [main.py:27] - Khởi động hệ thống giao dịch tự động
+2025-05-05 11:34:16,275 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:34:16,276 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:34:16,281 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:34:16,282 - trading_system.module_manager - INFO - [trading_system.py:137] - ==== Trạng thái khả dụng của module ====
+2025-05-05 11:34:16,283 - trading_system.module_manager - INFO - [trading_system.py:138] - Agents: Khả dụng
+2025-05-05 11:34:16,283 - trading_system.module_manager - INFO - [trading_system.py:139] - Environments: Khả dụng
+2025-05-05 11:34:16,284 - trading_system.module_manager - INFO - [trading_system.py:140] - Data Collectors: Không khả dụng
+2025-05-05 11:34:16,284 - trading_system.trading_system - INFO - [trading_system.py:221] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-05 11:34:16,285 - trading_system.train_command - INFO - [train_commands.py:205] - Tự động tìm thấy file dữ liệu: E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet
+2025-05-05 11:34:16,286 - trading_system.train_command - INFO - [train_commands.py:239] - Bắt đầu huấn luyện agent ppo trên BTC/USDT, 1h
+2025-05-05 11:34:16,288 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:34:16,288 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:34:16,293 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:34:16,327 - trading_system.module_manager - DEBUG - [trading_system.py:105] - Agent PPO khả dụng
+2025-05-05 11:34:16,327 - trading_system.trading_system - INFO - [trading_system.py:512] - Bắt đầu huấn luyện agent ppo cho BTC/USDT, khung thời gian 1h
+2025-05-05 11:34:16,328 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-05 11:34:16,329 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-05 11:34:16,329 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-05 11:34:16,330 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-05 11:34:16,330 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-05 11:34:16,331 - trading_system.trading_system - INFO - [feature_generator.py:98] - Đã khởi tạo FeatureGenerator
+2025-05-05 11:34:16,331 - trading_system.trading_system - INFO - [feature_generator.py:326] - Đăng ký các đặc trưng mặc định
+2025-05-05 11:34:16,332 - trading_system.trading_system - DEBUG - [feature_generator.py:497] - Import thành công từ technical_indicators package
+2025-05-05 11:34:16,332 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_ema
+2025-05-05 11:34:16,332 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_sma
+2025-05-05 11:34:16,333 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_rsi
+2025-05-05 11:34:16,333 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_macd
+2025-05-05 11:34:16,334 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_atr
+2025-05-05 11:34:16,334 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_bbands
+2025-05-05 11:34:16,334 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_obv
+2025-05-05 11:34:16,335 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_adx
+2025-05-05 11:34:16,335 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_supertrend
+2025-05-05 11:34:16,336 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_osc
+2025-05-05 11:34:16,336 - trading_system.trading_system - INFO - [feature_generator.py:515] - Đã đăng ký tất cả technical indicators có sẵn
+2025-05-05 11:34:16,336 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: normalize
+2025-05-05 11:34:16,337 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: standardize
+2025-05-05 11:34:16,337 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: min_max_scale
+2025-05-05 11:34:16,338 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: handle_extreme_values
+2025-05-05 11:34:16,338 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: log_transform_volume
+2025-05-05 11:34:16,339 - trading_system.trading_system - DEBUG - [feature_generator.py:219] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
+2025-05-05 11:34:16,339 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: target_labels
+2025-05-05 11:34:16,339 - trading_system.trading_system - INFO - [feature_generator.py:382] - Đã đăng ký tính năng tạo nhãn target
+2025-05-05 11:34:16,340 - trading_system.trading_system - INFO - [feature_generator.py:388] - Đã đăng ký 11 đặc trưng: ['trend_ema', 'trend_sma', 'momentum_rsi', 'momentum_macd', 'volatility_atr', 'volatility_bbands', 'volume_obv', 'trend_adx', 'trend_supertrend', 'volume_osc', 'target_labels']
+2025-05-05 11:34:16,340 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-05-05 11:34:16,423 - trading_system.trading_system - INFO - [data_pipeline.py:489] - Đã tải 27000 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet cho BTC/USDT
+2025-05-05 11:34:16,427 - trading_system.environment - INFO - [base_environment.py:103] - Đã khởi tạo môi trường cơ sở với 27000 dòng dữ liệu
+2025-05-05 11:34:16,428 - trading_system.observation_space - INFO - [observation_space.py:67] - Đã khởi tạo ObservationSpace với 37 đặc trưng, window_size=100
+2025-05-05 11:34:16,429 - trading_system.observation_space - INFO - [observation_space.py:69] - Không gian quan sát bao gồm target với 1 chiều
+2025-05-05 11:34:16,429 - trading_system.action_space - INFO - [action_space.py:53] - Đã khởi tạo ActionSpace với loại discrete, max_positions=5
+2025-05-05 11:34:16,430 - trading_system.environment - INFO - [trading_env.py:195] - Đã khởi tạo môi trường giao dịch với 27000 dòng dữ liệu, 37 đặc trưng
+2025-05-05 11:34:16,431 - trading_system.agent - INFO - [base_agent.py:119] - Đã khởi tạo PPOAgent với state_dim=(3722,), action_dim=17
+2025-05-05 11:34:16,431 - trading_system.trading_system - ERROR - [trading_system.py:635] - Lỗi khi huấn luyện agent: 'PPOAgent' object has no attribute 'kwargs'
 Traceback (most recent call last):
   File "E:\AI_AGENT\automated-trading-system\trading_system.py", line 587, in train_agent
     agent = PPOAgent(**agent_kwargs)
             ^^^^^^^^^^^^^^^^^^^^^^^^
-TypeError: Can't instantiate abstract class PPOAgent with abstract methods _load_model_impl, _save_model_impl, act, learn
-2025-05-05 11:20:08,965 - trading_system.train_command - ERROR - [train_commands.py:279] - Huấn luyện thất bại
-2025-05-05 11:20:08,966 - trading_system - INFO - [main.py:53] - Đóng hệ thống giao dịch tự động
+  File "E:\AI_AGENT\automated-trading-system\models\agents\ppo_agent.py", line 136, in __init__
+    self._build_networks()
+  File "E:\AI_AGENT\automated-trading-system\models\agents\ppo_agent.py", line 156, in _build_networks
+    network_type=self.kwargs.get('network_type', 'mlp'),
+                 ^^^^^^^^^^^
+AttributeError: 'PPOAgent' object has no attribute 'kwargs'
+2025-05-05 11:34:16,436 - trading_system.train_command - ERROR - [train_commands.py:279] - Huấn luyện thất bại
+2025-05-05 11:34:16,436 - trading_system - INFO - [main.py:53] - Đóng hệ thống giao dịch tự động
+2025-05-05 11:37:59,855 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:37:59,862 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:37:59,868 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:38:00,664 - trading_system - INFO - [main.py:27] - Khởi động hệ thống giao dịch tự động
+2025-05-05 11:38:00,683 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:38:00,684 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:38:00,688 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:38:00,689 - trading_system.module_manager - INFO - [trading_system.py:137] - ==== Trạng thái khả dụng của module ====
+2025-05-05 11:38:00,690 - trading_system.module_manager - INFO - [trading_system.py:138] - Agents: Khả dụng
+2025-05-05 11:38:00,690 - trading_system.module_manager - INFO - [trading_system.py:139] - Environments: Khả dụng
+2025-05-05 11:38:00,691 - trading_system.module_manager - INFO - [trading_system.py:140] - Data Collectors: Không khả dụng
+2025-05-05 11:38:00,691 - trading_system.trading_system - INFO - [trading_system.py:221] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-05 11:38:00,693 - trading_system.train_command - INFO - [train_commands.py:205] - Tự động tìm thấy file dữ liệu: E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet
+2025-05-05 11:38:00,693 - trading_system.train_command - INFO - [train_commands.py:239] - Bắt đầu huấn luyện agent ppo trên BTC/USDT, 1h
+2025-05-05 11:38:00,695 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:38:00,696 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:38:00,700 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:38:00,726 - trading_system.module_manager - DEBUG - [trading_system.py:105] - Agent PPO khả dụng
+2025-05-05 11:38:00,727 - trading_system.trading_system - INFO - [trading_system.py:512] - Bắt đầu huấn luyện agent ppo cho BTC/USDT, khung thời gian 1h
+2025-05-05 11:38:00,728 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-05 11:38:00,728 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-05 11:38:00,729 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-05 11:38:00,729 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-05 11:38:00,729 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-05 11:38:00,730 - trading_system.trading_system - INFO - [feature_generator.py:98] - Đã khởi tạo FeatureGenerator
+2025-05-05 11:38:00,730 - trading_system.trading_system - INFO - [feature_generator.py:326] - Đăng ký các đặc trưng mặc định
+2025-05-05 11:38:00,731 - trading_system.trading_system - DEBUG - [feature_generator.py:497] - Import thành công từ technical_indicators package
+2025-05-05 11:38:00,731 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_ema
+2025-05-05 11:38:00,732 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_sma
+2025-05-05 11:38:00,732 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_rsi
+2025-05-05 11:38:00,733 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_macd
+2025-05-05 11:38:00,733 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_atr
+2025-05-05 11:38:00,733 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_bbands
+2025-05-05 11:38:00,734 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_obv
+2025-05-05 11:38:00,734 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_adx
+2025-05-05 11:38:00,735 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_supertrend
+2025-05-05 11:38:00,735 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_osc
+2025-05-05 11:38:00,735 - trading_system.trading_system - INFO - [feature_generator.py:515] - Đã đăng ký tất cả technical indicators có sẵn
+2025-05-05 11:38:00,736 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: normalize
+2025-05-05 11:38:00,736 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: standardize
+2025-05-05 11:38:00,737 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: min_max_scale
+2025-05-05 11:38:00,737 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: handle_extreme_values
+2025-05-05 11:38:00,737 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: log_transform_volume
+2025-05-05 11:38:00,738 - trading_system.trading_system - DEBUG - [feature_generator.py:219] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
+2025-05-05 11:38:00,738 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: target_labels
+2025-05-05 11:38:00,739 - trading_system.trading_system - INFO - [feature_generator.py:382] - Đã đăng ký tính năng tạo nhãn target
+2025-05-05 11:38:00,739 - trading_system.trading_system - INFO - [feature_generator.py:388] - Đã đăng ký 11 đặc trưng: ['trend_ema', 'trend_sma', 'momentum_rsi', 'momentum_macd', 'volatility_atr', 'volatility_bbands', 'volume_obv', 'trend_adx', 'trend_supertrend', 'volume_osc', 'target_labels']
+2025-05-05 11:38:00,740 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-05-05 11:38:00,818 - trading_system.trading_system - INFO - [data_pipeline.py:489] - Đã tải 27000 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet cho BTC/USDT
+2025-05-05 11:38:00,821 - trading_system.environment - INFO - [base_environment.py:103] - Đã khởi tạo môi trường cơ sở với 27000 dòng dữ liệu
+2025-05-05 11:38:00,823 - trading_system.observation_space - INFO - [observation_space.py:67] - Đã khởi tạo ObservationSpace với 37 đặc trưng, window_size=100
+2025-05-05 11:38:00,823 - trading_system.observation_space - INFO - [observation_space.py:69] - Không gian quan sát bao gồm target với 1 chiều
+2025-05-05 11:38:00,824 - trading_system.action_space - INFO - [action_space.py:53] - Đã khởi tạo ActionSpace với loại discrete, max_positions=5
+2025-05-05 11:38:00,824 - trading_system.environment - INFO - [trading_env.py:195] - Đã khởi tạo môi trường giao dịch với 27000 dòng dữ liệu, 37 đặc trưng
+2025-05-05 11:38:00,825 - trading_system.agent - INFO - [base_agent.py:119] - Đã khởi tạo PPOAgent với state_dim=(3722,), action_dim=17
+2025-05-05 11:38:00,962 - trading_system.agent - INFO - [shared_network.py:96] - Đã khởi tạo SharedNetwork với state_dim=(3722,), action_dim=17, network_type=mlp, action_type=discrete
+2025-05-05 11:38:00,963 - trading_system.agent - INFO - [ppo_agent.py:139] - Đã khởi tạo PPOAgent với state_dim=(3722,), action_dim=17, action_type=discrete, use_shared_network=True
+2025-05-05 11:38:00,971 - trading_system.trainer - INFO - [trainer.py:146] - Đã khởi tạo Trainer cho ppo_agent trên TradingEnv
+2025-05-05 11:38:00,971 - trading_system.trainer - INFO - [trainer.py:147] - Kết quả huấn luyện sẽ được lưu tại E:\AI_AGENT\automated-trading-system\saved_models\ppo\BTC_USDT\1h\ppo_agent_20250505_113800
+2025-05-05 11:38:00,972 - trading_system.trading_system - INFO - [trading_system.py:612] - Bắt đầu huấn luyện agent ppo với 1000 episodes
+2025-05-05 11:38:00,973 - trading_system.trainer - INFO - [trainer.py:234] - Bắt đầu huấn luyện cho 1000 episodes, mỗi episode tối đa 1000 bước
+2025-05-05 11:38:00,974 - trading_system.environment - INFO - [trading_env.py:279] - Tạo nhãn target với kiểu 'price_movement', lookforward=10, threshold=0.01
+2025-05-05 11:38:00,980 - trading_system.environment - INFO - [trading_env.py:333] - Đã tạo thành công nhãn target 'target' với phân bố: target
+ 0.0    9767
+ 1.0    8701
+-1.0    8522
+Name: count, dtype: int64
+2025-05-05 11:38:01,289 - trading_system.profit_reward - WARNING - [profit_reward.py:45] - Không đủ dữ liệu để tính toán phần thưởng
+2025-05-05 11:38:01,693 - trading_system.trading_system - ERROR - [trading_system.py:635] - Lỗi khi huấn luyện agent: {{function_node __wrapped__GatherNd_device_/job:localhost/replica:0/task:0/device:CPU:0}} indices[0] = [0, 6] does not index into param shape [1,1,17], node name: GatherNd [Op:GatherNd] name: 
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\trading_system.py", line 618, in train_agent
+    training_history = trainer.train()
+                       ^^^^^^^^^^^^^^^
+  File "E:\AI_AGENT\automated-trading-system\models\training_pipeline\trainer.py", line 242, in train
+    episode_reward, episode_length, episode_losses = self._train_episode(max_steps, render_frequency)
+                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\AI_AGENT\automated-trading-system\models\training_pipeline\trainer.py", line 378, in _train_episode
+    loss_info = self.agent.learn()
+                ^^^^^^^^^^^^^^^^^^
+  File "E:\AI_AGENT\automated-trading-system\models\agents\ppo_agent.py", line 389, in learn
+    return self.train()
+           ^^^^^^^^^^^^
+  File "E:\AI_AGENT\automated-trading-system\models\agents\ppo_agent.py", line 475, in train
+    batch_info = self.network.train_on_batch(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\AI_AGENT\automated-trading-system\models\networks\shared_network.py", line 541, in train_on_batch
+    policy_loss, value_loss, entropy_loss, total_loss, info = self._compute_loss(
+                                                              ^^^^^^^^^^^^^^^^^^^
+  File "E:\AI_AGENT\automated-trading-system\models\networks\shared_network.py", line 610, in _compute_loss
+    old_selected_probs = tf.gather_nd(old_action_probs, indices)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MAY10\AppData\Local\Programs\Python\Python311\Lib\site-packages\tensorflow\python\util\traceback_utils.py", line 153, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "C:\Users\MAY10\AppData\Local\Programs\Python\Python311\Lib\site-packages\tensorflow\python\framework\ops.py", line 6006, in raise_from_not_ok_status
+    raise core._status_to_exception(e) from None  # pylint: disable=protected-access
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tensorflow.python.framework.errors_impl.InvalidArgumentError: {{function_node __wrapped__GatherNd_device_/job:localhost/replica:0/task:0/device:CPU:0}} indices[0] = [0, 6] does not index into param shape [1,1,17], node name: GatherNd [Op:GatherNd] name: 
+2025-05-05 11:38:01,704 - trading_system.train_command - ERROR - [train_commands.py:279] - Huấn luyện thất bại
+2025-05-05 11:38:01,704 - trading_system - INFO - [main.py:53] - Đóng hệ thống giao dịch tự động
+2025-05-05 11:45:10,933 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:45:10,942 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:45:10,948 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:45:11,757 - trading_system - INFO - [main.py:27] - Khởi động hệ thống giao dịch tự động
+2025-05-05 11:45:11,777 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:45:11,778 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:45:11,782 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:45:11,783 - trading_system.module_manager - INFO - [trading_system.py:137] - ==== Trạng thái khả dụng của module ====
+2025-05-05 11:45:11,783 - trading_system.module_manager - INFO - [trading_system.py:138] - Agents: Khả dụng
+2025-05-05 11:45:11,784 - trading_system.module_manager - INFO - [trading_system.py:139] - Environments: Khả dụng
+2025-05-05 11:45:11,784 - trading_system.module_manager - INFO - [trading_system.py:140] - Data Collectors: Không khả dụng
+2025-05-05 11:45:11,785 - trading_system.trading_system - INFO - [trading_system.py:221] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-05 11:45:11,786 - trading_system.train_command - INFO - [train_commands.py:205] - Tự động tìm thấy file dữ liệu: E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet
+2025-05-05 11:45:11,787 - trading_system.train_command - INFO - [train_commands.py:239] - Bắt đầu huấn luyện agent ppo trên BTC/USDT, 1h
+2025-05-05 11:45:11,788 - trading_system.module_manager - DEBUG - [trading_system.py:58] - Các module agent khả dụng
+2025-05-05 11:45:11,789 - trading_system.module_manager - DEBUG - [trading_system.py:68] - Các module môi trường khả dụng
+2025-05-05 11:45:11,793 - trading_system.module_manager - WARNING - [trading_system.py:81] - Các module thu thập dữ liệu không khả dụng: No module named 'ccxt'
+2025-05-05 11:45:11,824 - trading_system.module_manager - DEBUG - [trading_system.py:105] - Agent PPO khả dụng
+2025-05-05 11:45:11,825 - trading_system.trading_system - INFO - [trading_system.py:512] - Bắt đầu huấn luyện agent ppo cho BTC/USDT, khung thời gian 1h
+2025-05-05 11:45:11,826 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-05 11:45:11,826 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-05 11:45:11,827 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-05 11:45:11,827 - trading_system.missing_data_handler - DEBUG - [missing_data_handler.py:80] - Fallback strategy: ffill, bfill, mean, median
+2025-05-05 11:45:11,827 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-05 11:45:11,828 - trading_system.trading_system - INFO - [feature_generator.py:98] - Đã khởi tạo FeatureGenerator
+2025-05-05 11:45:11,829 - trading_system.trading_system - INFO - [feature_generator.py:326] - Đăng ký các đặc trưng mặc định
+2025-05-05 11:45:11,829 - trading_system.trading_system - DEBUG - [feature_generator.py:497] - Import thành công từ technical_indicators package
+2025-05-05 11:45:11,830 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_ema
+2025-05-05 11:45:11,830 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_sma
+2025-05-05 11:45:11,830 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_rsi
+2025-05-05 11:45:11,831 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: momentum_macd
+2025-05-05 11:45:11,831 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_atr
+2025-05-05 11:45:11,832 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volatility_bbands
+2025-05-05 11:45:11,832 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_obv
+2025-05-05 11:45:11,832 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_adx
+2025-05-05 11:45:11,833 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: trend_supertrend
+2025-05-05 11:45:11,833 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: volume_osc
+2025-05-05 11:45:11,833 - trading_system.trading_system - INFO - [feature_generator.py:515] - Đã đăng ký tất cả technical indicators có sẵn
+2025-05-05 11:45:11,834 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: normalize
+2025-05-05 11:45:11,834 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: standardize
+2025-05-05 11:45:11,835 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: min_max_scale
+2025-05-05 11:45:11,835 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: handle_extreme_values
+2025-05-05 11:45:11,836 - trading_system.trading_system - DEBUG - [feature_generator.py:161] - Đã đăng ký bộ tiền xử lý: log_transform_volume
+2025-05-05 11:45:11,836 - trading_system.trading_system - DEBUG - [feature_generator.py:219] - Đã đăng ký bộ chọn lọc đặc trưng: statistical_correlation
+2025-05-05 11:45:11,837 - trading_system.trading_system - DEBUG - [feature_generator.py:132] - Đã đăng ký đặc trưng: target_labels
+2025-05-05 11:45:11,837 - trading_system.trading_system - INFO - [feature_generator.py:382] - Đã đăng ký tính năng tạo nhãn target
+2025-05-05 11:45:11,837 - trading_system.trading_system - INFO - [feature_generator.py:388] - Đã đăng ký 11 đặc trưng: ['trend_ema', 'trend_sma', 'momentum_rsi', 'momentum_macd', 'volatility_atr', 'volatility_bbands', 'volume_obv', 'trend_adx', 'trend_supertrend', 'volume_osc', 'target_labels']
+2025-05-05 11:45:11,838 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-05-05 11:45:11,922 - trading_system.trading_system - INFO - [data_pipeline.py:489] - Đã tải 27000 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250505_011446.parquet cho BTC/USDT
+2025-05-05 11:45:11,926 - trading_system.environment - INFO - [base_environment.py:103] - Đã khởi tạo môi trường cơ sở với 27000 dòng dữ liệu
+2025-05-05 11:45:11,927 - trading_system.observation_space - INFO - [observation_space.py:67] - Đã khởi tạo ObservationSpace với 37 đặc trưng, window_size=100
+2025-05-05 11:45:11,928 - trading_system.observation_space - INFO - [observation_space.py:69] - Không gian quan sát bao gồm target với 1 chiều
+2025-05-05 11:45:11,928 - trading_system.action_space - INFO - [action_space.py:53] - Đã khởi tạo ActionSpace với loại discrete, max_positions=5
+2025-05-05 11:45:11,929 - trading_system.environment - INFO - [trading_env.py:195] - Đã khởi tạo môi trường giao dịch với 27000 dòng dữ liệu, 37 đặc trưng
+2025-05-05 11:45:11,930 - trading_system.agent - INFO - [base_agent.py:119] - Đã khởi tạo PPOAgent với state_dim=(3722,), action_dim=17
+2025-05-05 11:45:12,066 - trading_system.agent - INFO - [shared_network.py:96] - Đã khởi tạo SharedNetwork với state_dim=(3722,), action_dim=17, network_type=mlp, action_type=discrete
+2025-05-05 11:45:12,067 - trading_system.agent - INFO - [ppo_agent.py:139] - Đã khởi tạo PPOAgent với state_dim=(3722,), action_dim=17, action_type=discrete, use_shared_network=True
+2025-05-05 11:45:12,075 - trading_system.trainer - INFO - [trainer.py:146] - Đã khởi tạo Trainer cho ppo_agent trên TradingEnv
+2025-05-05 11:45:12,075 - trading_system.trainer - INFO - [trainer.py:147] - Kết quả huấn luyện sẽ được lưu tại E:\AI_AGENT\automated-trading-system\saved_models\ppo\BTC_USDT\1h\ppo_agent_20250505_114512
+2025-05-05 11:45:12,076 - trading_system.trading_system - INFO - [trading_system.py:612] - Bắt đầu huấn luyện agent ppo với 1000 episodes
+2025-05-05 11:45:12,076 - trading_system.trainer - INFO - [trainer.py:234] - Bắt đầu huấn luyện cho 1000 episodes, mỗi episode tối đa 1000 bước
+2025-05-05 11:45:12,077 - trading_system.environment - INFO - [trading_env.py:279] - Tạo nhãn target với kiểu 'price_movement', lookforward=10, threshold=0.01
+2025-05-05 11:45:12,083 - trading_system.environment - INFO - [trading_env.py:333] - Đã tạo thành công nhãn target 'target' với phân bố: target
+ 0.0    9767
+ 1.0    8701
+-1.0    8522
+Name: count, dtype: int64
+2025-05-05 11:45:12,382 - trading_system.profit_reward - WARNING - [profit_reward.py:45] - Không đủ dữ liệu để tính toán phần thưởng
+2025-05-05 11:45:12,755 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:12,913 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:13,250 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:13,413 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:13,786 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:13,953 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.9990, liên tiếp=0.0000, drawdown=0.0000, tổng=0.9990
+2025-05-05 11:45:14,343 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:14,511 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.3726, liên tiếp=0.0373, drawdown=0.0000, tổng=0.4098
+2025-05-05 11:45:14,888 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:15,090 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0001, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0001
+2025-05-05 11:45:15,446 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:15,614 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.1816, liên tiếp=0.0545, drawdown=0.0000, tổng=0.2361
+2025-05-05 11:45:15,951 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:16,118 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.2303, liên tiếp=0.0921, drawdown=0.0000, tổng=0.3225
+2025-05-05 11:45:16,459 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:16,629 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:16,988 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:17,167 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:17,523 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:17,686 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:18,032 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:18,196 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0001, liên tiếp=0.0000, drawdown=-0.0001, tổng=-0.0002
+2025-05-05 11:45:18,542 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:18,701 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0002, liên tiếp=0.0000, drawdown=-0.0001, tổng=-0.0003
+2025-05-05 11:45:19,041 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:19,192 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0001, tổng=-0.0001
+2025-05-05 11:45:19,525 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:19,680 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0001, tổng=-0.0001
+2025-05-05 11:45:20,037 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:20,193 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0000, liên tiếp=0.0000, drawdown=-0.0001, tổng=-0.0001
+2025-05-05 11:45:20,531 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:20,691 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0000, tổng=-0.0000
+2025-05-05 11:45:21,017 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:21,182 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:21,543 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:21,694 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0000, liên tiếp=0.0000, drawdown=-0.0000, tổng=-0.0000
+2025-05-05 11:45:22,043 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:22,203 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0007, liên tiếp=0.0000, drawdown=-0.0004, tổng=-0.0011
+2025-05-05 11:45:22,530 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:22,699 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:23,070 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:23,235 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0018, liên tiếp=0.0000, drawdown=-0.0009, tổng=-0.0027
+2025-05-05 11:45:23,609 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:23,773 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0032, liên tiếp=0.0000, drawdown=-0.0025, tổng=-0.0058
+2025-05-05 11:45:24,133 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:24,295 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:24,650 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:24,812 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=0.0000, tổng=0.0000
+2025-05-05 11:45:25,169 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:25,333 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0026, liên tiếp=0.0000, drawdown=-0.0013, tổng=-0.0039
+2025-05-05 11:45:25,685 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:25,853 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0013, tổng=-0.0013
+2025-05-05 11:45:26,205 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:26,375 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0060, liên tiếp=0.0000, drawdown=-0.0043, tổng=-0.0103
+2025-05-05 11:45:26,724 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:26,892 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0013, liên tiếp=0.0000, drawdown=-0.0049, tổng=-0.0062
+2025-05-05 11:45:27,246 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:27,412 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0008, liên tiếp=0.0000, drawdown=-0.0054, tổng=-0.0062
+2025-05-05 11:45:27,748 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:27,910 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0023, liên tiếp=0.0000, drawdown=-0.0042, tổng=-0.0019
+2025-05-05 11:45:28,258 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:28,421 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0808, liên tiếp=0.0081, drawdown=0.0000, tổng=0.0889
+2025-05-05 11:45:28,769 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:28,955 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0015, liên tiếp=0.0003, drawdown=0.0000, tổng=0.0018
+2025-05-05 11:45:29,311 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:29,474 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0007, liên tiếp=0.0002, drawdown=0.0000, tổng=0.0009
+2025-05-05 11:45:29,826 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:29,988 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.2678, liên tiếp=0.1071, drawdown=0.0000, tổng=0.3749
+2025-05-05 11:45:30,345 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:30,505 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0006, liên tiếp=0.0003, drawdown=0.0000, tổng=0.0009
+2025-05-05 11:45:30,854 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:31,018 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0016, liên tiếp=0.0008, drawdown=0.0000, tổng=0.0024
+2025-05-05 11:45:31,406 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:31,569 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0004, liên tiếp=0.0000, drawdown=-0.0002, tổng=-0.0005
+2025-05-05 11:45:31,930 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:32,099 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.2063, liên tiếp=0.0000, drawdown=0.0000, tổng=0.2063
+2025-05-05 11:45:32,436 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:32,584 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0010, liên tiếp=0.0001, drawdown=0.0000, tổng=0.0011
+2025-05-05 11:45:32,923 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:33,090 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0017, liên tiếp=0.0000, drawdown=-0.0009, tổng=-0.0026
+2025-05-05 11:45:33,439 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:33,597 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0021, liên tiếp=0.0000, drawdown=-0.0019, tổng=-0.0040
+2025-05-05 11:45:33,906 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:34,066 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0018, liên tiếp=0.0000, drawdown=-0.0010, tổng=0.0008
+2025-05-05 11:45:34,410 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:34,568 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0008, tổng=-0.0003
+2025-05-05 11:45:34,906 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:35,065 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0047, liên tiếp=0.0000, drawdown=-0.0032, tổng=-0.0079
+2025-05-05 11:45:35,405 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:35,570 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0008, liên tiếp=0.0000, drawdown=-0.0028, tổng=-0.0020
+2025-05-05 11:45:35,900 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:36,057 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0031, liên tiếp=0.0000, drawdown=-0.0043, tổng=-0.0075
+2025-05-05 11:45:36,393 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:36,549 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0015, liên tiếp=0.0000, drawdown=-0.0036, tổng=-0.0021
+2025-05-05 11:45:36,900 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:37,063 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0018, liên tiếp=0.0000, drawdown=-0.0045, tổng=-0.0062
+2025-05-05 11:45:37,386 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:37,537 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0007, liên tiếp=0.0000, drawdown=-0.0041, tổng=-0.0034
+2025-05-05 11:45:37,854 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:38,023 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0030, liên tiếp=0.0003, drawdown=-0.0026, tổng=0.0007
+2025-05-05 11:45:38,376 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:38,532 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0016, liên tiếp=0.0003, drawdown=-0.0018, tổng=0.0001
+2025-05-05 11:45:38,909 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:39,072 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0009, liên tiếp=0.0000, drawdown=-0.0023, tổng=-0.0031
+2025-05-05 11:45:39,413 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:39,575 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0002, liên tiếp=0.0000, drawdown=-0.0024, tổng=-0.0025
+2025-05-05 11:45:39,928 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:40,102 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0007, liên tiếp=0.0000, drawdown=-0.0020, tổng=-0.0013
+2025-05-05 11:45:40,444 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:40,606 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0015, liên tiếp=0.0000, drawdown=-0.0027, tổng=-0.0042
+2025-05-05 11:45:40,979 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:41,136 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0002, liên tiếp=0.0000, drawdown=-0.0028, tổng=-0.0030
+2025-05-05 11:45:41,488 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:41,647 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0003, liên tiếp=0.0000, drawdown=-0.0027, tổng=-0.0024
+2025-05-05 11:45:41,994 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:42,159 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0028, liên tiếp=0.0000, drawdown=-0.0041, tổng=-0.0069
+2025-05-05 11:45:42,510 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:42,675 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0005, liên tiếp=0.0000, drawdown=-0.0044, tổng=-0.0049
+2025-05-05 11:45:43,023 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:43,187 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0014, liên tiếp=0.0000, drawdown=-0.0051, tổng=-0.0064
+2025-05-05 11:45:43,508 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:43,666 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0005, liên tiếp=0.0000, drawdown=-0.0048, tổng=-0.0043
+2025-05-05 11:45:44,045 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:44,204 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0015, liên tiếp=0.0001, drawdown=-0.0041, tổng=-0.0024
+2025-05-05 11:45:44,551 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:44,721 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0002, liên tiếp=0.0000, drawdown=-0.0040, tổng=-0.0038
+2025-05-05 11:45:45,101 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:45,281 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0019, liên tiếp=0.0000, drawdown=-0.0049, tổng=-0.0068
+2025-05-05 11:45:45,637 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:45,794 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0001, liên tiếp=0.0000, drawdown=-0.0049, tổng=-0.0048
+2025-05-05 11:45:46,146 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:46,316 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0033, liên tiếp=0.0003, drawdown=-0.0033, tổng=0.0003
+2025-05-05 11:45:46,661 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:46,832 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0018, liên tiếp=0.0004, drawdown=-0.0024, tổng=-0.0002
+2025-05-05 11:45:47,184 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:47,349 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0004, liên tiếp=0.0000, drawdown=-0.0026, tổng=-0.0030
+2025-05-05 11:45:47,698 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:47,855 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0002, liên tiếp=0.0000, drawdown=-0.0026, tổng=-0.0028
+2025-05-05 11:45:48,237 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:48,400 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0023, liên tiếp=0.0000, drawdown=-0.0038, tổng=-0.0061
+2025-05-05 11:45:48,743 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:48,915 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0002, liên tiếp=0.0000, drawdown=-0.0037, tổng=-0.0035
+2025-05-05 11:45:49,273 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:49,443 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0004, liên tiếp=0.0000, drawdown=-0.0039, tổng=-0.0043
+2025-05-05 11:45:49,823 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:49,995 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0005, liên tiếp=0.0000, drawdown=-0.0041, tổng=-0.0047
+2025-05-05 11:45:50,334 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:50,492 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0006, liên tiếp=0.0000, drawdown=-0.0044, tổng=-0.0050
+2025-05-05 11:45:50,845 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:51,011 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0044, tổng=-0.0044
+2025-05-05 11:45:51,388 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:51,555 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0014, liên tiếp=0.0001, drawdown=-0.0037, tổng=-0.0022
+2025-05-05 11:45:51,902 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:52,032 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0011, liên tiếp=0.0000, drawdown=-0.0042, tổng=-0.0053
+2025-05-05 11:45:52,372 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:52,532 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0003, liên tiếp=0.0000, drawdown=-0.0044, tổng=-0.0046
+2025-05-05 11:45:52,865 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:53,030 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0014, liên tiếp=0.0000, drawdown=-0.0051, tổng=-0.0064
+2025-05-05 11:45:53,393 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:53,554 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0018, liên tiếp=0.0000, drawdown=-0.0060, tổng=-0.0077
+2025-05-05 11:45:53,865 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:54,030 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0057, tổng=-0.0053
+2025-05-05 11:45:54,377 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:54,525 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0014, liên tiếp=0.0000, drawdown=-0.0064, tổng=-0.0079
+2025-05-05 11:45:54,883 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:55,053 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0009, liên tiếp=0.0000, drawdown=-0.0060, tổng=-0.0051
+2025-05-05 11:45:55,383 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:55,546 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0006, liên tiếp=0.0000, drawdown=-0.0063, tổng=-0.0068
+2025-05-05 11:45:55,902 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:56,069 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0020, liên tiếp=0.0000, drawdown=-0.0053, tổng=-0.0033
+2025-05-05 11:45:56,421 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:56,587 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0008, liên tiếp=0.0000, drawdown=-0.0057, tổng=-0.0065
+2025-05-05 11:45:56,968 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:57,129 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0031, liên tiếp=0.0000, drawdown=-0.0072, tổng=-0.0103
+2025-05-05 11:45:57,471 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:57,630 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0002, liên tiếp=0.0000, drawdown=-0.0071, tổng=-0.0070
+2025-05-05 11:45:57,962 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:58,116 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0012, liên tiếp=0.0001, drawdown=-0.0066, tổng=-0.0053
+2025-05-05 11:45:58,457 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:58,622 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0000, liên tiếp=0.0000, drawdown=-0.0066, tổng=-0.0066
+2025-05-05 11:45:58,975 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:59,133 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0009, liên tiếp=0.0000, drawdown=-0.0061, tổng=-0.0052
+2025-05-05 11:45:59,516 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:45:59,683 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0008, liên tiếp=0.0001, drawdown=-0.0057, tổng=-0.0048
+2025-05-05 11:46:00,025 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:00,197 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0013, liên tiếp=0.0003, drawdown=-0.0051, tổng=-0.0035
+2025-05-05 11:46:00,536 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:00,698 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0002, liên tiếp=0.0001, drawdown=-0.0050, tổng=-0.0048
+2025-05-05 11:46:01,034 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:01,197 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0007, liên tiếp=0.0000, drawdown=-0.0053, tổng=-0.0060
+2025-05-05 11:46:01,531 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:01,697 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0051, tổng=-0.0046
+2025-05-05 11:46:02,042 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:02,205 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0010, liên tiếp=0.0001, drawdown=-0.0046, tổng=-0.0034
+2025-05-05 11:46:02,584 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:02,750 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0008, liên tiếp=0.0002, drawdown=-0.0042, tổng=-0.0032
+2025-05-05 11:46:03,124 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:03,285 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0010, liên tiếp=0.0003, drawdown=-0.0037, tổng=-0.0023
+2025-05-05 11:46:03,599 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:03,761 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0003, liên tiếp=0.0000, drawdown=-0.0038, tổng=-0.0041
+2025-05-05 11:46:04,110 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:04,272 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0009, liên tiếp=0.0000, drawdown=-0.0034, tổng=-0.0025
+2025-05-05 11:46:04,646 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:04,811 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0007, liên tiếp=0.0000, drawdown=-0.0037, tổng=-0.0044
+2025-05-05 11:46:05,193 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:05,358 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0035, tổng=-0.0031
+2025-05-05 11:46:05,706 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:05,866 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0015, liên tiếp=0.0002, drawdown=-0.0028, tổng=-0.0011
+2025-05-05 11:46:06,212 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:06,371 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0001, liên tiếp=0.0000, drawdown=-0.0027, tổng=-0.0026
+2025-05-05 11:46:06,717 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:06,876 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0008, liên tiếp=0.0000, drawdown=-0.0031, tổng=-0.0039
+2025-05-05 11:46:07,212 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:07,378 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0011, liên tiếp=0.0000, drawdown=-0.0037, tổng=-0.0048
+2025-05-05 11:46:07,712 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:07,873 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0037, tổng=-0.0036
+2025-05-05 11:46:08,217 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:08,392 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0005, liên tiếp=0.0000, drawdown=-0.0039, tổng=-0.0044
+2025-05-05 11:46:08,731 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:08,891 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0009, liên tiếp=0.0000, drawdown=-0.0035, tổng=-0.0026
+2025-05-05 11:46:09,244 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:09,396 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0022, liên tiếp=0.0000, drawdown=-0.0046, tổng=-0.0067
+2025-05-05 11:46:09,714 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:09,882 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0002, liên tiếp=0.0000, drawdown=-0.0045, tổng=-0.0043
+2025-05-05 11:46:10,230 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:10,389 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0037, liên tiếp=0.0004, drawdown=-0.0027, tổng=0.0013
+2025-05-05 11:46:10,735 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:10,900 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0014, liên tiếp=0.0000, drawdown=-0.0034, tổng=-0.0048
+2025-05-05 11:46:11,267 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:11,435 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0003, liên tiếp=0.0000, drawdown=-0.0032, tổng=-0.0029
+2025-05-05 11:46:11,782 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:11,950 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0003, liên tiếp=0.0000, drawdown=-0.0031, tổng=-0.0028
+2025-05-05 11:46:12,322 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:12,457 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0006, liên tiếp=0.0001, drawdown=-0.0028, tổng=-0.0020
+2025-05-05 11:46:12,799 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:12,957 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0014, liên tiếp=0.0004, drawdown=-0.0021, tổng=-0.0003
+2025-05-05 11:46:13,300 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:13,465 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0007, liên tiếp=0.0000, drawdown=-0.0024, tổng=-0.0032
+2025-05-05 11:46:13,811 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:13,977 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0006, liên tiếp=0.0000, drawdown=-0.0027, tổng=-0.0033
+2025-05-05 11:46:14,356 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:14,521 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0007, liên tiếp=0.0000, drawdown=-0.0024, tổng=-0.0017
+2025-05-05 11:46:14,906 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:15,072 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0026, liên tiếp=0.0000, drawdown=-0.0037, tổng=-0.0062
+2025-05-05 11:46:15,419 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:15,578 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0002, liên tiếp=0.0000, drawdown=-0.0035, tổng=-0.0033
+2025-05-05 11:46:15,901 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:16,060 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0001, liên tiếp=0.0000, drawdown=-0.0035, tổng=-0.0034
+2025-05-05 11:46:16,405 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:16,570 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0009, liên tiếp=0.0002, drawdown=-0.0031, tổng=-0.0020
+2025-05-05 11:46:16,934 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:17,099 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0009, liên tiếp=0.0000, drawdown=-0.0035, tổng=-0.0043
+2025-05-05 11:46:17,439 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:17,585 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0035, tổng=-0.0034
+2025-05-05 11:46:17,950 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:18,119 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0012, liên tiếp=0.0000, drawdown=-0.0040, tổng=-0.0052
+2025-05-05 11:46:18,456 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:18,617 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0005, liên tiếp=0.0000, drawdown=-0.0038, tổng=-0.0032
+2025-05-05 11:46:18,953 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:19,119 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0007, liên tiếp=0.0000, drawdown=-0.0041, tổng=-0.0048
+2025-05-05 11:46:19,442 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:19,606 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0011, liên tiếp=0.0000, drawdown=-0.0046, tổng=-0.0057
+2025-05-05 11:46:19,945 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:20,113 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0003, liên tiếp=0.0000, drawdown=-0.0045, tổng=-0.0042
+2025-05-05 11:46:20,464 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:20,604 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0003, liên tiếp=0.0000, drawdown=-0.0043, tổng=-0.0039
+2025-05-05 11:46:20,969 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:21,137 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0005, liên tiếp=0.0001, drawdown=-0.0041, tổng=-0.0036
+2025-05-05 11:46:21,461 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:21,622 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0006, liên tiếp=0.0002, drawdown=-0.0038, tổng=-0.0030
+2025-05-05 11:46:21,974 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:22,143 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0009, liên tiếp=0.0000, drawdown=-0.0042, tổng=-0.0051
+2025-05-05 11:46:22,508 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:22,659 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0015, liên tiếp=0.0000, drawdown=-0.0035, tổng=-0.0019
+2025-05-05 11:46:22,992 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:23,141 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0033, tổng=-0.0028
+2025-05-05 11:46:23,498 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:23,655 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0002, liên tiếp=0.0000, drawdown=-0.0034, tổng=-0.0035
+2025-05-05 11:46:23,986 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:24,140 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0007, liên tiếp=0.0000, drawdown=-0.0037, tổng=-0.0044
+2025-05-05 11:46:24,450 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:24,611 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0029, liên tiếp=0.0000, drawdown=-0.0051, tổng=-0.0080
+2025-05-05 11:46:24,967 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:25,126 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0006, liên tiếp=0.0000, drawdown=-0.0048, tổng=-0.0043
+2025-05-05 11:46:25,484 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:25,650 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0008, liên tiếp=0.0001, drawdown=-0.0045, tổng=-0.0036
+2025-05-05 11:46:26,019 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:26,199 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0018, liên tiếp=0.0000, drawdown=-0.0054, tổng=-0.0072
+2025-05-05 11:46:26,556 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:26,708 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0007, liên tiếp=0.0000, drawdown=-0.0057, tổng=-0.0064
+2025-05-05 11:46:27,045 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:27,196 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0006, liên tiếp=0.0000, drawdown=-0.0054, tổng=-0.0048
+2025-05-05 11:46:27,520 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:27,673 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0002, liên tiếp=0.0000, drawdown=-0.0055, tổng=-0.0058
+2025-05-05 11:46:27,996 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:28,158 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0008, liên tiếp=0.0000, drawdown=-0.0059, tổng=-0.0067
+2025-05-05 11:46:28,467 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:28,624 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0006, liên tiếp=0.0000, drawdown=-0.0056, tổng=-0.0050
+2025-05-05 11:46:28,975 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:29,152 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0002, liên tiếp=0.0000, drawdown=-0.0055, tổng=-0.0054
+2025-05-05 11:46:29,493 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:29,653 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0008, liên tiếp=0.0002, drawdown=-0.0051, tổng=-0.0042
+2025-05-05 11:46:29,999 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:30,145 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0001, drawdown=-0.0049, tổng=-0.0044
+2025-05-05 11:46:30,503 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:30,663 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0004, liên tiếp=0.0000, drawdown=-0.0051, tổng=-0.0055
+2025-05-05 11:46:31,024 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:31,197 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0008, liên tiếp=0.0000, drawdown=-0.0055, tổng=-0.0064
+2025-05-05 11:46:31,567 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:31,728 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0013, liên tiếp=0.0000, drawdown=-0.0049, tổng=-0.0035
+2025-05-05 11:46:32,075 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:32,233 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0010, liên tiếp=0.0000, drawdown=-0.0054, tổng=-0.0064
+2025-05-05 11:46:32,610 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:32,776 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0011, liên tiếp=0.0000, drawdown=-0.0059, tổng=-0.0070
+2025-05-05 11:46:33,125 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:33,287 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0002, liên tiếp=0.0000, drawdown=-0.0060, tổng=-0.0063
+2025-05-05 11:46:33,619 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:33,786 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0001, liên tiếp=0.0000, drawdown=-0.0060, tổng=-0.0059
+2025-05-05 11:46:34,155 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:34,316 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0058, tổng=-0.0053
+2025-05-05 11:46:34,663 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:34,820 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0015, liên tiếp=0.0003, drawdown=-0.0050, tổng=-0.0033
+2025-05-05 11:46:35,188 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:35,348 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0009, liên tiếp=0.0000, drawdown=-0.0055, tổng=-0.0065
+2025-05-05 11:46:35,691 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:35,858 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0053, tổng=-0.0049
+2025-05-05 11:46:36,190 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:36,352 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0009, liên tiếp=0.0000, drawdown=-0.0058, tổng=-0.0067
+2025-05-05 11:46:36,694 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:36,852 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0008, liên tiếp=0.0000, drawdown=-0.0061, tổng=-0.0069
+2025-05-05 11:46:37,204 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:37,369 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0003, liên tiếp=0.0000, drawdown=-0.0060, tổng=-0.0057
+2025-05-05 11:46:37,713 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:37,876 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0007, liên tiếp=0.0000, drawdown=-0.0063, tổng=-0.0070
+2025-05-05 11:46:38,230 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:38,397 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0001, liên tiếp=0.0000, drawdown=-0.0063, tổng=-0.0062
+2025-05-05 11:46:38,786 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:38,961 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0061, tổng=-0.0057
+2025-05-05 11:46:39,325 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:39,509 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0003, liên tiếp=0.0001, drawdown=-0.0060, tổng=-0.0056
+2025-05-05 11:46:39,897 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:40,064 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0008, liên tiếp=0.0000, drawdown=-0.0064, tổng=-0.0072
+2025-05-05 11:46:40,435 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:40,605 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0009, liên tiếp=0.0000, drawdown=-0.0059, tổng=-0.0050
+2025-05-05 11:46:40,981 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:41,160 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0008, liên tiếp=0.0000, drawdown=-0.0063, tổng=-0.0071
+2025-05-05 11:46:41,535 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:41,707 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0004, liên tiếp=0.0000, drawdown=-0.0061, tổng=-0.0057
+2025-05-05 11:46:42,085 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:42,251 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0001, liên tiếp=0.0000, drawdown=-0.0060, tổng=-0.0059
+2025-05-05 11:46:42,595 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:42,764 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0005, liên tiếp=0.0000, drawdown=-0.0063, tổng=-0.0068
+2025-05-05 11:46:43,138 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:43,318 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=-0.0012, liên tiếp=0.0000, drawdown=-0.0069, tổng=-0.0081
+2025-05-05 11:46:43,638 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:43,805 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0069, tổng=-0.0069
+2025-05-05 11:46:44,163 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:44,327 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0069, tổng=-0.0069
+2025-05-05 11:46:44,674 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:44,836 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0069, tổng=-0.0069
+2025-05-05 11:46:45,211 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:45,371 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0069, tổng=-0.0069
+2025-05-05 11:46:45,748 - trading_system.agent - ERROR - [ppo_agent.py:604] - Lỗi trong phương thức train: {{function_node __wrapped__Pack_N_2_device_/job:localhost/replica:0/task:0/device:CPU:0}} Shapes of all inputs must match: values[0].shape = [1] != values[1].shape = [1,1] [Op:Pack] name: stack
+2025-05-05 11:46:45,910 - trading_system.profit_reward - DEBUG - [profit_reward.py:95] - Phần thưởng: cơ bản=0.0000, liên tiếp=0.0000, drawdown=-0.0069, tổng=-0.0069
+2025-05-05 11:46:46,248 - trading_system.train_command - INFO - [train_commands.py:283] - Đã hủy huấn luyện
+2025-05-05 11:46:46,249 - trading_system - INFO - [main.py:53] - Đóng hệ thống giao dịch tự động
