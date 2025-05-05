@@ -140,13 +140,17 @@ def setup_train_parser(subparsers) -> None:
         default=0.01,
         help='Giá trị epsilon tối thiểu'
     )
-    
     # Đường dẫn đầu ra
     train_parser.add_argument(
         '--output-dir', 
         type=str,
         help='Thư mục lưu mô hình'
     )
+    train_parser.add_argument(
+    '--continue-training', 
+    action='store_true',
+    help='Tiếp tục huấn luyện từ mô hình đã lưu'
+    )    
     
     train_parser.set_defaults(func=handle_train_command)
 
@@ -174,6 +178,7 @@ def handle_train_command(args: argparse.Namespace, system: AutomatedTradingSyste
         
         # Nếu không có data_path, tìm trong thư mục mặc định
         if not data_path:
+            # Phần tìm kiếm dữ liệu giữ nguyên như cũ...
             # Sử dụng đường dẫn tương đối tới thư mục processed
             default_dir = system.data_dir / "processed"
             
@@ -234,6 +239,49 @@ def handle_train_command(args: argparse.Namespace, system: AutomatedTradingSyste
         # Chuyển đổi thành đường dẫn nếu có
         if output_dir:
             output_dir = Path(output_dir)
+        
+        # Xử lý tham số tiếp tục huấn luyện
+        if hasattr(args, 'continue_training') and args.continue_training:
+            # Xác định đường dẫn mô hình dựa trên loại agent, symbol và timeframe
+            if output_dir is None:
+                # Sử dụng đường dẫn mặc định nếu không chỉ định
+                model_dir = system.model_dir / agent_type / symbol.replace('/', '_') / timeframe
+            else:
+                # Sử dụng đường dẫn được chỉ định
+                model_dir = output_dir / agent_type / symbol.replace('/', '_') / timeframe
+            
+            # Kiểm tra xem mô hình tốt nhất có tồn tại không
+            best_model_path = model_dir / "models" / "best_model"
+            
+            if best_model_path.exists():
+                # Nếu có, sử dụng mô hình tốt nhất
+                train_kwargs["continue_training"] = True
+                train_kwargs["model_path"] = str(best_model_path)
+                logger.info(f"Tiếp tục huấn luyện từ mô hình tốt nhất: {best_model_path}")
+            else:
+                # Nếu không, tìm checkpoint gần nhất
+                checkpoint_dir = model_dir / "checkpoints"
+                
+                if checkpoint_dir.exists():
+                    # Tìm tất cả các checkpoints
+                    checkpoints = list(checkpoint_dir.glob("checkpoint_episode_*"))
+                    
+                    if checkpoints:
+                        # Sắp xếp theo số episode giảm dần
+                        try:
+                            checkpoints.sort(key=lambda x: int(x.name.split("_")[-1]), reverse=True)
+                            latest_checkpoint = checkpoints[0]
+                            
+                            train_kwargs["continue_training"] = True
+                            train_kwargs["checkpoint"] = str(latest_checkpoint)
+                            logger.info(f"Tiếp tục huấn luyện từ checkpoint: {latest_checkpoint}")
+                        except Exception as e:
+                            logger.warning(f"Không thể sắp xếp checkpoints: {str(e)}")
+                            logger.warning("Bắt đầu huấn luyện mới")
+                    else:
+                        logger.warning("Không tìm thấy checkpoint, bắt đầu huấn luyện mới")
+                else:
+                    logger.warning("Không tìm thấy thư mục checkpoints, bắt đầu huấn luyện mới")
         
         # Thực hiện huấn luyện
         logger.info(f"Bắt đầu huấn luyện agent {agent_type} trên {symbol}, {timeframe}")

@@ -363,6 +363,10 @@ python main.py train --agent ppo --symbol BTC/USDT --timeframe 1h --episodes 100
 python main.py train --agent a2c --symbol BTC/USDT --timeframe 1h --episodes 100
 python main.py train --agent dqn --symbol BTC/USDT --timeframe 1h --episodes 1000 --output-dir ./models
 
+# Tiếp tục huấn luyện
+python main.py train --agent dqn --symbol BTC/USDT --timeframe 1h --episodes 100 --continue-training
+python main.py train --agent ppo --symbol BTC/USDT --timeframe 1h --episodes 100 --continue-training
+python main.py train --agent a2c --symbol BTC/USDT --timeframe 1h --episodes 100 --continue-training
 # Huấn luyện agent PPO
 python main.py train --agent ppo
 ```

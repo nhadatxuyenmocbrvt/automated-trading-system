@@ -615,7 +615,56 @@ class AutomatedTradingSystem:
             
             # Thiết lập số episodes
             trainer.config["num_episodes"] = num_episodes
-            
+
+            # Kiểm tra xem có tiếp tục huấn luyện không
+            continue_training = kwargs.get('continue_training', False)
+            model_path = kwargs.get('model_path', None)
+            checkpoint = kwargs.get('checkpoint', None)           
+
+            # Nếu tiếp tục huấn luyện
+            if continue_training:
+                if model_path and Path(model_path).exists():
+                    # Tải mô hình từ đường dẫn
+                    if agent.load_model(model_path):
+                        self.logger.info(f"Đã tải mô hình từ {model_path} để tiếp tục huấn luyện")
+                    else:
+                        self.logger.warning(f"Không thể tải mô hình từ {model_path}, bắt đầu huấn luyện mới")
+                elif checkpoint and Path(checkpoint).exists():
+                    # Khôi phục từ checkpoint
+                    if trainer.restore_checkpoint(checkpoint):
+                        self.logger.info(f"Đã khôi phục từ checkpoint {checkpoint}")
+                    else:
+                        self.logger.warning(f"Không thể khôi phục từ checkpoint {checkpoint}, bắt đầu huấn luyện mới")
+                else:
+                    # Tìm checkpoint gần nhất nếu có
+                    checkpoints_dir = output_dir / "checkpoints"
+                    if checkpoints_dir.exists():
+                        checkpoints = list(checkpoints_dir.glob("checkpoint_episode_*"))
+                        if checkpoints:
+                            # Sắp xếp theo số episode giảm dần
+                            try:
+                                checkpoints.sort(key=lambda x: int(x.name.split("_")[-1]), reverse=True)
+                                latest_checkpoint = checkpoints[0]
+                                
+                                if trainer.restore_checkpoint(latest_checkpoint):
+                                    self.logger.info(f"Đã khôi phục từ checkpoint gần nhất: {latest_checkpoint}")
+                                else:
+                                    self.logger.warning(f"Không thể khôi phục từ checkpoint {latest_checkpoint}, bắt đầu huấn luyện mới")
+                            except Exception as e:
+                                self.logger.warning(f"Lỗi khi tìm checkpoint: {str(e)}")
+                        else:
+                            self.logger.info("Không tìm thấy checkpoint, bắt đầu huấn luyện mới")
+                    else:
+                        # Tìm mô hình tốt nhất
+                        best_model_path = output_dir / "models" / "best_model"
+                        if best_model_path.exists():
+                            if agent.load_model(best_model_path):
+                                self.logger.info(f"Đã tải mô hình tốt nhất từ {best_model_path}")
+                            else:
+                                self.logger.warning(f"Không thể tải mô hình từ {best_model_path}, bắt đầu huấn luyện mới")
+                        else:
+                            self.logger.info("Không tìm thấy mô hình hoặc checkpoint, bắt đầu huấn luyện mới")
+
             # Huấn luyện
             training_history = trainer.train()
             
