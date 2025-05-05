@@ -135,7 +135,10 @@ class SharedNetwork:
         if len(self._get_input_shape()) > 1:
             x = Flatten()(x)
         
-        # Thêm các lớp ẩn chia sẻ
+        # Thêm layer BatchNormalization ở đầu để chuẩn hóa dữ liệu
+        x = BatchNormalization()(x)
+        
+        # Thêm các lớp ẩn chia sẻ với dropout
         for i, units in enumerate(self.hidden_layers):
             x = Dense(
                 units, 
@@ -144,12 +147,11 @@ class SharedNetwork:
                 name=f'shared_hidden_{i}'
             )(x)
             
-            # Thêm Batch Normalization nếu được chỉ định
-            if self.kwargs.get('use_batch_norm', False):
-                x = BatchNormalization()(x)
+            # Thêm BatchNormalization sau mỗi layer
+            x = BatchNormalization()(x)
             
-            # Thêm Dropout nếu được chỉ định
-            dropout_rate = self.kwargs.get('dropout_rate', 0)
+            # Thêm Dropout
+            dropout_rate = self.kwargs.get('dropout_rate', 0.1)  # Mặc định 0.1
             if dropout_rate > 0:
                 x = Dropout(dropout_rate)(x)
         
@@ -534,6 +536,8 @@ class SharedNetwork:
         _, _, action = self.predict(state)
         return action
     
+# Trong file models/networks/shared_network.py, cập nhật phương thức train_on_batch:
+
     def train_on_batch(
         self, 
         states: np.ndarray, 
@@ -545,17 +549,6 @@ class SharedNetwork:
     ) -> Dict[str, float]:
         """
         Huấn luyện mạng trên một batch.
-        
-        Args:
-            states: Batch trạng thái đầu vào
-            actions: Batch hành động đã thực hiện
-            advantages: Batch lợi thế/advantage của hành động
-            returns: Batch giá trị target cho value function
-            old_policies: Chính sách cũ (cho PPO)
-            clip_ratio: Tỷ lệ cắt (cho PPO)
-            
-        Returns:
-            Dict chứa thông tin về quá trình huấn luyện (loss, ...)
         """
         # Huấn luyện với GradientTape
         with tf.GradientTape() as tape:
@@ -565,6 +558,11 @@ class SharedNetwork:
         
         # Tính toán và áp dụng gradients
         grads = tape.gradient(total_loss, self.model.trainable_variables)
+        
+        # Thêm đoạn mã clipping gradient
+        # Clip gradient để tránh gradient explosion
+        grads, _ = tf.clip_by_global_norm(grads, 1.0)
+        
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
         
         # Thêm giá trị loss vào info
@@ -632,6 +630,13 @@ class SharedNetwork:
             entropy = -tf.reduce_sum(action_probs * tf.math.log(action_probs + 1e-10), axis=1)
             
             if old_policies is not None:
+                # ✅ CHÈN NGAY TRƯỚC DÒNG: old_action_probs = tf.nn.softmax(old_policies)
+                # Xử lý shape của old_policies nếu không đúng
+                if tf.rank(old_policies) == 3:
+                    old_policies = tf.squeeze(old_policies, axis=1)
+                elif tf.rank(old_policies) == 2 and old_policies.shape[1] == 1:
+                    old_policies = tf.tile(old_policies, [1, self.action_dim])                
+                
                 # PPO style loss với clipping
                 old_action_probs = tf.nn.softmax(old_policies)
                 old_selected_probs = tf.gather_nd(old_action_probs, indices)

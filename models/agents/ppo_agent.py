@@ -36,22 +36,22 @@ class PPOAgent(BaseAgent):
         action_dim: int,
         action_type: str = "discrete",
         action_bound: Optional[Tuple[float, float]] = None,
-        hidden_layers: List[int] = [64, 64],
+        hidden_layers: List[int] = [256, 128],
         activation: str = "relu",
-        learning_rate: float = 0.00005,
+        learning_rate: float = 0.00001,
         gamma: float = 0.99,
         lambda_gae: float = 0.95,
-        clip_ratio: float = 0.1,
-        entropy_coef: float = 0.01,
+        clip_ratio: float = 0.2,
+        entropy_coef: float = 0.005,
         value_coef: float = 0.5,
         max_grad_norm: float = 0.5,
-        train_epochs: int = 5,
-        batch_size: int = 128,
+        train_epochs: int = 3,
+        batch_size: int = 64,
         use_shared_network: bool = True,
         normalize_advantages: bool = True,
-        normalize_rewards: bool = False,
+        normalize_rewards: bool = True,
         use_gae: bool = True,
-        target_kl: Optional[float] = 0.05,
+        target_kl: Optional[float] = 0.1,
         model_dir: Optional[str] = None,
         name: str = "ppo_agent",
         logger: Optional[logging.Logger] = None,
@@ -394,7 +394,15 @@ class PPOAgent(BaseAgent):
                         tmp_policy[:, 0] = 1.0
                         probs = tmp_policy
                     elif len(policy.shape) > 1:
-                        probs = tf.nn.softmax(policy).numpy()
+                        # Kiểm tra và xử lý các giá trị NaN/Inf trong logits
+                        if np.any(np.isnan(policy)) or np.any(np.isinf(policy)):
+                            self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong policy logits, thay thế bằng 0")
+                            policy = np.nan_to_num(policy, nan=0.0, posinf=0.0, neginf=0.0)
+                        
+                        # Áp dụng softmax với clipping để đảm bảo tính ổn định số học
+                        max_logits = np.max(policy, axis=1, keepdims=True)
+                        exp_logits = np.exp(np.clip(policy - max_logits, -20, 20))
+                        probs = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
                     else:
                         # Nếu policy là vector 1D, kiểm tra kích thước
                         if isinstance(policy, np.ndarray) and policy.size != self.action_dim:
@@ -405,7 +413,16 @@ class PPOAgent(BaseAgent):
                             probs = np.expand_dims(tmp_policy, axis=0)
                         else:
                             # Nếu policy là vector 1D, thêm chiều batch
-                            probs = tf.nn.softmax(np.expand_dims(policy, axis=0)).numpy()
+                            policy_expanded = np.expand_dims(policy, axis=0)
+                            # Kiểm tra và xử lý các giá trị NaN/Inf trong logits
+                            if np.any(np.isnan(policy_expanded)) or np.any(np.isinf(policy_expanded)):
+                                self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong policy logits, thay thế bằng 0")
+                                policy_expanded = np.nan_to_num(policy_expanded, nan=0.0, posinf=0.0, neginf=0.0)
+                            
+                            # Áp dụng softmax với clipping để đảm bảo tính ổn định số học
+                            max_logits = np.max(policy_expanded, axis=1, keepdims=True)
+                            exp_logits = np.exp(np.clip(policy_expanded - max_logits, -20, 20))
+                            probs = exp_logits / np.sum(exp_logits, axis=1, keepdims=True)
                 else:
                     # Xử lý trường hợp policy không có thuộc tính shape
                     self.logger.warning(f"Policy không có thuộc tính shape")
@@ -438,8 +455,18 @@ class PPOAgent(BaseAgent):
                 else:
                     prob = probs[action]
                 
+                # Đảm bảo prob là một giá trị dương nhỏ nhưng không bằng 0
+                prob = max(prob, 1e-8)
+                
                 # Tính log probability
-                return float(np.log(prob + 1e-10))
+                log_prob = float(np.log(prob))
+                
+                # Kiểm tra log_prob có hợp lệ không
+                if np.isnan(log_prob) or np.isinf(log_prob):
+                    self.logger.warning(f"log_prob là NaN hoặc Inf: {log_prob}, sử dụng giá trị -8.0")
+                    return -8.0  # log(1e-8) ~ -8.0
+                
+                return log_prob
             else:
                 # Đối với continuous action
                 try:
@@ -475,34 +502,54 @@ class PPOAgent(BaseAgent):
                             padded_action[0] = action[0]
                             action = padded_action
                     
+                    # Kiểm tra và xử lý giá trị NaN/Inf trong action
+                    if np.any(np.isnan(action)) or np.any(np.isinf(action)):
+                        self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong action, thay thế bằng 0")
+                        action = np.nan_to_num(action, nan=0.0, posinf=0.0, neginf=0.0)
+                    
                     # Normalize action
                     normalized_action = 2.0 * (action - low) / (high - low) - 1.0
                     
                     # Đảm bảo kích thước đúng cho mean và std
                     if hasattr(mean, 'shape') and len(mean.shape) > 1:
-                        mean_tensor = tf.convert_to_tensor(mean[0], dtype=tf.float32)
+                        mean_array = mean[0]
                     else:
-                        mean_tensor = tf.convert_to_tensor(mean, dtype=tf.float32)
+                        mean_array = mean
                     
                     if hasattr(std, 'shape') and len(std.shape) > 1:
-                        std_tensor = tf.convert_to_tensor(std[0], dtype=tf.float32)
+                        std_array = std[0]
                     else:
-                        std_tensor = tf.convert_to_tensor(std, dtype=tf.float32)
+                        std_array = std
                     
-                    # Đảm bảo kích thước đúng cho action
-                    action_tensor = tf.convert_to_tensor(normalized_action, dtype=tf.float32)
+                    # Kiểm tra và xử lý NaN/Inf trong mean và std
+                    if np.any(np.isnan(mean_array)) or np.any(np.isinf(mean_array)):
+                        self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong mean, thay thế bằng 0")
+                        mean_array = np.nan_to_num(mean_array, nan=0.0, posinf=0.0, neginf=0.0)
                     
-                    # Tạo phân phối normal và tính log prob
-                    dist = tfp.distributions.Normal(mean_tensor, std_tensor)
-                    log_prob = dist.log_prob(action_tensor)
+                    if np.any(np.isnan(std_array)) or np.any(np.isinf(std_array)):
+                        self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong std, thay thế bằng 1")
+                        std_array = np.nan_to_num(std_array, nan=1.0, posinf=1.0, neginf=1.0)
                     
-                    return float(tf.reduce_sum(log_prob).numpy())
+                    # Đảm bảo std luôn dương và có giá trị tối thiểu
+                    std_array = np.maximum(std_array, 1e-6)
+                    
+                    # Tính log probability bằng công thức Gaussian PDF
+                    diff = normalized_action - mean_array
+                    log_prob = -0.5 * np.sum(np.square(diff) / np.square(std_array)) - \
+                            0.5 * np.sum(np.log(2.0 * np.pi * np.square(std_array)))
+                    
+                    # Kiểm tra log_prob có hợp lệ không
+                    if np.isnan(log_prob) or np.isinf(log_prob):
+                        self.logger.warning(f"log_prob là NaN hoặc Inf: {log_prob}, sử dụng giá trị -8.0")
+                        return -8.0  # log(1e-8) ~ -8.0
+                    
+                    return float(log_prob)
                 except Exception as e:
                     self.logger.error(f"Lỗi khi tính log_prob cho continuous action: {str(e)}")
-                    return 0.0
+                    return -8.0  # Giá trị mặc định an toàn
         except Exception as e:
             self.logger.error(f"Lỗi trong _compute_log_prob: {str(e)}")
-            return 0.0
+            return -8.0  # Giá trị mặc định an toàn
     
     def remember(self, state: np.ndarray, action: Union[int, np.ndarray], 
                 reward: float, next_state: np.ndarray, done: bool) -> None:
@@ -887,67 +934,128 @@ class PPOAgent(BaseAgent):
         Returns:
             Tuple (returns, advantages)
         """
-        n_steps = len(rewards)
-        returns = np.zeros_like(rewards)
-        advantages = np.zeros_like(rewards)
-        
-        if self.use_gae:
-            # Generalized Advantage Estimation
-            last_gae_lambda = 0
-            for t in reversed(range(n_steps)):
-                if t == n_steps - 1:
-                    next_non_terminal = 1.0 - dones[t]
-                    try:
-                        if self.use_shared_network:
-                            _, value_output, _ = self.network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))
-                            if hasattr(value_output, 'shape') and len(value_output.shape) > 1:
-                                next_value = value_output[0][0]
-                            else:
-                                next_value = float(value_output[0]) if isinstance(value_output, (list, np.ndarray)) else float(value_output)
-                        else:
-                            next_value = self.value_network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))[0][0]
-                    except Exception as e:
-                        self.logger.warning(f"Lỗi khi dự đoán next_value: {str(e)}")
-                        next_value = 0.0
-                else:
-                    next_non_terminal = 1.0 - dones[t+1]
-                    next_value = values[t+1]
-                
-                delta = rewards[t] + self.gamma * next_value * next_non_terminal - values[t]
-                last_gae_lambda = delta + self.gamma * self.lambda_gae * next_non_terminal * last_gae_lambda
-                advantages[t] = last_gae_lambda
+        try:
+            # Kiểm tra số lượng mẫu
+            n_steps = len(rewards)
+            if n_steps == 0:
+                self.logger.warning("Không có dữ liệu để tính returns và advantages")
+                return np.array([]), np.array([])
             
-            # Returns = Advantages + Values
-            returns = advantages + values
-        else:
-            # Compute returns using discounted rewards
-            last_return = 0
-            for t in reversed(range(n_steps)):
-                if t == n_steps - 1:
-                    next_non_terminal = 1.0 - dones[t]
-                    try:
-                        if self.use_shared_network:
-                            _, value_output, _ = self.network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))
-                            if hasattr(value_output, 'shape') and len(value_output.shape) > 1:
-                                next_value = value_output[0][0]
-                            else:
-                                next_value = float(value_output[0]) if isinstance(value_output, (list, np.ndarray)) else float(value_output)
-                        else:
-                            next_value = self.value_network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))[0][0]
-                    except Exception as e:
-                        self.logger.warning(f"Lỗi khi dự đoán next_value: {str(e)}")
-                        next_value = 0.0
-                    last_return = rewards[t] + self.gamma * next_value * next_non_terminal
-                else:
-                    next_non_terminal = 1.0 - dones[t+1]
-                    last_return = rewards[t] + self.gamma * last_return * next_non_terminal
-                
-                returns[t] = last_return
+            # Kiểm tra và xử lý các giá trị NaN/Inf trong rewards và values
+            if np.any(np.isnan(rewards)) or np.any(np.isinf(rewards)):
+                self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong rewards, thay thế bằng 0")
+                rewards = np.nan_to_num(rewards, nan=0.0, posinf=0.0, neginf=0.0)
             
-            # Compute advantages
-            advantages = returns - values
-        
-        return returns, advantages
+            if np.any(np.isnan(values)) or np.any(np.isinf(values)):
+                self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong values, thay thế bằng 0")
+                values = np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0)
+            
+            # Giới hạn giá trị rewards để tránh exploding
+            rewards = np.clip(rewards, -10.0, 10.0)
+            
+            # Khởi tạo mảng
+            returns = np.zeros_like(rewards)
+            advantages = np.zeros_like(rewards)
+            
+            if self.use_gae:
+                # Generalized Advantage Estimation
+                last_gae_lambda = 0
+                for t in reversed(range(n_steps)):
+                    if t == n_steps - 1:
+                        next_non_terminal = 1.0 - dones[t]
+                        try:
+                            if self.use_shared_network:
+                                _, value_output, _ = self.network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))
+                                if hasattr(value_output, 'shape') and len(value_output.shape) > 1:
+                                    next_value = value_output[0][0]
+                                else:
+                                    next_value = float(value_output[0]) if isinstance(value_output, (list, np.ndarray)) else float(value_output)
+                            else:
+                                next_value = self.value_network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))[0][0]
+                            
+                            # Kiểm tra và xử lý giá trị NaN/Inf
+                            if np.isnan(next_value) or np.isinf(next_value):
+                                self.logger.warning(f"next_value là NaN hoặc Inf: {next_value}, sử dụng giá trị 0.0")
+                                next_value = 0.0
+                        except Exception as e:
+                            self.logger.warning(f"Lỗi khi dự đoán next_value: {str(e)}")
+                            next_value = 0.0
+                    else:
+                        next_non_terminal = 1.0 - dones[t+1]
+                        next_value = values[t+1]
+                    
+                    # Tính delta
+                    delta = rewards[t] + self.gamma * next_value * next_non_terminal - values[t]
+                    
+                    # Giới hạn delta để tránh exploding
+                    delta = np.clip(delta, -10.0, 10.0)
+                    
+                    # Cập nhật GAE
+                    last_gae_lambda = delta + self.gamma * self.lambda_gae * next_non_terminal * last_gae_lambda
+                    
+                    # Giới hạn gae để tránh exploding
+                    last_gae_lambda = np.clip(last_gae_lambda, -10.0, 10.0)
+                    
+                    advantages[t] = last_gae_lambda
+                
+                # Returns = Advantages + Values
+                returns = advantages + values
+            else:
+                # Compute returns using discounted rewards
+                last_return = 0
+                for t in reversed(range(n_steps)):
+                    if t == n_steps - 1:
+                        next_non_terminal = 1.0 - dones[t]
+                        try:
+                            if self.use_shared_network:
+                                _, value_output, _ = self.network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))
+                                if hasattr(value_output, 'shape') and len(value_output.shape) > 1:
+                                    next_value = value_output[0][0]
+                                else:
+                                    next_value = float(value_output[0]) if isinstance(value_output, (list, np.ndarray)) else float(value_output)
+                            else:
+                                next_value = self.value_network.predict(np.expand_dims(self.memory['next_states'][t], axis=0))[0][0]
+                            
+                            # Kiểm tra và xử lý giá trị NaN/Inf
+                            if np.isnan(next_value) or np.isinf(next_value):
+                                self.logger.warning(f"next_value là NaN hoặc Inf: {next_value}, sử dụng giá trị 0.0")
+                                next_value = 0.0
+                        except Exception as e:
+                            self.logger.warning(f"Lỗi khi dự đoán next_value: {str(e)}")
+                            next_value = 0.0
+                        
+                        # Tính last_return
+                        last_return = rewards[t] + self.gamma * next_value * next_non_terminal
+                    else:
+                        next_non_terminal = 1.0 - dones[t+1]
+                        last_return = rewards[t] + self.gamma * last_return * next_non_terminal
+                    
+                    # Giới hạn last_return để tránh exploding
+                    last_return = np.clip(last_return, -10.0, 10.0)
+                    
+                    returns[t] = last_return
+                
+                # Compute advantages
+                advantages = returns - values
+            
+            # Kiểm tra và xử lý các giá trị NaN/Inf trong returns và advantages
+            if np.any(np.isnan(returns)) or np.any(np.isinf(returns)):
+                self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong returns, thay thế bằng 0")
+                returns = np.nan_to_num(returns, nan=0.0, posinf=0.0, neginf=0.0)
+            
+            if np.any(np.isnan(advantages)) or np.any(np.isinf(advantages)):
+                self.logger.warning("Phát hiện giá trị NaN hoặc Inf trong advantages, thay thế bằng 0")
+                advantages = np.nan_to_num(advantages, nan=0.0, posinf=0.0, neginf=0.0)
+            
+            # Clipping cả returns và advantages để tránh exploding
+            returns = np.clip(returns, -10.0, 10.0)
+            advantages = np.clip(advantages, -10.0, 10.0)
+            
+            return returns, advantages
+        except Exception as e:
+            self.logger.error(f"Lỗi trong _compute_returns_and_advantages: {str(e)}")
+            # Trả về mảng trống nếu có lỗi
+            return np.zeros_like(rewards), np.zeros_like(rewards)
     
     def _clear_memory(self) -> None:
         """

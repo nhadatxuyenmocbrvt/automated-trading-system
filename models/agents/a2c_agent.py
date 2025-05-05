@@ -98,7 +98,10 @@ class A2CAgent(BaseAgent):
         self.normalize_advantages = normalize_advantages
         self.normalize_rewards = normalize_rewards
         self.rms_prop_eps = rms_prop_eps
-        
+
+        # Thêm dòng này để lưu kwargs vào đối tượng
+        self.kwargs = kwargs
+
         # Các thuộc tính cho việc chuẩn hóa rewards
         self.reward_mean = 0.0
         self.reward_std = 1.0
@@ -252,8 +255,8 @@ class A2CAgent(BaseAgent):
         action: Union[int, np.ndarray], 
         reward: float, 
         next_state: np.ndarray, 
-        done: bool, 
-        info: Dict[str, Any]
+        done: bool,
+        info: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Lưu một bước tương tác vào bộ nhớ.
@@ -264,8 +267,12 @@ class A2CAgent(BaseAgent):
             reward: Phần thưởng nhận được
             next_state: Trạng thái tiếp theo
             done: Đã kết thúc episode hay chưa
-            info: Thông tin bổ sung
+            info: Thông tin bổ sung (tùy chọn)
         """
+        # Tạo info mặc định nếu không được cung cấp
+        if info is None:
+            info = {'value': 0.0}  # Giá trị mặc định hoặc ước lượng
+        
         # Chuẩn hóa reward nếu cần
         if self.normalize_rewards:
             # Cập nhật thống kê running mean/std
@@ -290,7 +297,7 @@ class A2CAgent(BaseAgent):
         self.memory['rewards'].append(reward)
         self.memory['next_states'].append(next_state)
         self.memory['dones'].append(done)
-        self.memory['values'].append(info['value'])
+        self.memory['values'].append(info.get('value', 0.0))
     
     def train(self) -> Dict[str, float]:
         """
@@ -559,3 +566,97 @@ class A2CAgent(BaseAgent):
             summary += "Using separate networks for policy and value\n"
         
         return summary
+    
+    def act(self, state: np.ndarray, explore: bool = True) -> Union[int, np.ndarray]:
+        """
+        Chọn hành động dựa trên trạng thái hiện tại.
+        
+        Args:
+            state: Trạng thái hiện tại
+            explore: True nếu agent nên khám phá, False nếu chỉ khai thác
+            
+        Returns:
+            Hành động được chọn
+        """
+        action, info = self.select_action(state, deterministic=not explore)
+        return action
+
+    def learn(self) -> Dict[str, float]:
+        """
+        Học từ bộ nhớ kinh nghiệm.
+        
+        Returns:
+            Dict chứa thông tin về quá trình học (loss, v.v.)
+        """
+        return self.train()
+
+    def _save_model_impl(self, path: Union[str, Path]) -> None:
+        """
+        Triển khai cụ thể của việc lưu mô hình.
+        
+        Args:
+            path: Đường dẫn lưu mô hình
+        """
+        # Chuyển đổi path thành đường dẫn đúng định dạng
+        path = Path(path)
+        
+        # Lưu mô hình dựa trên loại mạng neural
+        if self.use_shared_network:
+            model_path = path.parent / f"{path.name}_network"
+            os.makedirs(model_path, exist_ok=True)
+            self.network.save(str(model_path))
+        else:
+            # Lưu policy network
+            policy_path = path.parent / f"{path.name}_policy"
+            os.makedirs(policy_path, exist_ok=True)
+            self.policy_network.save(str(policy_path))
+            
+            # Lưu value network
+            value_path = path.parent / f"{path.name}_value"
+            os.makedirs(value_path, exist_ok=True)
+            self.value_network.save(str(value_path))
+        
+        self.logger.info(f"Đã lưu mô hình A2C tại {path}")
+
+    def _load_model_impl(self, path: Union[str, Path]) -> bool:
+        """
+        Triển khai cụ thể của việc tải mô hình.
+        
+        Args:
+            path: Đường dẫn tải mô hình
+            
+        Returns:
+            True nếu tải thành công, False nếu không
+        """
+        try:
+            path = Path(path)
+            
+            # Tải mô hình dựa trên loại mạng neural
+            if self.use_shared_network:
+                model_path = path.parent / f"{path.name}_network"
+                if not model_path.exists():
+                    self.logger.warning(f"Không tìm thấy thư mục mô hình chia sẻ: {model_path}")
+                    return False
+                
+                return self.network.load(str(model_path))
+            else:
+                # Tải policy network
+                policy_path = path.parent / f"{path.name}_policy"
+                if not policy_path.exists():
+                    self.logger.warning(f"Không tìm thấy thư mục policy network: {policy_path}")
+                    return False
+                
+                policy_success = self.policy_network.load(str(policy_path))
+                
+                # Tải value network
+                value_path = path.parent / f"{path.name}_value"
+                if not value_path.exists():
+                    self.logger.warning(f"Không tìm thấy thư mục value network: {value_path}")
+                    return False
+                
+                value_success = self.value_network.load(str(value_path))
+                
+                return policy_success and value_success
+        except Exception as e:
+            self.logger.error(f"Lỗi khi tải mô hình A2C: {str(e)}")
+            return False    
