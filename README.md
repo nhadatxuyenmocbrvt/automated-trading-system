@@ -383,6 +383,7 @@ python main.py trade --exchange binance --symbols BTC/USDT
 ```bash
 # Khởi chạy dashboard
 python main.py dashboard
+streamlit run streamlit_dashboard/app.py
 ```
 
 ## 7. Chạy file env để tạo file môi trường mẫu
