@@ -178,7 +178,7 @@
 - **Đầu ra**: Hệ thống đánh giá chiến lược
 
 #### Sprint 17 - Trực quan hóa kết quả
-- [ ] `backtesting/visualization/backtest_visualizer.py`
+- [x] `backtesting/visualization/backtest_visualizer.py`
 - [ ] `backtesting/visualization/performance_charts.py`
 - **Đầu ra**: Công cụ trực quan hóa kết quả backtest
 
