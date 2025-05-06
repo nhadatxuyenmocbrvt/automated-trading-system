@@ -156,19 +156,19 @@
 - **Đầu ra**: Hệ thống quản lý rủi ro đầy đủ
 
 #### Sprint 14.2 - Quản lý rủi ro
-- [ ] `risk_management/portfolio_manager.py`
-- [ ] `risk_management/risk_profiles/conservative_profile.py`
-- [ ] `risk_management/risk_profiles/moderate_profile.py`
-- [ ] `risk_management/risk_profiles/aggressive_profile.py`
+- [x] `risk_management/portfolio_manager.py`
+- [x] `risk_management/risk_profiles/conservative_profile.py`
+- [x] `risk_management/risk_profiles/moderate_profile.py`
+- [x] `risk_management/risk_profiles/aggressive_profile.py`
 - **Đầu ra**: Hệ thống quản lý rủi ro đầy đủ
 
 ### Giai đoạn 6: Backtest & Đánh giá (6 tuần)
 
 #### Sprint 15 - Cơ chế Backtest
-- [ ] `backtesting/backtester.py`
 - [ ] `backtesting/performance_metrics.py`
 - [ ] `backtesting/strategy_tester.py`
 - [ ] `backtesting/historical_simulator.py`
+- [ ] `backtesting/backtester.py`
 - **Đầu ra**: Hệ thống backtest cơ bản
 
 #### Sprint 16 - Đánh giá và phân tích
