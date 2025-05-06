@@ -153,7 +153,6 @@
 - [x] `risk_management/take_profit.py`
 - [x] `risk_management/risk_calculator.py`
 - [x] `risk_management/drawdown_manager.py`
-- [x] `risk_management/risk_profiles/`
 - **Đầu ra**: Hệ thống quản lý rủi ro đầy đủ
 
 #### Sprint 14.2 - Quản lý rủi ro
