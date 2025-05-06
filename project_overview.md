@@ -174,7 +174,7 @@
 #### Sprint 16 - Đánh giá và phân tích
 - [x] `backtesting/evaluation/performance_evaluator.py`
 - [x] `backtesting/evaluation/risk_evaluator.py`
-- [ ] `backtesting/evaluation/strategy_evaluator.py`
+- [x] `backtesting/evaluation/strategy_evaluator.py`
 - **Đầu ra**: Hệ thống đánh giá chiến lược
 
 #### Sprint 17 - Trực quan hóa kết quả
