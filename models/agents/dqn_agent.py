@@ -173,6 +173,9 @@ class DQNAgent(BaseAgent):
         )
     
     def act(self, state: np.ndarray, explore: bool = True) -> int:
+        state = np.asarray(state, dtype=np.float32)
+        if state.ndim == 1:
+            state = np.expand_dims(state, axis=0)
         """
         Chọn hành động dựa trên trạng thái hiện tại.
         

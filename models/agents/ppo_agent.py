@@ -131,6 +131,11 @@ class PPOAgent(BaseAgent):
         self.reward_std = 1.0
         self.reward_count = 0
         
+        # Khởi tạo các giá trị cho logging
+        self.last_kl = 0.0
+        self.last_entropy = 0.0
+        self.winrate = 0.0
+        
         # Đặt giá trị mặc định cho các hyperparameter nếu không được cung cấp
         self.update_freq = kwargs.get('update_freq', 1)
         self.buffer_size = kwargs.get('buffer_size', 10000)
@@ -896,11 +901,18 @@ class PPOAgent(BaseAgent):
                 if approx_kls:
                     train_info['approx_kl'] = np.mean(approx_kls)
                     
+                    # Lưu trữ KL divergence cho logging
+                    self.last_kl = float(train_info['approx_kl'])
+                    
                     # Kiểm tra early stopping dựa trên KL divergence
                     if self.target_kl is not None and train_info['approx_kl'] > 2.0 * self.target_kl:
                         self.logger.info(f"Early stopping at epoch {epoch} due to reaching max kl: {train_info['approx_kl']:.4f}")
                         train_info['stop_iteration'] = epoch
                         break
+            
+            # Tính và lưu thông tin entropy
+            if 'entropy_loss' in train_info:
+                self.last_entropy = float(abs(train_info['entropy_loss']) / self.entropy_coef)
             
             # Tính explained variance
             var_y = np.var(returns)
@@ -1064,6 +1076,28 @@ class PPOAgent(BaseAgent):
         for key in self.memory:
             self.memory[key] = []
     
+    def update_winrate(self, winrate: float) -> None:
+        """
+        Cập nhật tỷ lệ thắng cho mục đích logging.
+        
+        Args:
+            winrate: Tỷ lệ thắng hiện tại (0.0 - 1.0)
+        """
+        self.winrate = winrate
+    
+    def get_metrics(self) -> Dict[str, float]:
+        """
+        Lấy các metrics hiện tại của agent cho mục đích logging.
+        
+        Returns:
+            Dict chứa các metrics
+        """
+        return {
+            'kl_divergence': self.last_kl,
+            'entropy': self.last_entropy,
+            'winrate': self.winrate
+        }
+    
     def _save_model_impl(self, path: Union[str, Path]) -> None:
         """
         Triển khai cụ thể của việc lưu mô hình.
@@ -1089,7 +1123,10 @@ class PPOAgent(BaseAgent):
         meta_data = {
             'reward_mean': float(self.reward_mean),
             'reward_std': float(self.reward_std),
-            'reward_count': int(self.reward_count)
+            'reward_count': int(self.reward_count),
+            'last_kl': float(self.last_kl),
+            'last_entropy': float(self.last_entropy),
+            'winrate': float(self.winrate)
         }
         
         meta_path = Path(str(path) + "_meta.json")
@@ -1129,7 +1166,7 @@ class PPOAgent(BaseAgent):
                 policy_success = self.policy_network.load(str(policy_path))
                 value_success = self.value_network.load(str(value_path))
                 
-                if not policy_success or not value_success:
+                if not (policy_success and value_success):
                     self.logger.error(f"Lỗi khi tải mạng policy hoặc value")
                     return False
             
@@ -1141,6 +1178,9 @@ class PPOAgent(BaseAgent):
                     self.reward_mean = meta_data.get('reward_mean', 0.0)
                     self.reward_std = meta_data.get('reward_std', 1.0)
                     self.reward_count = meta_data.get('reward_count', 0)
+                    self.last_kl = meta_data.get('last_kl', 0.0)
+                    self.last_entropy = meta_data.get('last_entropy', 0.0)
+                    self.winrate = meta_data.get('winrate', 0.0)
             
             return True
         except Exception as e:
@@ -1205,6 +1245,11 @@ class PPOAgent(BaseAgent):
                 'std': float(self.reward_std),
                 'count': int(self.reward_count)
             },
+            'metrics': {
+                'last_kl': float(self.last_kl),
+                'last_entropy': float(self.last_entropy),
+                'winrate': float(self.winrate)
+            },
             'kwargs': self.kwargs
         }
         
@@ -1247,6 +1292,12 @@ class PPOAgent(BaseAgent):
                 self.reward_mean = config['reward_stats']['mean']
                 self.reward_std = config['reward_stats']['std']
                 self.reward_count = config['reward_stats']['count']
+            
+            # Cập nhật metrics
+            if 'metrics' in config:
+                self.last_kl = config['metrics'].get('last_kl', 0.0)
+                self.last_entropy = config['metrics'].get('last_entropy', 0.0)
+                self.winrate = config['metrics'].get('winrate', 0.0)
             
             # Xây dựng lại mạng neural
             self._build_networks()

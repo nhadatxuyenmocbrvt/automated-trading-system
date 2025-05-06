@@ -368,7 +368,17 @@ class ValueNetwork:
             # Thêm chiều batch nếu cần
             state = np.expand_dims(state, axis=0)
 
-        return self.model.predict(state, batch_size=batch_size)
+            # Đảm bảo input có shape [batch_size, state_dim]
+            state = np.asarray(state, dtype=np.float32)
+
+            if state.ndim == 1:
+                # Trường hợp input là vector 1 chiều → thêm batch dimension
+                state = np.expand_dims(state, axis=0)
+
+            elif state.ndim == 2 and state.shape[1] != self.model.input_shape[1]:
+                raise ValueError(f"Expected input shape ({self.model.input_shape[1]},), but got {state.shape}")
+
+            return self.model.predict(state, batch_size=batch_size)
 
     def train_on_batch(self, states: np.ndarray, targets: np.ndarray) -> float:
         """

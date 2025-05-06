@@ -21,9 +21,18 @@ LOG_FILE_PATH = LOG_DIR / f"trading_system_{datetime.now().strftime('%Y%m%d')}.l
 ERROR_LOG_PATH = LOG_DIR / f"error_{datetime.now().strftime('%Y%m%d')}.log"
 EXCHANGE_LOG_DIR = LOG_DIR / "exchanges"
 
+# Thư mục log cho huấn luyện
+TRAINING_LOG_DIR = LOG_DIR / "training"
+
 # Đảm bảo các thư mục logs tồn tại
 LOG_DIR.mkdir(exist_ok=True, parents=True)
 EXCHANGE_LOG_DIR.mkdir(exist_ok=True, parents=True)
+TRAINING_LOG_DIR.mkdir(exist_ok=True, parents=True)
+
+# Định dạng log cho huấn luyện
+TRAINING_LOG_FORMAT = "📈 [EP %(episode)s] Reward: %(reward).2f | Winrate: %(winrate).2f | Loss: %(loss).4f | KL: %(kl).4f | Entropy: %(entropy).4f"
+EPISODE_SUMMARY_FORMAT = "🔄 [Episode %(episode)s/%(total_episodes)s] Reward: %(reward).2f | Steps: %(steps)d | Win: %(wins)d | Loss: %(losses)d | Time: %(time).1fs"
+EVAL_FORMAT = "🔍 [Evaluation] Mean: %(mean).2f | Min: %(min).2f | Max: %(max).2f | Std: %(std).2f | Win: %(win).2f%%"
 
 # Tên logger cho các module khác nhau
 LOGGER_NAMES = {
@@ -39,6 +48,15 @@ LOGGER_NAMES = {
     "security": "trading_system.security",
     "exchange": "trading_system.exchange",
 }
+
+# Thêm logger cho huấn luyện
+LOGGER_NAMES.update({
+    "training": "trading_system.training",
+    "training_metrics": "trading_system.training.metrics",
+    "training_summary": "trading_system.training.summary",
+    "agent": "trading_system.agent",
+    "evaluation": "trading_system.evaluation",
+})
 
 # Định dạng log mặc định
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -56,6 +74,40 @@ LOG_LEVEL_MAP = {
 # Lấy mức độ log từ cấu hình hoặc mặc định
 log_level_name = system_config.get("log_level", "INFO")
 LOG_LEVEL = LOG_LEVEL_MAP.get(log_level_name, logging.INFO)
+
+class TrainingLogFilter(logging.Filter):
+    """
+    Filter cho các log huấn luyện để thêm thông tin bổ sung.
+    """
+    def filter(self, record):
+        # Đảm bảo các thuộc tính tồn tại
+        if not hasattr(record, 'episode'):
+            record.episode = 0
+        if not hasattr(record, 'reward'):
+            record.reward = 0.0
+        if not hasattr(record, 'winrate'):
+            record.winrate = 0.0
+        if not hasattr(record, 'loss'):
+            record.loss = 0.0
+        if not hasattr(record, 'kl'):
+            record.kl = 0.0
+        if not hasattr(record, 'entropy'):
+            record.entropy = 0.0
+        return True
+
+class TrainingLogFormatter(logging.Formatter):
+    """
+    Formatter đặc biệt cho log huấn luyện.
+    """
+    def __init__(self, fmt=None, datefmt=None, style='%'):
+        super().__init__(fmt, datefmt, style)
+    
+    def format(self, record):
+        # Nếu có thuộc tính log_type và giá trị là 'training'
+        if hasattr(record, 'log_type') and record.log_type == 'training':
+            return TRAINING_LOG_FORMAT % record.__dict__
+        else:
+            return super().format(record)
 
 class LoggingConfig:
     """
@@ -78,6 +130,7 @@ class LoggingConfig:
         """Tạo các formatter cho log."""
         self.formatters["default"] = logging.Formatter(DEFAULT_LOG_FORMAT)
         self.formatters["detailed"] = logging.Formatter(DETAIL_LOG_FORMAT)
+        self.formatters["training"] = TrainingLogFormatter(TRAINING_LOG_FORMAT)
     
     def create_handlers(self) -> None:
         """Tạo các handler cho log."""
@@ -108,6 +161,27 @@ class LoggingConfig:
         error_handler.setFormatter(self.formatters["detailed"])
         error_handler.setLevel(logging.ERROR)
         self.handlers["error_file"] = error_handler
+        
+        # Thêm handler cho training logs
+        training_console_handler = logging.StreamHandler()
+        training_console_handler.setFormatter(self.formatters["training"])
+        training_console_handler.setLevel(LOG_LEVEL)
+        training_console_handler.addFilter(TrainingLogFilter())
+        self.handlers["training_console"] = training_console_handler
+        
+        # File handler cho training logs
+        training_file_handler = logging.handlers.RotatingFileHandler(
+            TRAINING_LOG_DIR / f"training_{datetime.now().strftime('%Y%m%d')}.log", 
+            maxBytes=10_000_000,  # ~10MB
+            backupCount=5,
+            encoding="utf-8"
+        )
+        training_file_handler.setFormatter(self.formatters["training"])
+        training_file_handler.setLevel(LOG_LEVEL)
+        training_file_handler.addFilter(TrainingLogFilter())
+        self.handlers["training_file"] = training_file_handler
+
+        
     
     def get_logger(self, name: str) -> logging.Logger:
         """
@@ -154,6 +228,35 @@ class LoggingConfig:
             exchange_file_handler.setFormatter(self.formatters["detailed"])
             exchange_file_handler.setLevel(LOG_LEVEL)
             logger.addHandler(exchange_file_handler)
+        
+        # Đảm bảo không lan truyền log lên logger cha
+        logger.propagate = False
+        
+        self.loggers[name] = logger
+        return logger
+    
+    def get_training_logger(self, name="training") -> logging.Logger:
+        """
+        Lấy logger đặc biệt cho huấn luyện.
+        
+        Args:
+            name: Tên của logger (thường là "training")
+            
+        Returns:
+            Logger được cấu hình đặc biệt cho huấn luyện
+        """
+        logger_name = LOGGER_NAMES.get(name, f"trading_system.{name}")
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(LOG_LEVEL)
+        
+        # Xóa các handler cũ (nếu có)
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+        
+        # Thêm các handler của training
+        logger.addHandler(self.handlers["training_console"])
+        logger.addHandler(self.handlers["training_file"])
+        logger.addHandler(self.handlers["error_file"])
         
         # Đảm bảo không lan truyền log lên logger cha
         logger.propagate = False
@@ -227,6 +330,120 @@ def get_logger(name: str) -> logging.Logger:
         Logger được cấu hình
     """
     return logging_config.get_logger(name)
+
+def get_training_logger(name="training") -> logging.Logger:
+    """
+    Lấy logger được cấu hình đặc biệt cho huấn luyện agent.
+    
+    Args:
+        name: Tên module ("training", "agent", "evaluation")
+        
+    Returns:
+        Logger đặc biệt cho huấn luyện
+    """
+    return logging_config.get_training_logger(name)
+
+def log_training_metrics(logger, episode, reward, winrate, loss=0.0, kl=0.0, entropy=0.0):
+    """
+    Helper để log metrics huấn luyện với format đẹp.
+    
+    Args:
+        logger: Logger đối tượng
+        episode: Số episode hiện tại
+        reward: Giá trị phần thưởng
+        winrate: Tỷ lệ thắng 
+        loss: Giá trị loss
+        kl: Giá trị KL divergence
+        entropy: Giá trị entropy
+    """
+    record = logging.LogRecord(
+        name=logger.name,
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="",
+        args=(),
+        exc_info=None
+    )
+    
+    # Thêm các thuộc tính đặc biệt
+    record.log_type = "training"
+    record.episode = episode
+    record.reward = reward
+    record.winrate = winrate
+    record.loss = loss
+    record.kl = kl
+    record.entropy = entropy
+    
+    logger.handle(record)
+
+def log_episode_summary(logger, episode, total_episodes, steps, reward, wins, losses, elapsed_time):
+    """
+    Helper để log tóm tắt episode.
+    
+    Args:
+        logger: Logger đối tượng
+        episode: Số episode hiện tại
+        total_episodes: Tổng số episode cần huấn luyện
+        steps: Số bước trong episode
+        reward: Phần thưởng tổng
+        wins: Số lần thắng
+        losses: Số lần thua
+        elapsed_time: Thời gian thực hiện (giây)
+    """
+    record = logging.LogRecord(
+        name=logger.name,
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="",
+        args=(),
+        exc_info=None
+    )
+    
+    # Thêm các thuộc tính đặc biệt
+    record.log_type = "episode_summary"
+    record.episode = episode
+    record.total_episodes = total_episodes
+    record.steps = steps
+    record.reward = reward
+    record.wins = wins
+    record.losses = losses
+    record.time = elapsed_time
+    
+    logger.handle(record)
+
+def log_evaluation_results(logger, mean, min_val, max_val, std, win_rate):
+    """
+    Helper để log kết quả đánh giá.
+    
+    Args:
+        logger: Logger đối tượng
+        mean: Phần thưởng trung bình
+        min_val: Phần thưởng nhỏ nhất
+        max_val: Phần thưởng lớn nhất
+        std: Độ lệch chuẩn
+        win_rate: Tỷ lệ thắng (0.0-1.0)
+    """
+    record = logging.LogRecord(
+        name=logger.name,
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg="",
+        args=(),
+        exc_info=None
+    )
+    
+    # Thêm các thuộc tính đặc biệt
+    record.log_type = "evaluation"
+    record.mean = mean
+    record.min = min_val
+    record.max = max_val
+    record.std = std
+    record.win = win_rate * 100  # Chuyển thành phần trăm
+    
+    logger.handle(record)
 
 def setup_logger(name: str) -> logging.Logger:
     """
