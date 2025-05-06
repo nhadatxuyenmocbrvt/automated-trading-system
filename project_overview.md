@@ -191,6 +191,8 @@
 - [ ] `logs/metrics/training_metrics.py`
 - [ ] `logs/metrics/trading_metrics.py`
 - [ ] `logs/metrics/system_metrics.py`
+- [ ] `logs/tensorboard/tb_logger.py`                   # Ghi log TensorBoard
+- [ ] `logs/tensorboard/custom_metrics.py`              # Đo lường tùy chỉnh
 - [ ] Tích hợp TensorBoard logging
 - **Đầu ra**: Hệ thống theo dõi và ghi log
 
