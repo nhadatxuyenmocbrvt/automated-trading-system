@@ -150,3 +150,15 @@ Node: 'dqn_agent_q_network/hidden_0/MatMul'
 In[0] and In[1] has different ndims: [32] vs. [3722,64]
 	 [[{{node dqn_agent_q_network/hidden_0/MatMul}}]] [Op:__inference_predict_function_1578498]
 2025-05-06 02:18:37,183 - trading_system.train_command - ERROR - [train_commands.py:327] - Huấn luyện thất bại
+2025-05-06 13:47:11,636 - trading_system.trading_system - ERROR - [trading_system.py:686] - Lỗi khi huấn luyện agent: [WinError 3] The system cannot find the path specified: 'E:\\AI_AGENT\\automated-trading-system\\saved_models\\ppo\\ETH_USDT\\1h\\ppo_agent_20250506_073549\\models'
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\trading_system.py", line 669, in train_agent
+    training_history = trainer.train()
+  File "E:\AI_AGENT\automated-trading-system\models\training_pipeline\trainer.py", line 291, in train
+    self.save_agent(is_best=True)
+  File "E:\AI_AGENT\automated-trading-system\models\training_pipeline\trainer.py", line 471, in save_agent
+    models_dir.mkdir(exist_ok=True)
+  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\pathlib.py", line 1323, in mkdir
+    self._accessor.mkdir(self, mode)
+FileNotFoundError: [WinError 3] The system cannot find the path specified: 'E:\\AI_AGENT\\automated-trading-system\\saved_models\\ppo\\ETH_USDT\\1h\\ppo_agent_20250506_073549\\models'
+2025-05-06 13:47:11,640 - trading_system.train_command - ERROR - [train_commands.py:327] - Huấn luyện thất bại

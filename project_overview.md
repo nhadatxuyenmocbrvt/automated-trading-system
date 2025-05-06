@@ -172,8 +172,8 @@
 - **Đầu ra**: Hệ thống backtest cơ bản
 
 #### Sprint 16 - Đánh giá và phân tích
-- [ ] `backtesting/evaluation/performance_evaluator.py`
-- [ ] `backtesting/evaluation/risk_evaluator.py`
+- [x] `backtesting/evaluation/performance_evaluator.py`
+- [x] `backtesting/evaluation/risk_evaluator.py`
 - [ ] `backtesting/evaluation/strategy_evaluator.py`
 - **Đầu ra**: Hệ thống đánh giá chiến lược
 
