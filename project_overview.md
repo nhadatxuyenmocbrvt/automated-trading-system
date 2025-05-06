@@ -185,10 +185,10 @@
 ### Giai đoạn 7: Theo dõi & Triển khai (8 tuần)
 
 #### Sprint 18 - Triển khai giao dịch
-- [ ] `deployment/exchange_api/order_manager.py`
-- [ ] `deployment/exchange_api/account_manager.py`
-- [ ] `deployment/exchange_api/position_tracker.py`
-- [ ] `deployment/trade_executor.py`
+- [x] `deployment/exchange_api/order_manager.py`
+- [x] `deployment/exchange_api/account_manager.py`
+- [x] `deployment/exchange_api/position_tracker.py`
+- [x] `deployment/trade_executor.py`
 - **Đầu ra**: Hệ thống thực thi giao dịch
 
 #### Sprint 19 - Logging & Metrics
