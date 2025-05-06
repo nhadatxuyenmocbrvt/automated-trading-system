@@ -179,7 +179,7 @@
 
 #### Sprint 17 - Trực quan hóa kết quả
 - [x] `backtesting/visualization/backtest_visualizer.py`
-- [ ] `backtesting/visualization/performance_charts.py`
+- [x] `backtesting/visualization/performance_charts.py`
 - **Đầu ra**: Công cụ trực quan hóa kết quả backtest
 
 ### Giai đoạn 7: Theo dõi & Triển khai (8 tuần)
