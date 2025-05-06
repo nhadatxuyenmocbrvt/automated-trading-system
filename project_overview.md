@@ -147,14 +147,20 @@
 - [x] `models/cross_coin_trainer.py`
 - **Đầu ra**: Pipeline huấn luyện hoàn chỉnh
 
-#### Sprint 14 - Quản lý rủi ro
-- [ ] `risk_management/position_sizer.py`
-- [ ] `risk_management/stop_loss.py`
-- [ ] `risk_management/take_profit.py`
-- [ ] `risk_management/risk_calculator.py`
-- [ ] `risk_management/drawdown_manager.py`
-- [ ] `risk_management/risk_profiles/`
+#### Sprint 14.1 - Quản lý rủi ro
+- [x] `risk_management/position_sizer.py`
+- [x] `risk_management/stop_loss.py`
+- [x] `risk_management/take_profit.py`
+- [x] `risk_management/risk_calculator.py`
+- [x] `risk_management/drawdown_manager.py`
+- [x] `risk_management/risk_profiles/`
+- **Đầu ra**: Hệ thống quản lý rủi ro đầy đủ
+
+#### Sprint 14.2 - Quản lý rủi ro
 - [ ] `risk_management/portfolio_manager.py`
+- [ ] `risk_management/risk_profiles/conservative_profile.py`
+- [ ] `risk_management/risk_profiles/moderate_profile.py`
+- [ ] `risk_management/risk_profiles/aggressive_profile.py`
 - **Đầu ra**: Hệ thống quản lý rủi ro đầy đủ
 
 ### Giai đoạn 6: Backtest & Đánh giá (6 tuần)
