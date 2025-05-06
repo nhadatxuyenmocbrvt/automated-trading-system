@@ -165,10 +165,10 @@
 ### Giai đoạn 6: Backtest & Đánh giá (6 tuần)
 
 #### Sprint 15 - Cơ chế Backtest
-- [ ] `backtesting/performance_metrics.py`
-- [ ] `backtesting/strategy_tester.py`
-- [ ] `backtesting/historical_simulator.py`
-- [ ] `backtesting/backtester.py`
+- [x] `backtesting/performance_metrics.py`
+- [x] `backtesting/strategy_tester.py`
+- [x] `backtesting/historical_simulator.py`
+- [x] `backtesting/backtester.py`
 - **Đầu ra**: Hệ thống backtest cơ bản
 
 #### Sprint 16 - Đánh giá và phân tích
