@@ -407,4 +407,10 @@ python -m config.env
 
 3. Hiện tại chỉ có chức năng thu thập dữ liệu đã được triển khai đầy đủ. Các chức năng khác (backtest, huấn luyện, giao dịch thực tế, dashboard) đang trong quá trình phát triển theo lộ trình.
 
-4. Đối với các chức năng chưa được triển khai, hệ thống sẽ hiển thị thông báo "Chức năng ... chưa được triển khai" khi bạn chạy lệnh.
+4. Đối với các chức năng chưa được triển khai, hệ thống sẽ hiển thị thông báo "Chức năng ... chưa được triển khai" 
+5. Khi bạn chạy lệnh. 
+- python main.py train agent dqn --symbol BTC/USDT --timeframe 1h --episodes 1000
+- python main.py train continue ./saved_models/my_model/checkpoints/checkpoint_episode_500
+- python main.py train optimize ppo --trials 20 --method optuna
+- python main.py train evaluate ./saved_models/my_model/models/best_model
+- python main.py train compare ./model1/best_model ./model2/best_model ./model3/best_model

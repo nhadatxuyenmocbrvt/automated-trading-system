@@ -1,212 +1,520 @@
 """
-Xử lý lệnh xử lý dữ liệu.
-File này định nghĩa các tham số và xử lý cho lệnh 'process' trên CLI.
+CLI commands cho xử lý dữ liệu.
+File này cung cấp các lệnh để xử lý dữ liệu thị trường, bao gồm
+làm sạch dữ liệu, tạo đặc trưng, và chạy pipeline xử lý đầy đủ.
 """
 
 import os
 import sys
-import argparse
-import asyncio
+import click
+import json
 import logging
-from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
+import asyncio
+import pandas as pd
 from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Any, Optional, Tuple, Union
 
-# Thêm thư mục gốc vào path để import các module
+# Thêm thư mục gốc vào sys.path để import module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import các module cần thiết
 from config.logging_config import get_logger
-from trading_system import AutomatedTradingSystem
+from config.system_config import get_system_config
+from config.constants import Exchange, Timeframe, EXCHANGE_TIMEFRAMES
+from config.utils.validators import is_valid_timeframe, is_valid_trading_pair, validate_config
 
-def setup_process_parser(subparsers) -> None:
+from data_processors.data_pipeline import DataPipeline
+from data_processors.feature_engineering.feature_generator import FeatureGenerator
+
+# Thiết lập logger
+logger = get_logger("process_commands")
+
+# Lấy cấu hình hệ thống
+system_config = get_system_config()
+
+# Thư mục gốc của dự án
+BASE_DIR = Path(__file__).parent.parent.parent
+
+# Mặc định cho thư mục dữ liệu
+DEFAULT_DATA_DIR = BASE_DIR / "data"
+DEFAULT_OUTPUT_DIR = BASE_DIR / "data/processed"
+
+# Định nghĩa nhóm lệnh process
+@click.group(name="process")
+def process_commands():
+    """Các lệnh cho xử lý dữ liệu thị trường."""
+    pass
+
+@process_commands.command(name="clean")
+@click.option("--data-type", "-t", type=click.Choice(['ohlcv', 'trades', 'orderbook', 'all']), default='ohlcv', help="Loại dữ liệu cần làm sạch")
+@click.option("--input-dir", "-i", type=click.Path(exists=True), help="Thư mục chứa dữ liệu đầu vào")
+@click.option("--symbols", "-s", multiple=True, help="Danh sách cặp giao dịch cần xử lý")
+@click.option("--timeframes", "-tf", multiple=True, default=['1h'], help="Khung thời gian cần xử lý")
+@click.option("--output-dir", "-o", type=click.Path(), help="Thư mục lưu dữ liệu đã làm sạch")
+@click.option("--preserve-timestamp/--no-preserve-timestamp", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
+@click.option("--verbose", "-v", count=True, help="Mức độ chi tiết của log (0-2)")
+def clean_data(data_type, input_dir, symbols, timeframes, output_dir, preserve_timestamp, verbose):
     """
-    Thiết lập parser cho lệnh 'process'.
+    Làm sạch dữ liệu thị trường.
+    
+    Lệnh này làm sạch dữ liệu thô, bao gồm loại bỏ nhiễu, điền giá trị thiếu, và chuẩn hóa định dạng.
+    """
+    try:
+        # Thiết lập mức độ chi tiết
+        log_level = _get_log_level(verbose)
+        
+        # Tạo data pipeline
+        pipeline = DataPipeline(logger=logger)
+        
+        # Chuẩn bị thư mục đầu vào/ra
+        input_dir_path, output_dir_path = _prepare_directories(input_dir, output_dir, default_input_subdir="collected")
+        
+        # Tìm các file dữ liệu
+        data_paths = _find_data_files(input_dir_path, symbols, timeframes, logger)
+        
+        if not data_paths:
+            logger.error(f"Không tìm thấy file dữ liệu phù hợp trong {input_dir_path}")
+            return 1
+        
+        # Tải dữ liệu
+        loaded_data = {}
+        for symbol, path in data_paths.items():
+            logger.info(f"Đang tải dữ liệu từ {path} cho {symbol}...")
+            symbol_data = pipeline.load_data(
+                file_paths=path,
+                file_format=path.suffix[1:] if path.suffix else 'csv'
+            )
+            
+            if symbol_data:
+                # Nếu symbol_data có nhiều symbols, chỉ lấy symbol đúng
+                if symbol in symbol_data:
+                    loaded_data[symbol] = symbol_data[symbol]
+                else:
+                    # Lấy symbol đầu tiên nếu không tìm thấy
+                    first_symbol = next(iter(symbol_data.keys()))
+                    loaded_data[symbol] = symbol_data[first_symbol]
+                    logger.warning(f"Không tìm thấy dữ liệu cho {symbol}, sử dụng {first_symbol} thay thế")
+            else:
+                logger.warning(f"Không thể tải dữ liệu cho {symbol}")
+        
+        if not loaded_data:
+            logger.error("Không có dữ liệu nào được tải thành công")
+            return 1
+        
+        # Làm sạch dữ liệu theo loại
+        cleaned_data = {}
+        if data_type == 'ohlcv' or data_type == 'all':
+            cleaned_data = pipeline.clean_data(
+                loaded_data,
+                clean_ohlcv=True,
+                clean_orderbook=(data_type == 'all'),
+                clean_trades=(data_type == 'all'),
+                preserve_timestamp=preserve_timestamp
+            )
+        elif data_type == 'trades':
+            cleaned_data = pipeline.clean_data(
+                loaded_data,
+                clean_ohlcv=False,
+                clean_trades=True,
+                preserve_timestamp=preserve_timestamp
+            )
+        elif data_type == 'orderbook':
+            cleaned_data = pipeline.clean_data(
+                loaded_data,
+                clean_ohlcv=False,
+                clean_orderbook=True,
+                preserve_timestamp=preserve_timestamp
+            )
+        
+        if not cleaned_data:
+            logger.error("Không có dữ liệu nào được làm sạch thành công")
+            return 1
+        
+        # Lưu dữ liệu đã làm sạch
+        saved_paths = pipeline.save_data(
+            cleaned_data,
+            output_dir=output_dir_path,
+            file_format='parquet',
+            include_metadata=True,
+            preserve_timestamp=preserve_timestamp
+        )
+        
+        # Hiển thị kết quả
+        if saved_paths:
+            click.echo("\n" + "="*50)
+            click.echo(f"Kết quả làm sạch dữ liệu {data_type}:")
+            for symbol, path in saved_paths.items():
+                click.echo(f"  - {symbol}: {path}")
+            click.echo("="*50 + "\n")
+            
+            return 0
+        else:
+            logger.error("Không có dữ liệu nào được lưu")
+            return 1
+            
+    except Exception as e:
+        logger.error(f"Lỗi khi làm sạch dữ liệu: {str(e)}", exc_info=True)
+        return 1
+
+@process_commands.command(name="features")
+@click.option("--data-type", "-t", type=click.Choice(['ohlcv', 'all']), default='ohlcv', help="Loại dữ liệu cần tạo đặc trưng")
+@click.option("--input-dir", "-i", type=click.Path(exists=True), help="Thư mục chứa dữ liệu đầu vào")
+@click.option("--symbols", "-s", multiple=True, help="Danh sách cặp giao dịch cần xử lý")
+@click.option("--indicators", multiple=True, help="Danh sách chỉ báo kỹ thuật cần tạo")
+@click.option("--all-indicators/--selected-indicators", default=False, help="Tạo tất cả các chỉ báo kỹ thuật có sẵn")
+@click.option("--output-dir", "-o", type=click.Path(), help="Thư mục lưu dữ liệu đã tạo đặc trưng")
+@click.option("--remove-redundant/--keep-all", default=True, help="Loại bỏ các chỉ báo dư thừa")
+@click.option("--generate-labels/--no-labels", default=True, help="Tạo nhãn cho huấn luyện có giám sát")
+@click.option("--preserve-timestamp/--no-preserve-timestamp", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
+@click.option("--verbose", "-v", count=True, help="Mức độ chi tiết của log (0-2)")
+def create_features(data_type, input_dir, symbols, indicators, all_indicators, output_dir, remove_redundant, generate_labels, preserve_timestamp, verbose):
+    """
+    Tạo đặc trưng từ dữ liệu thị trường.
+    
+    Lệnh này tạo các đặc trưng kỹ thuật như các chỉ báo kỹ thuật (SMA, RSI, MACD, v.v.)
+    và các đặc trưng khác từ dữ liệu thị trường đã làm sạch.
+    """
+    try:
+        # Thiết lập mức độ chi tiết
+        log_level = _get_log_level(verbose)
+        
+        # Tạo data pipeline
+        pipeline = DataPipeline(logger=logger)
+        
+        # Chuẩn bị thư mục đầu vào/ra
+        default_input = "processed" if not input_dir else None
+        input_dir_path, output_dir_path = _prepare_directories(input_dir, output_dir, default_input_subdir=default_input)
+        
+        # Nếu thư mục processed không tồn tại, thử sử dụng thư mục collected
+        if not input_dir_path.exists():
+            input_dir_path, _ = _prepare_directories(None, None, default_input_subdir="collected")
+            logger.info(f"Thư mục processed không tồn tại, sử dụng thư mục {input_dir_path}")
+        
+        # Tìm các file dữ liệu
+        data_paths = _find_data_files(input_dir_path, symbols, [''], logger)  # Không filter theo timeframe
+        
+        if not data_paths:
+            logger.error(f"Không tìm thấy file dữ liệu phù hợp trong {input_dir_path}")
+            return 1
+        
+        # Tải dữ liệu
+        loaded_data = {}
+        for symbol, path in data_paths.items():
+            logger.info(f"Đang tải dữ liệu từ {path} cho {symbol}...")
+            symbol_data = pipeline.load_data(
+                file_paths=path,
+                file_format=path.suffix[1:] if path.suffix else 'csv'
+            )
+            
+            if symbol_data:
+                if symbol in symbol_data:
+                    loaded_data[symbol] = symbol_data[symbol]
+                else:
+                    # Lấy symbol đầu tiên nếu không tìm thấy
+                    first_symbol = next(iter(symbol_data.keys()))
+                    loaded_data[symbol] = symbol_data[first_symbol]
+                    logger.warning(f"Không tìm thấy dữ liệu cho {symbol}, sử dụng {first_symbol} thay thế")
+            else:
+                logger.warning(f"Không thể tải dữ liệu cho {symbol}")
+        
+        if not loaded_data:
+            logger.error("Không có dữ liệu nào được tải thành công")
+            return 1
+        
+        # Tạo cấu hình cho việc tạo đặc trưng
+        feature_configs = {}
+        for symbol in loaded_data.keys():
+            feature_configs[symbol] = {
+                "feature_names": list(indicators) if indicators else None,
+                "generate_labels": generate_labels,
+                "label_window": 10,
+                "label_threshold": 0.01
+            }
+        
+        # Tạo đặc trưng
+        featured_data = pipeline.generate_features(
+            loaded_data,
+            feature_configs=feature_configs,
+            all_indicators=all_indicators,
+            preserve_timestamp=preserve_timestamp
+        )
+        
+        if not featured_data:
+            logger.error("Không có đặc trưng nào được tạo thành công")
+            return 1
+        
+        # Loại bỏ các chỉ báo dư thừa nếu cần
+        if remove_redundant:
+            featured_data = pipeline.remove_redundant_indicators(
+                featured_data,
+                correlation_threshold=0.95,
+                redundant_groups=[
+                    ['macd_line', 'macd_signal', 'macd_histogram'],
+                    ['atr_14', 'atr_pct_14', 'atr_norm_14', 'atr_norm_14_std'],
+                    ['bb_middle_20', 'sma_20', 'bb_upper_20', 'bb_lower_20', 'bb_percent_b_20'],
+                    ['plus_di_14', 'minus_di_14', 'adx_14'],
+                    ['volume', 'volume_log'],
+                    ['rsi_14', 'rsi_14_norm']
+                ]
+            )
+        
+        # Tạo nhãn nếu cần
+        if generate_labels:
+            featured_data = pipeline.create_target_features(
+                featured_data,
+                price_column="close",
+                target_types=["direction", "return", "volatility"],
+                horizons=[1, 3, 5, 10],
+                threshold=0.001
+            )
+        
+        # Lưu dữ liệu đã tạo đặc trưng
+        saved_paths = pipeline.save_data(
+            featured_data,
+            output_dir=output_dir_path,
+            file_format='parquet',
+            include_metadata=True,
+            preserve_timestamp=preserve_timestamp
+        )
+        
+        # Hiển thị kết quả
+        if saved_paths:
+            total_features = {symbol: len(df.columns) for symbol, df in featured_data.items()}
+            
+            click.echo("\n" + "="*50)
+            click.echo(f"Kết quả tạo đặc trưng cho {len(saved_paths)} cặp tiền:")
+            for symbol, path in saved_paths.items():
+                click.echo(f"  - {symbol}: {total_features[symbol]} đặc trưng, lưu tại {path}")
+            click.echo("="*50 + "\n")
+            
+            return 0
+        else:
+            logger.error("Không có dữ liệu nào được lưu")
+            return 1
+            
+    except Exception as e:
+        logger.error(f"Lỗi khi tạo đặc trưng: {str(e)}", exc_info=True)
+        return 1
+
+@process_commands.command(name="pipeline")
+@click.option("--input-dir", "-i", type=click.Path(exists=True), help="Thư mục chứa dữ liệu đầu vào")
+@click.option("--symbols", "-s", multiple=True, help="Danh sách cặp giao dịch cần xử lý")
+@click.option("--timeframes", "-tf", multiple=True, default=['1h'], help="Khung thời gian cần xử lý")
+@click.option("--start-date", type=str, help="Ngày bắt đầu (YYYY-MM-DD)")
+@click.option("--end-date", type=str, help="Ngày kết thúc (YYYY-MM-DD)")
+@click.option("--output-dir", "-o", type=click.Path(), help="Thư mục lưu dữ liệu đã xử lý")
+@click.option("--pipeline-name", type=str, help="Tên của pipeline xử lý (nếu sử dụng pipeline đã đăng ký)")
+@click.option("--no-clean/--clean", default=False, help="Bỏ qua bước làm sạch dữ liệu")
+@click.option("--no-features/--features", default=False, help="Bỏ qua bước tạo đặc trưng")
+@click.option("--all-indicators/--selected-indicators", default=True, help="Sử dụng tất cả các chỉ báo kỹ thuật có sẵn")
+@click.option("--preserve-timestamp/--no-preserve-timestamp", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
+@click.option("--verbose", "-v", count=True, help="Mức độ chi tiết của log (0-2)")
+def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_dir, pipeline_name, no_clean, no_features, all_indicators, preserve_timestamp, verbose):
+    """
+    Chạy toàn bộ pipeline xử lý dữ liệu.
+    
+    Lệnh này thực hiện toàn bộ quy trình xử lý dữ liệu từ làm sạch đến tạo đặc trưng,
+    có thể sử dụng pipeline đã đăng ký hoặc cấu hình mới.
+    """
+    try:
+        # Thiết lập mức độ chi tiết
+        log_level = _get_log_level(verbose)
+        
+        # Tạo data pipeline
+        pipeline = DataPipeline(logger=logger)
+        
+        # Chuẩn bị thư mục đầu vào/ra
+        input_dir_path, output_dir_path = _prepare_directories(input_dir, output_dir, default_input_subdir="collected")
+        
+        # Chuyển đổi start_date và end_date thành datetime
+        start_datetime = None
+        end_datetime = None
+        
+        if start_date:
+            try:
+                start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+                logger.info(f"Dữ liệu từ ngày: {start_date}")
+            except ValueError:
+                logger.error(f"Định dạng ngày không hợp lệ: {start_date}, cần định dạng YYYY-MM-DD")
+                return 1
+                
+        if end_date:
+            try:
+                end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
+                logger.info(f"Dữ liệu đến ngày: {end_date}")
+            except ValueError:
+                logger.error(f"Định dạng ngày không hợp lệ: {end_date}, cần định dạng YYYY-MM-DD")
+                return 1
+        
+        # Tìm các file dữ liệu hoặc sử dụng pipeline.run_pipeline nếu pipeline_name được cung cấp
+        if pipeline_name:
+            # Nếu có pipeline_name, sử dụng run_pipeline trực tiếp
+            logger.info(f"Sử dụng pipeline đã đăng ký: {pipeline_name}")
+            
+            # Kiểm tra xem có symbols
+            if not symbols:
+                symbols_list = None
+            else:
+                symbols_list = list(symbols)
+            
+            # Chuyển đổi timeframes thành list
+            timeframes_list = list(timeframes)
+            
+            # Chạy pipeline
+            result_data = asyncio.run(pipeline.run_pipeline(
+                pipeline_name=pipeline_name,
+                input_files=None,
+                exchange_id=None,
+                symbols=symbols_list,
+                timeframe=timeframes_list[0] if timeframes_list else "1h",
+                start_time=start_datetime,
+                end_time=end_datetime,
+                output_dir=output_dir_path,
+                save_results=True,
+                preserve_timestamp=preserve_timestamp
+            ))
+            
+            if not result_data:
+                logger.error("Không có kết quả từ pipeline")
+                return 1
+            
+            # Hiển thị kết quả
+            click.echo("\n" + "="*50)
+            click.echo(f"Kết quả xử lý pipeline {pipeline_name}:")
+            for symbol in result_data.keys():
+                click.echo(f"  - {symbol}: {len(result_data[symbol])} dòng, {len(result_data[symbol].columns)} cột")
+            click.echo("="*50 + "\n")
+            
+            return 0
+        
+        # Nếu không có pipeline_name, thực hiện xử lý theo từng bước
+        data_paths = _find_data_files(input_dir_path, symbols, timeframes, logger)
+        
+        if not data_paths:
+            logger.error(f"Không tìm thấy file dữ liệu phù hợp trong {input_dir_path}")
+            return 1
+        
+        # Tải dữ liệu
+        loaded_data = {}
+        for symbol, path in data_paths.items():
+            logger.info(f"Đang tải dữ liệu từ {path} cho {symbol}...")
+            symbol_data = pipeline.load_data(
+                file_paths=path,
+                file_format=path.suffix[1:] if path.suffix else 'csv'
+            )
+            
+            if symbol_data:
+                if symbol in symbol_data:
+                    loaded_data[symbol] = symbol_data[symbol]
+                else:
+                    # Lấy symbol đầu tiên nếu không tìm thấy
+                    first_symbol = next(iter(symbol_data.keys()))
+                    loaded_data[symbol] = symbol_data[first_symbol]
+                    logger.warning(f"Không tìm thấy dữ liệu cho {symbol}, sử dụng {first_symbol} thay thế")
+            else:
+                logger.warning(f"Không thể tải dữ liệu cho {symbol}")
+        
+        if not loaded_data:
+            logger.error("Không có dữ liệu nào được tải thành công")
+            return 1
+        
+        # Xử lý dữ liệu theo từng bước
+        processed_data = loaded_data
+        
+        # Làm sạch dữ liệu nếu cần
+        if not no_clean:
+            processed_data = pipeline.clean_data(
+                processed_data,
+                clean_ohlcv=True,
+                clean_orderbook=False,
+                clean_trades=False,
+                preserve_timestamp=preserve_timestamp
+            )
+            
+            if not processed_data:
+                logger.error("Không có dữ liệu nào được làm sạch thành công")
+                return 1
+            
+            logger.info(f"Đã làm sạch dữ liệu cho {len(processed_data)} cặp tiền")
+        
+        # Tạo đặc trưng nếu cần
+        if not no_features:
+            processed_data = pipeline.generate_features(
+                processed_data,
+                all_indicators=all_indicators,
+                preserve_timestamp=preserve_timestamp
+            )
+            
+            if not processed_data:
+                logger.error("Không có đặc trưng nào được tạo thành công")
+                return 1
+            
+            logger.info(f"Đã tạo đặc trưng cho {len(processed_data)} cặp tiền")
+            
+            # Tạo nhãn
+            processed_data = pipeline.create_target_features(
+                processed_data,
+                price_column="close",
+                target_types=["direction", "return", "volatility"],
+                horizons=[1, 3, 5, 10],
+                threshold=0.001
+            )
+            
+            logger.info(f"Đã tạo nhãn mục tiêu cho {len(processed_data)} cặp tiền")
+        
+        # Lưu kết quả
+        saved_paths = pipeline.save_data(
+            processed_data,
+            output_dir=output_dir_path,
+            file_format='parquet',
+            include_metadata=True,
+            preserve_timestamp=preserve_timestamp
+        )
+        
+        # Hiển thị kết quả
+        if saved_paths:
+            click.echo("\n" + "="*50)
+            click.echo(f"Kết quả xử lý pipeline cho {len(saved_paths)} cặp tiền:")
+            for symbol, path in saved_paths.items():
+                click.echo(f"  - {symbol}: {len(processed_data[symbol])} dòng, {len(processed_data[symbol].columns)} cột")
+                click.echo(f"    Lưu tại: {path}")
+            click.echo("="*50 + "\n")
+            
+            return 0
+        else:
+            logger.error("Không có dữ liệu nào được lưu")
+            return 1
+            
+    except Exception as e:
+        logger.error(f"Lỗi khi chạy pipeline xử lý dữ liệu: {str(e)}", exc_info=True)
+        return 1
+
+def _get_log_level(verbose_count: int) -> int:
+    """
+    Xác định mức độ log dựa trên số lượng -v.
     
     Args:
-        subparsers: Subparsers object từ argparse
+        verbose_count: Số lượng lần sử dụng flag -v
+    
+    Returns:
+        Mức độ log (logging.DEBUG, logging.INFO, logging.WARNING)
     """
-    process_parser = subparsers.add_parser(
-        'process',
-        help='Xử lý dữ liệu thị trường',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    
-    # Tạo subparsers cho các lệnh con
-    process_subparsers = process_parser.add_subparsers(title='subcommands', dest='process_command')
-    
-    # 1. Lệnh làm sạch dữ liệu
-    clean_parser = process_subparsers.add_parser(
-        'clean',
-        help='Làm sạch dữ liệu thị trường',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    
-    clean_parser.add_argument(
-        '--data-type', 
-        type=str, 
-        choices=['ohlcv', 'trades', 'orderbook', 'all'], 
-        default='ohlcv',
-        help='Loại dữ liệu cần làm sạch'
-    )
-    
-    clean_parser.add_argument(
-        '--input-dir', 
-        type=str,
-        help='Thư mục chứa dữ liệu đầu vào'
-    )
-    
-    clean_parser.add_argument(
-        '--symbols', 
-        type=str, 
-        nargs='+',
-        help='Danh sách cặp giao dịch cần xử lý'
-    )
-    
-    clean_parser.add_argument(
-        '--timeframes', 
-        type=str, 
-        nargs='+', 
-        default=['1h'],
-        help='Khung thời gian cần xử lý'
-    )
-    
-    clean_parser.add_argument(
-        '--output-dir', 
-        type=str,
-        help='Thư mục lưu dữ liệu đã làm sạch'
-    )
-    
-    # 2. Lệnh tạo đặc trưng
-    features_parser = process_subparsers.add_parser(
-        'features',
-        help='Tạo đặc trưng từ dữ liệu thị trường',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    
-    features_parser.add_argument(
-        '--data-type', 
-        type=str, 
-        choices=['ohlcv', 'all'], 
-        default='ohlcv',
-        help='Loại dữ liệu cần tạo đặc trưng'
-    )
-    
-    features_parser.add_argument(
-        '--input-dir', 
-        type=str,
-        help='Thư mục chứa dữ liệu đầu vào'
-    )
-    
-    features_parser.add_argument(
-        '--symbols', 
-        type=str, 
-        nargs='+',
-        help='Danh sách cặp giao dịch cần xử lý'
-    )
-    
-    features_parser.add_argument(
-        '--indicators', 
-        type=str, 
-        nargs='+',
-        help='Danh sách chỉ báo kỹ thuật cần tạo'
-    )
-    
-    features_parser.add_argument(
-        '--all-indicators',
-        action='store_true',
-        help='Tạo tất cả các chỉ báo kỹ thuật có sẵn'
-    )
-    
-    features_parser.add_argument(
-        '--output-dir', 
-        type=str,
-        help='Thư mục lưu dữ liệu đã tạo đặc trưng'
-    )
-    
-    # 3. Lệnh pipeline (làm sạch và tạo đặc trưng)
-    pipeline_parser = process_subparsers.add_parser(
-        'pipeline',
-        help='Chạy toàn bộ pipeline xử lý dữ liệu',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    
-    pipeline_parser.add_argument(
-        '--input-dir', 
-        type=str,
-        help='Thư mục chứa dữ liệu đầu vào'
-    )
-    
-    pipeline_parser.add_argument(
-        '--symbols', 
-        type=str, 
-        nargs='+',
-        help='Danh sách cặp giao dịch cần xử lý'
-    )
-    
-    pipeline_parser.add_argument(
-        '--timeframes', 
-        type=str, 
-        nargs='+', 
-        default=['1h'],
-        help='Khung thời gian cần xử lý'
-    )
-    
-    pipeline_parser.add_argument(
-        '--start-date', 
-        type=str, 
-        help='Ngày bắt đầu (YYYY-MM-DD)'
-    )
-    
-    pipeline_parser.add_argument(
-        '--end-date', 
-        type=str, 
-        help='Ngày kết thúc (YYYY-MM-DD)'
-    )
-    
-    pipeline_parser.add_argument(
-        '--output-dir', 
-        type=str,
-        help='Thư mục lưu dữ liệu đã xử lý'
-    )
-    
-    pipeline_parser.add_argument(
-        '--pipeline-name', 
-        type=str,
-        help='Tên của pipeline xử lý (nếu sử dụng pipeline đã đăng ký)'
-    )
-    
-    pipeline_parser.add_argument(
-        '--no-clean', 
-        action='store_true',
-        help='Bỏ qua bước làm sạch dữ liệu'
-    )
-    
-    pipeline_parser.add_argument(
-        '--no-features', 
-        action='store_true',
-        help='Bỏ qua bước tạo đặc trưng'
-    )
-    
-    pipeline_parser.add_argument(
-        '--all-indicators', 
-        action='store_true',
-        help='Sử dụng tất cả các chỉ báo kỹ thuật có sẵn'
-    )
-    
-    process_parser.set_defaults(func=handle_process_command)
+    if verbose_count >= 2:
+        return logging.DEBUG
+    elif verbose_count == 1:
+        return logging.INFO
+    else:
+        return logging.WARNING
 
 def _prepare_directories(input_dir: Optional[str], 
                          output_dir: Optional[str], 
-                         system: AutomatedTradingSystem, 
-                         default_input_subdir: str = "collected") -> Tuple[Path, Optional[Path]]:
+                         default_input_subdir: str = "collected") -> Tuple[Path, Path]:
     """
     Chuẩn bị và kiểm tra các thư mục đầu vào/đầu ra.
     
     Args:
         input_dir: Thư mục đầu vào
         output_dir: Thư mục đầu ra
-        system: Instance của AutomatedTradingSystem
         default_input_subdir: Thư mục con mặc định
         
     Returns:
@@ -216,18 +524,26 @@ def _prepare_directories(input_dir: Optional[str],
     if input_dir:
         input_dir_path = Path(input_dir)
     else:
-        input_dir_path = system.data_dir / default_input_subdir
+        input_dir_path = DEFAULT_DATA_DIR / default_input_subdir
     
     # Chuyển đổi output_dir nếu có
-    output_dir_path = None
     if output_dir:
         output_dir_path = Path(output_dir)
+    else:
+        # Tạo thư mục đầu ra dựa trên loại xử lý
+        if default_input_subdir == "collected":
+            output_dir_path = DEFAULT_DATA_DIR / "processed"
+        else:
+            output_dir_path = DEFAULT_DATA_DIR / "features"
+    
+    # Đảm bảo thư mục đầu ra tồn tại
+    output_dir_path.mkdir(parents=True, exist_ok=True)
     
     return input_dir_path, output_dir_path
 
 def _find_data_files(input_dir: Path, 
-                    symbols: Optional[List[str]], 
-                    timeframes: List[str], 
+                    symbols: Optional[Tuple[str, ...]], 
+                    timeframes: Tuple[str, ...], 
                     logger: logging.Logger) -> Dict[str, Path]:
     """
     Tìm các file dữ liệu phù hợp với symbols và timeframes.
@@ -259,6 +575,10 @@ def _find_data_files(input_dir: Path,
                         f"**/*{symbol_safe}*.parquet"              # Pattern linh hoạt
                     ]
                     
+                    # Thêm tìm kiếm theo CSV nếu có thể
+                    csv_patterns = [p.replace("parquet", "csv") for p in patterns]
+                    patterns.extend(csv_patterns)
+                    
                     for pattern in patterns:
                         logger.debug(f"Tìm kiếm với pattern: {pattern}")
                         matching_files = list(input_dir.glob(pattern))
@@ -272,248 +592,28 @@ def _find_data_files(input_dir: Path,
                             break
             else:
                 # Nếu không có symbols, tìm tất cả các file
-                pattern = f"**/*{timeframe}*.parquet"
-                matching_files = list(input_dir.glob(pattern))
+                patterns = [f"**/*{timeframe}*.parquet", f"**/*{timeframe}*.csv"]
                 
-                for file_path in matching_files:
-                    # Trích xuất symbol từ tên file
-                    filename = file_path.stem
-                    parts = filename.split('_')
-                    # Tạo symbol từ hai phần đầu tiên nếu có (btc_usdt -> BTC/USDT)
-                    if len(parts) >= 2:
-                        symbol = f"{parts[0].upper()}/{parts[1].upper()}"
-                        data_paths[symbol] = file_path
-                        logger.info(f"Tìm thấy dữ liệu cho {symbol}: {file_path}")
+                for pattern in patterns:
+                    matching_files = list(input_dir.glob(pattern))
+                    
+                    for file_path in matching_files:
+                        # Trích xuất symbol từ tên file
+                        filename = file_path.stem
+                        parts = filename.split('_')
+                        # Tạo symbol từ hai phần đầu tiên nếu có (btc_usdt -> BTC/USDT)
+                        if len(parts) >= 2:
+                            try:
+                                # Đảm bảo phần đầu tiên là asset, phần thứ hai là currency
+                                symbol = f"{parts[0].upper()}/{parts[1].upper()}"
+                                if symbol not in data_paths:  # Chỉ lấy file đầu tiên cho mỗi symbol
+                                    data_paths[symbol] = file_path
+                                    logger.info(f"Tìm thấy dữ liệu cho {symbol}: {file_path}")
+                            except Exception as e:
+                                logger.debug(f"Không thể trích xuất symbol từ {filename}: {e}")
     
     return data_paths
 
-def _process_and_report_results(system: AutomatedTradingSystem, 
-                               data_paths: Dict[str, Path], 
-                               clean_data: bool, 
-                               generate_features: bool, 
-                               pipeline_name: Optional[str] = None,
-                               all_indicators: bool = False,
-                               output_dir: Optional[Path] = None, 
-                               logger: logging.Logger = None) -> int:
-    """
-    Xử lý dữ liệu và báo cáo kết quả.
-    
-    Args:
-        system: Instance của AutomatedTradingSystem
-        data_paths: Dict với key là symbol và value là đường dẫn file
-        clean_data: Có làm sạch dữ liệu không
-        generate_features: Có tạo đặc trưng không
-        pipeline_name: Tên pipeline xử lý
-        all_indicators: Sử dụng tất cả các chỉ báo kỹ thuật có sẵn
-        output_dir: Thư mục đầu ra
-        logger: Logger
-        
-    Returns:
-        Mã kết quả (0 = thành công)
-    """
-    if not data_paths:
-        logger.error(f"Không tìm thấy file dữ liệu phù hợp")
-        return 1
-    
-    # Xử lý dữ liệu
-    result_paths = system.process_data(
-        data_paths=data_paths,
-        pipeline_name=pipeline_name,
-        clean_data=clean_data,
-        generate_features=generate_features,
-        all_indicators=all_indicators,
-        output_dir=output_dir
-    )
-    
-    # Tóm tắt kết quả
-    if result_paths:
-        total_symbols = len(result_paths)
-        logger.info(f"Tổng kết: Đã xử lý dữ liệu cho {total_symbols} cặp tiền")
-        
-        # In ra đường dẫn tới dữ liệu
-        for symbol, path in result_paths.items():
-            logger.info(f"  - {symbol}: {path}")
-            
-        return 0
-    else:
-        logger.error("Không có dữ liệu nào được xử lý")
-        return 1
-
-def handle_process_command(args: argparse.Namespace, system: AutomatedTradingSystem) -> int:
-    """
-    Xử lý lệnh 'process'.
-    
-    Args:
-        args: Các tham số dòng lệnh
-        system: Instance của AutomatedTradingSystem
-        
-    Returns:
-        int: Mã kết quả (0 = thành công)
-    """
-    logger = get_logger('process_command')
-    
-    try:
-        # Nếu không có lệnh con, hiển thị help
-        if not hasattr(args, 'process_command') or args.process_command is None:
-            logger.error("Thiếu lệnh con. Sử dụng một trong các lệnh: clean, features, pipeline")
-            return 1
-        
-        # Xử lý từng lệnh con
-        process_command = args.process_command
-        
-        if process_command == 'clean':
-            return handle_clean_command(args, system)
-        elif process_command == 'features':
-            return handle_features_command(args, system)
-        elif process_command == 'pipeline':
-            return handle_pipeline_command(args, system)
-        else:
-            logger.error(f"Lệnh con không hợp lệ: {process_command}")
-            return 1
-            
-    except KeyboardInterrupt:
-        logger.info("Đã hủy xử lý dữ liệu")
-        return 130
-    except Exception as e:
-        logger.error(f"Lỗi khi xử lý dữ liệu: {str(e)}", exc_info=True)
-        return 1
-
-def handle_clean_command(args: argparse.Namespace, system: AutomatedTradingSystem) -> int:
-    """
-    Xử lý lệnh 'process clean'.
-    
-    Args:
-        args: Các tham số dòng lệnh
-        system: Instance của AutomatedTradingSystem
-        
-    Returns:
-        int: Mã kết quả (0 = thành công)
-    """
-    logger = get_logger('process_clean')
-    
-    try:
-        # Chuẩn bị thư mục đầu vào/ra
-        input_dir, output_dir = _prepare_directories(args.input_dir, args.output_dir, system)
-        
-        # Tìm các file dữ liệu
-        data_paths = _find_data_files(input_dir, args.symbols, args.timeframes, logger)
-        
-        # Xử lý và báo cáo kết quả
-        return _process_and_report_results(
-            system, data_paths, 
-            clean_data=True, 
-            generate_features=False,
-            output_dir=output_dir,
-            logger=logger
-        )
-            
-    except Exception as e:
-        logger.error(f"Lỗi khi làm sạch dữ liệu: {str(e)}", exc_info=True)
-        return 1
-
-def handle_features_command(args: argparse.Namespace, system: AutomatedTradingSystem) -> int:
-    """
-    Xử lý lệnh 'process features'.
-    
-    Args:
-        args: Các tham số dòng lệnh
-        system: Instance của AutomatedTradingSystem
-        
-    Returns:
-        int: Mã kết quả (0 = thành công)
-    """
-    logger = get_logger('process_features')
-    
-    try:
-        # Chuẩn bị thư mục đầu vào/ra
-        input_dir, output_dir = _prepare_directories(
-            args.input_dir, 
-            args.output_dir, 
-            system, 
-            default_input_subdir="processed"
-        )
-        
-        # Nếu thư mục processed không tồn tại, thử sử dụng thư mục collected
-        if not input_dir.exists():
-            input_dir, _ = _prepare_directories(None, None, system, default_input_subdir="collected")
-            logger.info(f"Thư mục processed không tồn tại, sử dụng thư mục {input_dir}")
-        
-        # Tìm các file dữ liệu
-        data_paths = _find_data_files(input_dir, args.symbols, [''], logger)  # Không filter theo timeframe
-        
-        # Kiểm tra nếu có thuộc tính all_indicators
-        all_indicators = False
-        if hasattr(args, 'all_indicators'):
-            all_indicators = args.all_indicators
-        
-        # Xử lý và báo cáo kết quả
-        return _process_and_report_results(
-            system, data_paths, 
-            clean_data=False, 
-            generate_features=True,
-            all_indicators=all_indicators,
-            output_dir=output_dir,
-            logger=logger
-        )
-            
-    except Exception as e:
-        logger.error(f"Lỗi khi tạo đặc trưng: {str(e)}", exc_info=True)
-        return 1
-
-def handle_pipeline_command(args: argparse.Namespace, system: AutomatedTradingSystem) -> int:
-    """
-    Xử lý lệnh 'process pipeline'.
-    
-    Args:
-        args: Các tham số dòng lệnh
-        system: Instance của AutomatedTradingSystem
-        
-    Returns:
-        int: Mã kết quả (0 = thành công)
-    """
-    logger = get_logger('process_pipeline')
-    
-    try:
-        # Chuẩn bị thư mục đầu vào/ra
-        input_dir, output_dir = _prepare_directories(args.input_dir, args.output_dir, system)
-        
-        # Chuẩn bị tham số
-        start_date = args.start_date if hasattr(args, 'start_date') else None
-        end_date = args.end_date if hasattr(args, 'end_date') else None
-        
-        # Tìm các file dữ liệu
-        timeframes = args.timeframes if hasattr(args, 'timeframes') and args.timeframes else ['1h']
-        symbols = args.symbols if hasattr(args, 'symbols') else None
-        data_paths = _find_data_files(input_dir, symbols, timeframes, logger)
-        
-        # Kiểm tra nếu có thuộc tính all_indicators
-        all_indicators = False
-        if hasattr(args, 'all_indicators'):
-            all_indicators = args.all_indicators
-        
-        # Kiểm tra xem có bỏ qua bước làm sạch hoặc tạo đặc trưng không
-        clean_data = True
-        if hasattr(args, 'no_clean') and args.no_clean:
-            clean_data = False
-            
-        generate_features = True
-        if hasattr(args, 'no_features') and args.no_features:
-            generate_features = False
-        
-        # Lấy tên pipeline nếu có
-        pipeline_name = args.pipeline_name if hasattr(args, 'pipeline_name') else None
-        
-        # Xử lý và báo cáo kết quả
-        return _process_and_report_results(
-            system, data_paths, 
-            clean_data=clean_data, 
-            generate_features=generate_features,
-            pipeline_name=pipeline_name,
-            all_indicators=all_indicators,
-            output_dir=output_dir,
-            logger=logger
-        )
-            
-    except Exception as e:
-        logger.error(f"Lỗi khi chạy pipeline xử lý dữ liệu: {str(e)}", exc_info=True)
-        return 1
+if __name__ == "__main__":
+    # Nếu chạy trực tiếp file này
+    process_commands()
