@@ -214,7 +214,7 @@
 - [x] `streamlit_dashboard/components/sidebar.py`
 - [x] `streamlit_dashboard/components/metrics_display.py`
 - [x] `streamlit_dashboard/components/controls.py`
-- [ ] `streamlit_dashboard/pages/system_monitor.py`
+- [x] `streamlit_dashboard/pages/system_monitor.py`
 - **Đầu ra**: Dashboard hoàn chỉnh với đầy đủ tính năng
 
 ### Giai đoạn 8: Tính năng nâng cao (12 tuần)
