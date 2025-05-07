@@ -219,12 +219,14 @@
 
 ### Giai đoạn 8: Tính năng nâng cao (12 tuần)
 
-#### Sprint 22-23 - Multi-Agent System
+#### Sprint 22 - Multi-Agent System
 - [ ] `agent_manager/agent_coordinator.py`
 - [ ] `agent_manager/ensemble_agent.py`
 - [ ] `agent_manager/strategy_queue/strategy_manager.py`
 - [ ] `agent_manager/strategy_queue/strategy_selector.py`
 - [ ] `agent_manager/strategy_queue/queue_processor.py`
+
+#### Sprint 23 - Multi-Agent System
 - [ ] `agent_manager/self_improvement/agent_evaluator.py`
 - [ ] `agent_manager/self_improvement/adaptation_module.py`
 - [ ] `agent_manager/self_improvement/meta_learner.py`
