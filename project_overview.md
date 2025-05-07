@@ -208,12 +208,12 @@
 - **Đầu ra**: Dashboard cơ bản với Streamlit
 
 #### Sprint 21 - Dashboard nâng cao
-- [ ] `streamlit_dashboard/charts/performance_charts.py`
-- [ ] `streamlit_dashboard/charts/risk_visualization.py`
-- [ ] `streamlit_dashboard/charts/trade_visualization.py`
-- [ ] `streamlit_dashboard/components/`
-- [ ] `streamlit_dashboard/components/`
-- [ ] `streamlit_dashboard/components/`
+- [x] `streamlit_dashboard/charts/performance_charts.py`
+- [x] `streamlit_dashboard/charts/risk_visualization.py`
+- [x] `streamlit_dashboard/charts/trade_visualization.py`
+- [x] `streamlit_dashboard/components/sidebar.py`
+- [x] `streamlit_dashboard/components/metrics_display.py`
+- [x] `streamlit_dashboard/components/controls.py`
 - [ ] `streamlit_dashboard/pages/system_monitor.py`
 - **Đầu ra**: Dashboard hoàn chỉnh với đầy đủ tính năng
 
@@ -263,12 +263,12 @@
 - [x] `main.py`
 - [x] `trading_system.py` 
 - [x] `cli/parser.py`
-- [x] `commands/collect_commands.py`
-- [x] `commands/process_commands.py`
-- [x] `commands/backtest_commands.py`
-- [x] `commands/train_commands.py`
-- [x] `commands/trade_commands.py`
-- [x] `commands/dashboard_commands.py`
+- [x] `cli/commands/collect_commands.py`
+- [x] `cli/commands/process_commands.py`
+- [x] `cli/commands/backtest_commands.py`
+- [x] `cli/commands/train_commands.py`
+- [x] `cli/commands/trade_commands.py`
+- [x] `cli/commands/dashboard_commands.py`
 
 ### Giai đoạn 9: Hoàn thiện & Tối ưu hóa (4 tuần)
 
