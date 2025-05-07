@@ -258,25 +258,25 @@
 - [x] `real_time_inference/notifiers/notification_manager.py`
 
 #### Sprint 27 - Triển khai thời gian thực
-- [ ] `real_time_inference/scheduler/task_scheduler.py`
-- [ ] `real_time_inference/scheduler/cron_jobs.py`
-- [ ] `real_time_inference/auto_restart/error_handler.py`
-- [ ] `real_time_inference/auto_restart/recovery_system.py`
-- [ ] `real_time_inference/inference_engine.py`
+- [x] `real_time_inference/scheduler/task_scheduler.py`
+- [x] `real_time_inference/scheduler/cron_jobs.py`
+- [x] `real_time_inference/auto_restart/error_handler.py`
+- [x] `real_time_inference/auto_restart/recovery_system.py`
+- [x] `real_time_inference/inference_engine.py`
 - **Đầu ra**: Hệ thống giao dịch thời gian thực hoàn chỉnh
 
-#### Sprint 28 Vận hành hệ thống
-- [x] `main.py`
-- [x] `trading_system.py` 
-- [x] `cli/parser.py`
-- [x] `cli/commands/collect_commands.py`
-- [x] `cli/commands/process_commands.py`
-- [x] `cli/commands/backtest_commands.py`
-- [x] `cli/commands/train_commands.py`
-- [x] `cli/commands/trade_commands.py`
-- [x] `cli/commands/dashboard_commands.py`
-
 ### Giai đoạn 9: Hoàn thiện & Tối ưu hóa (4 tuần)
+
+#### Sprint 28 Vận hành hệ thống
+- [ ] `main.py`
+- [ ] `trading_system.py` 
+- [ ] `cli/parser.py`
+- [ ] `cli/commands/collect_commands.py`
+- [ ] `cli/commands/process_commands.py`
+- [ ] `cli/commands/backtest_commands.py`
+- [ ] `cli/commands/train_commands.py`
+- [ ] `cli/commands/trade_commands.py`
+- [ ] `cli/commands/dashboard_commands.py`
 
 #### Sprint 29 - Kiểm thử tích hợp
 - [ ] Kiểm thử toàn hệ thống
