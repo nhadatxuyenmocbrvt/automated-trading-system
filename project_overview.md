@@ -232,12 +232,14 @@
 - [ ] `agent_manager/self_improvement/meta_learner.py`
 - **Đầu ra**: Hệ thống multi-agent
 
-#### Sprint 24-25 - Tái huấn luyện & Cải tiến tự động
+#### Sprint 24 - Tái huấn luyện & Cải tiến tự động
 - [ ] `retraining/performance_tracker.py`
 - [ ] `retraining/retraining_pipeline.py`
 - [ ] `retraining/model_updater.py`
 - [ ] `retraining/experience_manager.py`
 - [ ] `retraining/comparison_evaluator.py`
+
+#### Sprint 25 - Tái huấn luyện & Cải tiến tự động
 - [ ] `automation/metrics/performance_metrics.py`
 - [ ] `automation/metrics/efficiency_metrics.py`
 - [ ] `automation/metrics/evaluation_metrics.py`
@@ -247,13 +249,15 @@
 - [ ] `automation/model_updater.py`
 - **Đầu ra**: Hệ thống tự động cải tiến
 
-#### Sprint 26-27 - Triển khai thời gian thực
+#### Sprint 26 - Triển khai thời gian thực
 - [ ] `real_time_inference/system_monitor/health_checker.py`
 - [ ] `real_time_inference/system_monitor/performance_monitor.py`
 - [ ] `real_time_inference/system_monitor/alert_system.py`
 - [ ] `real_time_inference/notifiers/email_notifier.py`
 - [ ] `real_time_inference/notifiers/telegram_notifier.py`
 - [ ] `real_time_inference/notifiers/notification_manager.py`
+
+#### Sprint 27 - Triển khai thời gian thực
 - [ ] `real_time_inference/scheduler/task_scheduler.py`
 - [ ] `real_time_inference/scheduler/cron_jobs.py`
 - [ ] `real_time_inference/auto_restart/error_handler.py`
@@ -261,7 +265,7 @@
 - [ ] `real_time_inference/inference_engine.py`
 - **Đầu ra**: Hệ thống giao dịch thời gian thực hoàn chỉnh
 
-#### Sprint 27.2 Vận hành hệ thống
+#### Sprint 28 Vận hành hệ thống
 - [x] `main.py`
 - [x] `trading_system.py` 
 - [x] `cli/parser.py`
@@ -274,13 +278,13 @@
 
 ### Giai đoạn 9: Hoàn thiện & Tối ưu hóa (4 tuần)
 
-#### Sprint 28 - Kiểm thử tích hợp
+#### Sprint 29 - Kiểm thử tích hợp
 - [ ] Kiểm thử toàn hệ thống
 - [ ] Tối ưu hóa hiệu suất
 - [ ] Xử lý lỗi và edge case
 - **Đầu ra**: Hệ thống ổn định
 
-#### Sprint 29 - Tài liệu & Sản phẩm cuối
+#### Sprint 30 - Tài liệu & Sản phẩm cuối
 - [ ] Hoàn thiện tài liệu kỹ thuật
 - [ ] Tạo hướng dẫn sử dụng
 - [ ] Chuẩn bị sản phẩm cuối
