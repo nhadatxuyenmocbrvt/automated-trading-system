@@ -1,0 +1,155 @@
+{
+    "symbol": "BTCUSDT",
+    "rows": 6000,
+    "columns": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "indicators_fixed",
+        "volume_log",
+        "volume_extreme",
+        "volume_log_log",
+        "volume_extreme_log",
+        "volume_log_log_log",
+        "volume_extreme_log_log",
+        "ema_89",
+        "trend_strength",
+        "trend_acceleration",
+        "atr_14",
+        "atr_pct_14",
+        "volatility_zscore",
+        "volatility_rank"
+    ],
+    "dtypes": {
+        "timestamp": "datetime64[ns]",
+        "open": "float64",
+        "high": "float64",
+        "low": "float64",
+        "close": "float64",
+        "volume": "float64",
+        "indicators_fixed": "bool",
+        "volume_log": "float64",
+        "volume_extreme": "bool",
+        "volume_log_log": "float64",
+        "volume_extreme_log": "float64",
+        "volume_log_log_log": "float64",
+        "volume_extreme_log_log": "float64",
+        "ema_89": "float64",
+        "trend_strength": "float64",
+        "trend_acceleration": "float64",
+        "atr_14": "float64",
+        "atr_pct_14": "float64",
+        "volatility_zscore": "float64",
+        "volatility_rank": "float64"
+    },
+    "saved_at": "2025-05-08T12:07:26.389420",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\btcusdt_20250508_120726.parquet",
+    "data_stats": {
+        "open": {
+            "min": 49804.01,
+            "max": 108320.0,
+            "mean": 75388.32861,
+            "null_count": 0
+        },
+        "high": {
+            "min": 51542.0,
+            "max": 109588.0,
+            "mean": 75666.18874666667,
+            "null_count": 0
+        },
+        "low": {
+            "min": 49000.0,
+            "max": 107780.51,
+            "mean": 75103.08287666667,
+            "null_count": 0
+        },
+        "close": {
+            "min": 49804.0,
+            "max": 108320.01,
+            "mean": 75393.45747,
+            "null_count": 0
+        },
+        "volume": {
+            "min": 92.16551,
+            "max": 20888.72287,
+            "mean": 1252.9726541651667,
+            "null_count": 0
+        },
+        "volume_log": {
+            "min": 4.534377588823143,
+            "max": 9.94701258830656,
+            "mean": 6.806703688086105,
+            "null_count": 0
+        },
+        "volume_log_log": {
+            "min": 1.7109791097604967,
+            "max": 2.3930665960538464,
+            "mean": 2.0499846139326743,
+            "null_count": 0
+        },
+        "volume_extreme_log": {
+            "min": 0.0,
+            "max": 0.6931471805599453,
+            "mean": 0.0028881132523331057,
+            "null_count": 0
+        },
+        "volume_log_log_log": {
+            "min": 0.9973098647548203,
+            "max": 1.2217341130936634,
+            "mean": 1.1145984982180597,
+            "null_count": 0
+        },
+        "volume_extreme_log_log": {
+            "min": 0.0,
+            "max": 0.5265890341390446,
+            "mean": 0.0021941209755793525,
+            "null_count": 0
+        },
+        "ema_89": {
+            "min": 55041.90544680617,
+            "max": 104702.96317990239,
+            "mean": 75161.77159534431,
+            "null_count": 0
+        },
+        "trend_strength": {
+            "min": -4.278530855211429,
+            "max": 4.82672318678425,
+            "mean": 0.019402885802040405,
+            "null_count": 0
+        },
+        "trend_acceleration": {
+            "min": -5.44772786050698,
+            "max": 5.182587727750438,
+            "mean": -0.006670208135651345,
+            "null_count": 0
+        },
+        "atr_14": {
+            "min": 81.27227938784704,
+            "max": 2741.749963697741,
+            "mean": 563.1464322985352,
+            "null_count": 13
+        },
+        "atr_pct_14": {
+            "min": 0.12616234200514886,
+            "max": 3.5015214706143403,
+            "mean": 0.7407642867135541,
+            "null_count": 13
+        },
+        "volatility_zscore": {
+            "min": -2.5727404103100984,
+            "max": 5.001985445952438,
+            "mean": 0.05222680898933616,
+            "null_count": 0
+        },
+        "volatility_rank": {
+            "min": 0.02,
+            "max": 1.0,
+            "mean": 0.49317633274361716,
+            "null_count": 13
+        }
+    }
+}

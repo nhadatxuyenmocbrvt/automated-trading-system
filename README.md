@@ -339,7 +339,7 @@ python main.py process clean --data-type ohlcv --symbols BTCUSDT --timeframes 1h
 
 # Làm sạch dữ liệu Future
 python main.py process clean --data-type ohlcv --symbols BTC/USDT --timeframes 1h
-python main.py process clean --data-type ohlcv --symbols BTC/USDT --timeframes 1h
+python main.py process clean --data-type ohlcv --symbols ETH/USDT --timeframes 1h
 # Tạo đặc trưng kỹ thuật
 python main.py process features --data-type ohlcv --symbols BTC/USDT ETH/USDT --all-indicators
 
