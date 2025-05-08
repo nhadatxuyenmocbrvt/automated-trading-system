@@ -25,6 +25,220 @@ from data_collectors.news_collector.sentiment_collector import SentimentData
 # Thiết lập logger
 logger = get_logger("sentiment_features")
 
+class PriceBasedFearGreedIndex:
+    """
+    Tạo chỉ số Fear and Greed từ dữ liệu giá và khối lượng.
+    """
+    
+    def __init__(self, window_sizes: List[int] = [14, 30, 90]):
+        """
+        Khởi tạo đối tượng PriceBasedFearGreedIndex.
+        
+        Args:
+            window_sizes: Các kích thước cửa sổ để tính toán (ngày)
+        """
+        self.window_sizes = window_sizes
+    
+    def calculate_fear_greed_index(self, price_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Tính toán chỉ số Fear and Greed từ dữ liệu giá.
+        
+        Args:
+            price_df: DataFrame dữ liệu giá (phải có 'timestamp', 'open', 'high', 'low', 'close', 'volume')
+            
+        Returns:
+            DataFrame với chỉ số Fear and Greed
+        """
+        # Kiểm tra dữ liệu đầu vào
+        required_columns = ['timestamp', 'close', 'high', 'low', 'volume']
+        for col in required_columns:
+            if col not in price_df.columns:
+                raise ValueError(f"Thiếu cột {col} trong dữ liệu giá.")
+        
+        # Tạo DataFrame kết quả
+        result_df = pd.DataFrame()
+        result_df['timestamp'] = price_df['timestamp']
+        
+        # 1. Tính toán chỉ số biến động (độ lệch chuẩn của phần trăm thay đổi giá)
+        max_window = max(self.window_sizes)
+        price_df['daily_return'] = price_df['close'].pct_change()
+        
+        # Biến động
+        volatility = price_df['daily_return'].rolling(window=max_window).std() * np.sqrt(max_window)
+        volatility_normalized = self._normalize_and_invert(volatility, 0, 0.1)  # Biến động cao -> sợ hãi
+        result_df['volatility_component'] = volatility_normalized
+        
+        # 2. Tính toán động lượng thị trường (RSI)
+        result_df['momentum_component'] = self._calculate_rsi(price_df, 14)  # RSI cao -> tham lam
+        
+        # 3. Tính toán phần trăm so với đỉnh cao gần đây
+        for window in self.window_sizes:
+            price_df[f'rolling_max_{window}d'] = price_df['close'].rolling(window=window).max()
+            result_df[f'price_strength_{window}d'] = price_df['close'] / price_df[f'rolling_max_{window}d'] * 100
+        
+        # Lấy giá trị trung bình của các cửa sổ
+        price_strength_cols = [f'price_strength_{window}d' for window in self.window_sizes]
+        result_df['price_strength_component'] = result_df[price_strength_cols].mean(axis=1)
+        
+        # 4. Tính toán thay đổi khối lượng giao dịch
+        price_df['volume_change'] = price_df['volume'].pct_change()
+        volume_change_normalized = self._normalize(price_df['volume_change'].rolling(window=14).mean(), -0.5, 2)
+        result_df['volume_component'] = volume_change_normalized
+        
+        # 5. Tính bollinger bands width (biến động thị trường)
+        bb_width = self._calculate_bb_width(price_df, 20, 2)
+        bb_width_normalized = self._normalize_and_invert(bb_width, 0, 0.15)  # BB width cao -> sợ hãi
+        result_df['bb_width_component'] = bb_width_normalized
+        
+        # Tính toán chỉ số Fear and Greed cuối cùng
+        # Phân bổ trọng số cho từng thành phần
+        weights = {
+            'volatility_component': 0.25,
+            'momentum_component': 0.25,
+            'price_strength_component': 0.25,
+            'volume_component': 0.15,
+            'bb_width_component': 0.10
+        }
+        
+        # Tính toán chỉ số tổng hợp
+        result_df['fear_greed_value'] = 0
+        for component, weight in weights.items():
+            result_df['fear_greed_value'] += result_df[component] * weight
+        
+        # Chuyển đổi thành giá trị 0-100
+        result_df['fear_greed_value'] = result_df['fear_greed_value'].clip(0, 100)
+        
+        # Thêm nhãn tương ứng với giá trị
+        result_df['fear_greed_label'] = pd.cut(
+            result_df['fear_greed_value'], 
+            bins=[0, 25, 40, 60, 75, 100], 
+            labels=["Extreme Fear", "Fear", "Neutral", "Greed", "Extreme Greed"]
+        )
+        
+        return result_df
+    
+    def _normalize(self, series, min_val, max_val):
+        """Chuẩn hóa chuỗi về dải 0-100."""
+        min_series = series.rolling(window=90, min_periods=1).min()
+        max_series = series.rolling(window=90, min_periods=1).max()
+        
+        # Xử lý trường hợp min = max
+        range_series = max_series - min_series
+        range_series = range_series.replace(0, 1e-10)
+        
+        normalized = 100 * (series - min_series) / range_series
+        
+        # Giới hạn ở mức min_val và max_val nếu được cung cấp
+        if min_val is not None and max_val is not None:
+            min_series = min_series.fillna(min_val)
+            max_series = max_series.fillna(max_val)
+            
+            # Điều chỉnh thang đo
+            normalized = normalized.clip(0, 100)
+        
+        return normalized
+    
+    def _normalize_and_invert(self, series, min_val, max_val):
+        """Chuẩn hóa và đảo ngược (100 -> 0, 0 -> 100)."""
+        normalized = self._normalize(series, min_val, max_val)
+        return 100 - normalized
+    
+    def _calculate_rsi(self, df, window):
+        """Tính RSI (Relative Strength Index)."""
+        delta = df['close'].diff()
+        
+        # Đảm bảo window không lớn hơn số dòng dữ liệu
+        window = min(window, len(delta) - 1)
+        
+        # Tạo các chuỗi gain và loss
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+        
+        # Tính trung bình gain và loss
+        avg_gain = gain.rolling(window=window, min_periods=1).mean()
+        avg_loss = loss.rolling(window=window, min_periods=1).mean()
+        
+        # Tính RS và RSI
+        rs = avg_gain / avg_loss.replace(0, 1e-10)  # Tránh chia cho 0
+        rsi = 100 - (100 / (1 + rs))
+        
+        return rsi
+    
+    def _calculate_bb_width(self, df, window, num_std):
+        """Tính độ rộng dải Bollinger Bands."""
+        # Tính trung bình động
+        ma = df['close'].rolling(window=window).mean()
+        
+        # Tính độ lệch chuẩn
+        std = df['close'].rolling(window=window).std()
+        
+        # Tính các dải Bollinger
+        upper_band = ma + (std * num_std)
+        lower_band = ma - (std * num_std)
+        
+        # Tính độ rộng và chuẩn hóa
+        bb_width = (upper_band - lower_band) / ma
+        
+        return bb_width
+    
+    def generate_fear_greed_data(self, price_df: pd.DataFrame, days: int = 365) -> List[SentimentData]:
+        """
+        Tạo dữ liệu Fear and Greed để dùng thay thế cho dữ liệu on-chain.
+        
+        Args:
+            price_df: DataFrame dữ liệu giá
+            days: Số ngày dữ liệu cần tạo
+            
+        Returns:
+            Danh sách các đối tượng SentimentData
+        """
+        # Lấy dữ liệu gần đây
+        recent_data = price_df.tail(days).copy()
+        
+        # Tính toán Fear and Greed Index
+        fg_df = self.calculate_fear_greed_index(recent_data)
+        
+        # Tạo danh sách SentimentData
+        sentiment_data_list = []
+        
+        for _, row in fg_df.iterrows():
+            # Tạo đối tượng SentimentData
+            sentiment_data = SentimentData(
+                timestamp=row['timestamp'],
+                value=float(row['fear_greed_value']),
+                label=row['fear_greed_label'],
+                source="Fear and Greed Index (Price-based)",
+                asset=None,  # Có thể thiết lập tùy ý
+                timeframe="1d",
+                metadata={
+                    "volatility": float(row['volatility_component']),
+                    "momentum": float(row['momentum_component']),
+                    "price_strength": float(row['price_strength_component']),
+                    "volume": float(row['volume_component']),
+                    "bb_width": float(row['bb_width_component'])
+                }
+            )
+            
+            sentiment_data_list.append(sentiment_data)
+        
+        return sentiment_data_list
+
+
+def generate_price_based_fear_greed(price_df: pd.DataFrame, days: int = 365) -> List[SentimentData]:
+    """
+    Tạo dữ liệu Fear and Greed dựa trên dữ liệu giá.
+    
+    Args:
+        price_df: DataFrame dữ liệu giá
+        days: Số ngày dữ liệu cần tạo
+        
+    Returns:
+        Danh sách các đối tượng SentimentData
+    """
+    generator = PriceBasedFearGreedIndex()
+    return generator.generate_fear_greed_data(price_df, days)
+
+
 class MarketSentimentFeatures:
     """
     Lớp xử lý và tạo đặc trưng từ chỉ số tâm lý thị trường.
@@ -48,7 +262,8 @@ class MarketSentimentFeatures:
         self.data_dir.mkdir(exist_ok=True, parents=True)
     
     def load_sentiment_data(self, file_path: Optional[Union[str, Path]] = None, 
-                           days: int = 30, asset: Optional[str] = None) -> List[SentimentData]:
+                           days: int = 30, asset: Optional[str] = None,
+                           price_df: Optional[pd.DataFrame] = None) -> List[SentimentData]:
         """
         Tải dữ liệu tâm lý từ file hoặc lấy dữ liệu gần đây.
         
@@ -56,6 +271,7 @@ class MarketSentimentFeatures:
             file_path: Đường dẫn đến file dữ liệu cụ thể (tùy chọn)
             days: Số ngày dữ liệu cần lấy nếu không chỉ định file
             asset: Mã tài sản cần lọc (tùy chọn)
+            price_df: DataFrame dữ liệu giá để tạo Fear & Greed Index nếu không có dữ liệu sẵn (tùy chọn)
             
         Returns:
             Danh sách dữ liệu tâm lý
@@ -111,6 +327,14 @@ class MarketSentimentFeatures:
                          if any(source in data.source for source in market_sources)]
         
         logger.info(f"Dữ liệu tâm lý thị trường: {len(sentiment_data)} bản ghi")
+        
+        # Nếu không có dữ liệu Fear and Greed và có dữ liệu giá, tạo từ dữ liệu giá
+        has_fear_greed = any("Fear and Greed" in data.source for data in sentiment_data)
+        if not has_fear_greed and price_df is not None:
+            logger.info("Không tìm thấy dữ liệu Fear and Greed Index. Tạo từ dữ liệu giá...")
+            fg_data = generate_price_based_fear_greed(price_df, days)
+            sentiment_data.extend(fg_data)
+            logger.info(f"Đã tạo {len(fg_data)} bản ghi Fear and Greed từ dữ liệu giá")
         
         return sentiment_data
     

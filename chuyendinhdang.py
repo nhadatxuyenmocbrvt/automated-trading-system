@@ -1,3 +1,3 @@
 import pandas as pd
-df = pd.read_parquet("eth_usdt_20250508_170923.parquet")
-df.to_csv("eth4m_output.csv", index=False)
+df = pd.read_parquet("input6m.parquet")
+df.to_csv("btc6m_output.csv", index=False)

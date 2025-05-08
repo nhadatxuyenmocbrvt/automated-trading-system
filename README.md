@@ -327,8 +327,11 @@ pip install -r requirements.txt
 # Thu thập dữ liệu thị trường spot cho BTC/USDT và ETH/USDT
 python main.py collect --exchange binance --symbols BTCUSDT,ETHUSDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30
 
+# Tạo dữ liệu Fear and Greed Index và các đặc trưng khác
+python main.py process pipeline --input-dir data/collected --symbols BTC/USDT --timeframes 1h --output-dir data/processed --all-indicators
+
 # Thu thập dữ liệu thị trường futures
-python main.py collect --exchange binance --symbols BTC/USDT --timeframes 1h --start-date 2022-01-30 --end-date 2024-12-30 --futures
+python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --futures
 python main.py collect --exchange binance --symbols ETH/USDT --timeframes 1h --start-date 2024-01-30 --end-date 2024-12-30 --futures
 
 # Thu thập dữ liệu từ sàn Bybit
