@@ -616,7 +616,7 @@ class BinanceConnector(ExchangeConnector):
             end_time = int(time.time() * 1000)  # Hiện tại
             
         # Binance giới hạn tối đa 1000 candles mỗi request
-        limit = min(limit, 1000)
+        limit = 1000
         
         # Danh sách kết quả
         all_klines = []

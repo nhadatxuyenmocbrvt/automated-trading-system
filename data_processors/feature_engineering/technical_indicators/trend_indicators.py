@@ -139,36 +139,47 @@ def bollinger_bands(
     
     # Tính các thành phần của Bollinger Bands
     result_df = df.copy()
-    rolling = result_df[column].rolling(window=window, min_periods=min_periods)
     
-    # Middle band là SMA
-    middle_band = rolling.mean()
+    try:
+        rolling = result_df[column].rolling(window=window, min_periods=min_periods)
+        
+        # Middle band là SMA
+        middle_band = rolling.mean()
+        
+        # Tính độ lệch chuẩn
+        std = rolling.std(ddof=0)  # ddof=0 cho population standard deviation
+        
+        # Upper và lower bands
+        upper_band = middle_band + std_dev * std
+        lower_band = middle_band - std_dev * std
+        
+        # Bandwidth và %B
+        # Thêm kiểm tra để tránh chia cho 0 
+        bandwidth = pd.Series(np.zeros_like(middle_band), index=middle_band.index)
+        mask = middle_band != 0  # Tạo mask cho giá trị khác 0
+        bandwidth[mask] = (upper_band[mask] - lower_band[mask]) / middle_band[mask]
+        
+        # Tránh chia cho 0 khi tính %B
+        denominator = upper_band - lower_band
+        # Thay thế giá trị 0 bằng NaN để tránh lỗi khi chia
+        denominator = denominator.replace(0, np.nan)
+        percent_b = (result_df[column] - lower_band) / denominator
+        
+        # Thêm từng cột vào DataFrame kết quả sử dụng phương thức assign()
+        # Đây là cách an toàn hơn để tránh lỗi internal block structure
+        result_df = result_df.assign(**{
+            f"{prefix}bb_middle_{window}": middle_band,
+            f"{prefix}bb_upper_{window}": upper_band,
+            f"{prefix}bb_lower_{window}": lower_band,
+            f"{prefix}bb_bandwidth_{window}": bandwidth,
+            f"{prefix}bb_percent_b_{window}": percent_b
+        })
     
-    # Tính độ lệch chuẩn
-    std = rolling.std(ddof=0)  # ddof=0 cho population standard deviation
-    
-    # Upper và lower bands
-    upper_band = middle_band + std_dev * std
-    lower_band = middle_band - std_dev * std
-    
-    # Bandwidth và %B
-    # Thêm kiểm tra để tránh chia cho 0 
-    bandwidth = pd.Series(np.zeros_like(middle_band), index=middle_band.index)
-    mask = middle_band != 0  # Tạo mask cho giá trị khác 0
-    bandwidth[mask] = (upper_band[mask] - lower_band[mask]) / middle_band[mask]
-    
-    # Tránh chia cho 0 khi tính %B
-    denominator = upper_band - lower_band
-    # Thay thế giá trị 0 bằng NaN để tránh lỗi khi chia
-    denominator = denominator.replace(0, np.nan)
-    percent_b = (result_df[column] - lower_band) / denominator
-    
-    # Đặt tên các cột kết quả
-    result_df[f"{prefix}bb_middle_{window}"] = middle_band
-    result_df[f"{prefix}bb_upper_{window}"] = upper_band
-    result_df[f"{prefix}bb_lower_{window}"] = lower_band
-    result_df[f"{prefix}bb_bandwidth_{window}"] = bandwidth
-    result_df[f"{prefix}bb_percent_b_{window}"] = percent_b
+    except Exception as e:
+        import logging
+        logging.warning(f"Lỗi khi tính Bollinger Bands: {str(e)}")
+        # Trả về DataFrame gốc nếu có lỗi
+        return df
     
     return result_df
 

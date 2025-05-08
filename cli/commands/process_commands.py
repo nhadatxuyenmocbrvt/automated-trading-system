@@ -885,20 +885,229 @@ def handle_process_command(args, system):
                     default_input_subdir="collected"
                 )
                 
-                # Xử lý dữ liệu tương tự như trong hàm run_pipeline
-                # ...
+                # Chuyển đổi start_date và end_date thành datetime
+                start_datetime = None
+                end_datetime = None
                 
-                print("\n" + "="*50)
-                print(f"Pipeline xử lý dữ liệu đã hoàn thành thành công")
-                print("="*50 + "\n")
-                return 0
+                if hasattr(args, 'start_date') and args.start_date:
+                    try:
+                        start_datetime = datetime.strptime(args.start_date, "%Y-%m-%d")
+                        logger.info(f"Dữ liệu từ ngày: {args.start_date}")
+                    except ValueError:
+                        logger.error(f"Định dạng ngày không hợp lệ: {args.start_date}, cần định dạng YYYY-MM-DD")
+                        return 1
+                        
+                if hasattr(args, 'end_date') and args.end_date:
+                    try:
+                        end_datetime = datetime.strptime(args.end_date, "%Y-%m-%d")
+                        logger.info(f"Dữ liệu đến ngày: {args.end_date}")
+                    except ValueError:
+                        logger.error(f"Định dạng ngày không hợp lệ: {args.end_date}, cần định dạng YYYY-MM-DD")
+                        return 1
                 
+                # Kiểm tra xem có pipeline_name
+                pipeline_name = args.pipeline_name if hasattr(args, 'pipeline_name') else None
+                
+                if pipeline_name:
+                    # Nếu có pipeline_name, sử dụng run_pipeline trực tiếp
+                    logger.info(f"Sử dụng pipeline đã đăng ký: {pipeline_name}")
+                    
+                    # Kiểm tra xem có symbols
+                    if not hasattr(args, 'symbols') or not args.symbols:
+                        symbols_list = None
+                    else:
+                        symbols_list = list(args.symbols)
+                    
+                    # Chuyển đổi timeframes thành list
+                    timeframes_list = list(args.timeframes) if hasattr(args, 'timeframes') and args.timeframes else ["1h"]
+                    
+                    # Chạy pipeline
+                    result_data = asyncio.run(pipeline.run_pipeline(
+                        pipeline_name=pipeline_name,
+                        input_files=None,
+                        exchange_id=None,
+                        symbols=symbols_list,
+                        timeframe=timeframes_list[0] if timeframes_list else "1h",
+                        start_time=start_datetime,
+                        end_time=end_datetime,
+                        output_dir=output_dir_path,
+                        save_results=True,
+                        preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                    ))
+                    
+                    if not result_data:
+                        logger.error("Không có kết quả từ pipeline")
+                        return 1
+                    
+                    # Hiển thị kết quả
+                    print("\n" + "="*50)
+                    print(f"Kết quả xử lý pipeline {pipeline_name}:")
+                    for symbol in result_data.keys():
+                        print(f"  - {symbol}: {len(result_data[symbol])} dòng, {len(result_data[symbol].columns)} cột")
+                    print("="*50 + "\n")
+                    
+                    return 0
+                
+                # Nếu không có pipeline_name, thực hiện xử lý theo từng bước
+                # Tìm các file dữ liệu
+                data_paths = _find_data_files(
+                    input_dir_path,
+                    args.symbols if hasattr(args, 'symbols') else None,
+                    args.timeframes if hasattr(args, 'timeframes') else ["1h"],
+                    logger
+                )
+                
+                if not data_paths:
+                    logger.error(f"Không tìm thấy file dữ liệu phù hợp trong {input_dir_path}")
+                    
+                    # Nếu không tìm thấy file, thử thu thập dữ liệu từ API
+                    if hasattr(args, 'symbols') and args.symbols and (hasattr(args, 'start_date') and args.start_date):
+                        logger.info(f"Không tìm thấy dữ liệu từ files, thử thu thập từ API...")
+                        # Xác định exchange_id (mặc định là binance)
+                        exchange_id = args.exchange_id if hasattr(args, 'exchange_id') else "binance"
+                        
+                        # Thu thập dữ liệu
+                        collected_data = asyncio.run(pipeline.collect_data(
+                            exchange_id=exchange_id,
+                            symbols=list(args.symbols),
+                            timeframe=args.timeframes[0] if hasattr(args, 'timeframes') and args.timeframes else "1h",
+                            start_time=start_datetime,
+                            end_time=end_datetime,
+                            preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                        ))
+                        
+                        if collected_data:
+                            # Làm sạch và xử lý dữ liệu thu thập được
+                            processed_data = pipeline.clean_data(
+                                collected_data,
+                                clean_ohlcv=True,
+                                preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                            )
+                            
+                            # Tạo đặc trưng
+                            processed_data = pipeline.generate_features(
+                                processed_data,
+                                all_indicators=args.all_indicators if hasattr(args, 'all_indicators') else True,
+                                preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                            )
+                            
+                            # Lưu kết quả
+                            saved_paths = pipeline.save_data(
+                                processed_data,
+                                output_dir=output_dir_path,
+                                file_format='parquet',
+                                include_metadata=True,
+                                preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                            )
+                            
+                            if saved_paths:
+                                print("\n" + "="*50)
+                                print(f"Kết quả xử lý pipeline từ dữ liệu API cho {len(saved_paths)} cặp tiền:")
+                                for symbol, path in saved_paths.items():
+                                    print(f"  - {symbol}: {len(processed_data[symbol])} dòng, {len(processed_data[symbol].columns)} cột")
+                                    print(f"    Lưu tại: {path}")
+                                print("="*50 + "\n")
+                                return 0
+                        
+                        logger.error("Không thu thập được dữ liệu từ API")
+                    return 1
+                
+                # Tải dữ liệu từ file
+                loaded_data = {}
+                for symbol, path in data_paths.items():
+                    logger.info(f"Đang tải dữ liệu từ {path} cho {symbol}...")
+                    symbol_data = pipeline.load_data(
+                        file_paths=path,
+                        file_format=path.suffix[1:] if path.suffix else 'csv'
+                    )
+                    
+                    if symbol_data:
+                        if symbol in symbol_data:
+                            loaded_data[symbol] = symbol_data[symbol]
+                        else:
+                            # Lấy symbol đầu tiên nếu không tìm thấy
+                            first_symbol = next(iter(symbol_data.keys()))
+                            loaded_data[symbol] = symbol_data[first_symbol]
+                            logger.warning(f"Không tìm thấy dữ liệu cho {symbol}, sử dụng {first_symbol} thay thế")
+                    else:
+                        logger.warning(f"Không thể tải dữ liệu cho {symbol}")
+                
+                if not loaded_data:
+                    logger.error("Không có dữ liệu nào được tải thành công")
+                    return 1
+                
+                # Xử lý dữ liệu theo từng bước
+                processed_data = loaded_data
+                
+                # Làm sạch dữ liệu nếu cần
+                no_clean = args.no_clean if hasattr(args, 'no_clean') else False
+                if not no_clean:
+                    processed_data = pipeline.clean_data(
+                        processed_data,
+                        clean_ohlcv=True,
+                        clean_orderbook=False,
+                        clean_trades=False,
+                        preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                    )
+                    
+                    if not processed_data:
+                        logger.error("Không có dữ liệu nào được làm sạch thành công")
+                        return 1
+                    
+                    logger.info(f"Đã làm sạch dữ liệu cho {len(processed_data)} cặp tiền")
+                
+                # Tạo đặc trưng nếu cần
+                no_features = args.no_features if hasattr(args, 'no_features') else False
+                if not no_features:
+                    processed_data = pipeline.generate_features(
+                        processed_data,
+                        all_indicators=args.all_indicators if hasattr(args, 'all_indicators') else True,
+                        preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                    )
+                    
+                    if not processed_data:
+                        logger.error("Không có đặc trưng nào được tạo thành công")
+                        return 1
+                    
+                    logger.info(f"Đã tạo đặc trưng cho {len(processed_data)} cặp tiền")
+                    
+                    # Tạo nhãn
+                    processed_data = pipeline.create_target_features(
+                        processed_data,
+                        price_column="close",
+                        target_types=["direction", "return", "volatility"],
+                        horizons=[1, 3, 5, 10],
+                        threshold=0.001
+                    )
+                    
+                    logger.info(f"Đã tạo nhãn mục tiêu cho {len(processed_data)} cặp tiền")
+                
+                # Lưu kết quả
+                saved_paths = pipeline.save_data(
+                    processed_data,
+                    output_dir=output_dir_path,
+                    file_format='parquet',
+                    include_metadata=True,
+                    preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                )
+                
+                # Hiển thị kết quả
+                if saved_paths:
+                    print("\n" + "="*50)
+                    print(f"Kết quả xử lý pipeline cho {len(saved_paths)} cặp tiền:")
+                    for symbol, path in saved_paths.items():
+                        print(f"  - {symbol}: {len(processed_data[symbol])} dòng, {len(processed_data[symbol].columns)} cột")
+                        print(f"    Lưu tại: {path}")
+                    print("="*50 + "\n")
+                    
+                    return 0
+                else:
+                    logger.error("Không có dữ liệu nào được lưu")
+                    return 1
+                    
             except Exception as e:
                 logger.error(f"Lỗi khi chạy pipeline xử lý dữ liệu: {str(e)}", exc_info=True)
                 return 1
-        else:
-            print(f"Lệnh process không hợp lệ: {args.process_command}")
-            return 1
     
     # Nếu không có subcommand, hiển thị trợ giúp
     print("Sử dụng: main.py process <lệnh> [các tùy chọn]")

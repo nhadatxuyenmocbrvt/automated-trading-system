@@ -1,46 +1,35 @@
-2025-05-08 10:26:46,737 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binanceusdm
-2025-05-08 10:26:47,283 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 489 thị trường
-2025-05-08 10:26:47,284 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-05-08 10:26:47,288 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
-2025-05-08 10:26:47,289 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 489 thị trường từ cache
-2025-05-08 10:26:47,291 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
-2025-05-08 10:26:48,190 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho XRP/USDT:USDT
-2025-05-08 10:26:48,452 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho XRP/USDT:USDT
-2025-05-08 10:26:48,718 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho XRP/USDT:USDT
-2025-05-08 10:26:48,983 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho XRP/USDT:USDT
-2025-05-08 10:26:49,249 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho XRP/USDT:USDT
-2025-05-08 10:26:49,503 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho XRP/USDT:USDT
-2025-05-08 10:26:50,473 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
-2025-05-08 10:36:58,356 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binanceusdm
-2025-05-08 10:36:58,665 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 489 thị trường
-2025-05-08 10:36:58,666 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-05-08 10:36:58,670 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
-2025-05-08 10:36:58,671 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 489 thị trường từ cache
-2025-05-08 10:36:58,672 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
-2025-05-08 10:36:59,840 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT:USDT
-2025-05-08 10:37:00,863 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT:USDT
-2025-05-08 10:37:01,113 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT:USDT
-2025-05-08 10:37:01,378 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT:USDT
-2025-05-08 10:37:01,724 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT:USDT
-2025-05-08 10:37:01,886 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT:USDT
-2025-05-08 10:37:02,234 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT:USDT
-2025-05-08 10:37:02,401 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT:USDT
-2025-05-08 10:37:02,670 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT:USDT
-2025-05-08 10:37:02,943 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT:USDT
-2025-05-08 10:37:03,198 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho BTC/USDT:USDT
-2025-05-08 10:37:03,455 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:369] - Đã lấy 1000 candles 1h cho ETH/USDT:USDT
-2025-05-08 10:37:04,457 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
-2025-05-08 10:51:07,161 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binanceusdm
-2025-05-08 10:51:07,503 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 489 thị trường
-2025-05-08 10:51:07,504 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-05-08 10:51:07,507 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
-2025-05-08 10:51:07,509 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 489 thị trường từ cache
-2025-05-08 10:51:07,510 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
-2025-05-08 10:51:10,051 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
-2025-05-08 10:53:01,976 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binanceusdm
-2025-05-08 10:53:02,322 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 489 thị trường
-2025-05-08 10:53:02,323 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-05-08 10:53:02,326 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
-2025-05-08 10:53:02,327 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 489 thị trường từ cache
-2025-05-08 10:53:02,329 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
-2025-05-08 10:53:04,991 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
+2025-05-09 01:23:27,046 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binanceusdm
+2025-05-09 01:23:27,352 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 489 thị trường
+2025-05-09 01:23:27,353 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
+2025-05-09 01:23:27,355 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
+2025-05-09 01:23:27,356 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 489 thị trường từ cache
+2025-05-09 01:23:27,358 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
+2025-05-09 01:23:27,362 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:625] - Bắt đầu lấy dữ liệu lịch sử cho BTC/USDT từ 2022-01-30 00:00:00
+2025-05-09 01:23:27,511 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:27,857 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:28,215 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:28,575 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:28,924 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:29,262 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:29,621 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:29,975 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:30,331 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:30,699 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:31,045 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:31,397 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:31,751 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:32,112 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:32,477 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:32,831 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:33,189 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:33,548 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:33,910 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:34,272 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:34,615 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:34,961 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:35,319 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:35,672 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:36,028 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho BTC/USDT
+2025-05-09 01:23:36,376 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 561 klines 1h cho BTC/USDT
+2025-05-09 01:23:36,584 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:645] - Đã lấy tổng cộng 25561 klines cho BTC/USDT
+2025-05-09 01:23:38,570 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm

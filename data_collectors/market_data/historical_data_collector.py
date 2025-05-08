@@ -1,1072 +1,1060 @@
 """
-Thu thập dữ liệu lịch sử từ các sàn giao dịch.
-File này cung cấp các lớp và phương thức để tải và lưu trữ dữ liệu lịch sử
-từ các sàn giao dịch tiền điện tử, hỗ trợ nhiều loại dữ liệu khác nhau như
-OHLCV, orderbook snapshot, và giao dịch lịch sử.
+Thu thập dữ liệu lịch sử từ sàn giao dịch.
+File này cung cấp các phương thức để thu thập dữ liệu lịch sử từ các sàn giao dịch,
+bao gồm dữ liệu OHLCV (giá mở, cao, thấp, đóng, khối lượng) và tỷ lệ tài trợ (funding rates).
 """
 
 import os
 import time
 import asyncio
+import logging
+import inspect
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union, Any, Tuple, Callable
-import logging
-import json
 from pathlib import Path
-import concurrent.futures
-from functools import partial
+from typing import Dict, List, Any, Optional, Union, Tuple
+from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 # Import các module từ hệ thống
-import sys
-import os
-
-# Thêm thư mục gốc vào sys.path để import module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from data_collectors.exchange_api.generic_connector import ExchangeConnector
+from config.logging_config import get_logger
+from config.system_config import get_system_config
+from config.constants import Timeframe, ErrorCode
+from data_collectors.exchange_api.generic_connector import APIError
 from data_collectors.exchange_api.binance_connector import BinanceConnector
 from data_collectors.exchange_api.bybit_connector import BybitConnector
-from config.logging_config import setup_logger
-from config.constants import Timeframe, TIMEFRAME_TO_SECONDS, Exchange, ErrorCode
-from config.env import get_env
-from config.system_config import DATA_DIR, BASE_DIR
 
 class HistoricalDataCollector:
     """
-    Lớp chính để thu thập dữ liệu lịch sử từ các sàn giao dịch.
-    Hỗ trợ thu thập đa dạng loại dữ liệu và lưu trữ dưới nhiều định dạng.
+    Lớp thu thập dữ liệu lịch sử từ sàn giao dịch.
+    Thu thập dữ liệu OHLCV và tỷ lệ tài trợ từ các sàn giao dịch và quản lý việc lưu trữ chúng.
     """
     
     def __init__(
         self,
-        exchange_connector: ExchangeConnector,
-        data_dir: Path = None,
-        max_workers: int = 4,
-        rate_limit_factor: float = 0.8
+        exchange_connector,
+        data_dir: Optional[Path] = None,
+        logger: Optional[logging.Logger] = None,
+        max_workers: int = 4
     ):
         """
-        Khởi tạo bộ thu thập dữ liệu lịch sử.
+        Khởi tạo HistoricalDataCollector.
         
         Args:
-            exchange_connector: Kết nối với sàn giao dịch
-            data_dir: Thư mục lưu trữ dữ liệu (mặc định là DATA_DIR từ config)
-            max_workers: Số luồng tối đa cho việc thu thập song song
-            rate_limit_factor: Hệ số để giảm tốc độ gọi API (0.0 - 1.0)
+            exchange_connector: Đối tượng kết nối với sàn giao dịch
+            data_dir: Thư mục lưu dữ liệu
+            logger: Logger tùy chỉnh
+            max_workers: Số luồng tối đa cho việc thu thập dữ liệu song song
         """
         self.exchange_connector = exchange_connector
         self.exchange_id = exchange_connector.exchange_id
-        self.logger = setup_logger(f"historical_data_collector_{self.exchange_id}")
+        self.is_futures = hasattr(exchange_connector, 'is_futures') and exchange_connector.is_futures
         
-        # Thiết lập thư mục lưu trữ dữ liệu
+        # Thiết lập logger
+        self.logger = logger or get_logger(f"historical_collector_{self.exchange_id}")
+        
+        # Cấu hình hệ thống
+        self.system_config = get_system_config()
+        
+        # Thư mục lưu dữ liệu
         if data_dir is None:
-            self.data_dir = DATA_DIR / 'historical' / self.exchange_id
+            base_data_dir = Path(self.system_config.get("data_dir", "data"))
+            market_type = "futures" if self.is_futures else "spot"
+            self.data_dir = base_data_dir / "historical" / self.exchange_id / market_type
         else:
-            self.data_dir = data_dir / 'historical' / self.exchange_id
+            self.data_dir = data_dir
         
-        # Tạo thư mục lưu trữ nếu chưa tồn tại
+        # Đảm bảo thư mục tồn tại
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Thư mục cho từng loại dữ liệu
-        self.ohlcv_dir = self.data_dir / 'ohlcv'
-        self.orderbook_dir = self.data_dir / 'orderbook'
-        self.trades_dir = self.data_dir / 'trades'
-        self.funding_dir = self.data_dir / 'funding'
-        
-        for dir_path in [self.ohlcv_dir, self.orderbook_dir, self.trades_dir, self.funding_dir]:
-            dir_path.mkdir(parents=True, exist_ok=True)
-        
-        # Cấu hình rate limit
-        self.rate_limit = exchange_connector.exchange.rateLimit / 1000  # Chuyển ms thành giây
-        self.rate_limit_sleep = self.rate_limit * rate_limit_factor
-        
-        # Cấu hình cho việc thu thập song song
+        # Số luồng tối đa
         self.max_workers = max_workers
-        self.semaphore = asyncio.Semaphore(max_workers)
+        
+        # Cache cho metadata của các symbol
+        self._symbol_metadata = {}
         
         self.logger.info(f"Đã khởi tạo HistoricalDataCollector cho {self.exchange_id}")
     
-    def _format_symbol_for_exchange(self, symbol: str) -> str:
-        """
-        Chuẩn hóa symbol theo yêu cầu của sàn. Ví dụ: BTC/USDT → BTCUSDT (cho binanceusdm).
-        """
-        if self.exchange_id in ["binanceusdm", "binancecoinm"]:
-            return symbol.replace("/", "")  # BTC/USDT → BTCUSDT
-        return symbol
-
     async def collect_ohlcv(
         self,
         symbol: str,
         timeframe: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        limit: int = 1000,
-        save_format: str = 'parquet',
-        update_existing: bool = True
+        limit: Optional[int] = None,
+        update_existing: bool = False,
+        save_path: Optional[Path] = None,
+        save_format: str = 'parquet'
     ) -> pd.DataFrame:
         """
-        Thu thập dữ liệu OHLCV (Open, High, Low, Close, Volume) cho một cặp giao dịch.
+        Thu thập dữ liệu OHLCV cho một cặp giao dịch.
         
         Args:
-            symbol: Cặp giao dịch
-            timeframe: Khung thời gian (1m, 5m, 15m, 1h, 4h, 1d, ...)
-            start_time: Thời gian bắt đầu (mặc định là 30 ngày trước)
-            end_time: Thời gian kết thúc (mặc định là hiện tại)
-            limit: Số lượng nến tối đa mỗi lần gọi API
+            symbol: Cặp giao dịch (ví dụ: 'BTC/USDT')
+            timeframe: Khung thời gian (ví dụ: '1h', '4h', '1d')
+            start_time: Thời gian bắt đầu (tùy chọn)
+            end_time: Thời gian kết thúc (tùy chọn)
+            limit: Số lượng candle tối đa (tùy chọn)
+            update_existing: True để cập nhật dữ liệu hiện có, False để ghi đè
+            save_path: Đường dẫn file để lưu dữ liệu (tùy chọn)
             save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
-            update_existing: Cập nhật dữ liệu hiện có nếu có
             
         Returns:
             DataFrame chứa dữ liệu OHLCV
         """
-        # Xác định thời gian mặc định nếu không được cung cấp
+        self.logger.info(f"Thu thập dữ liệu OHLCV cho {symbol} ({timeframe})")
+        
+        # Kiểm tra cặp giao dịch
+        if '/' not in symbol:
+            self.logger.warning(f"Cặp giao dịch {symbol} không hợp lệ, thiếu dấu '/'")
+            # Thử chuẩn hóa cặp giao dịch
+            if self.exchange_id.lower() == "binance":
+                if symbol.endswith("USDT") or symbol.endswith("BUSD") or symbol.endswith("USDC"):
+                    base = symbol[:-4]
+                    quote = symbol[-4:]
+                    symbol = f"{base}/{quote}"
+                    self.logger.info(f"Đã chuẩn hóa cặp giao dịch thành {symbol}")
+        
+        # Nếu không cung cấp end_time, sử dụng thời gian hiện tại
         if end_time is None:
             end_time = datetime.now()
         
+        # Nếu không cung cấp start_time, lấy dữ liệu 30 ngày trước end_time
         if start_time is None:
-            # Mặc định lấy dữ liệu 30 ngày
-            start_time = datetime.now().replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) - timedelta(days=30)
+            start_time = end_time - timedelta(days=30)
         
-        self.logger.info(f"Thu thập OHLCV cho {symbol} ({timeframe}) từ {start_time} đến {end_time}")
+        # Chuyển đổi datetime sang timestamp (milliseconds)
+        start_timestamp = int(start_time.timestamp() * 1000)
+        end_timestamp = int(end_time.timestamp() * 1000)
         
-        # Kiểm tra xem cặp giao dịch có hiệu lực không
-        original_symbol = symbol
-        formatted_symbol = self._format_symbol_for_exchange(symbol)
-        # Load markets trước khi dùng
         try:
-            markets = self.exchange_connector.exchange.load_markets(reload=True)
-            self.logger.debug(f"[DEBUG] Tổng số cặp: {len(markets)} – Ví dụ: {list(markets.keys())[:10]}")
-        except Exception as e:
-            self.logger.error(f"Lỗi khi load markets: {e}")
-            return pd.DataFrame()
-        
-        # Tìm symbol tương ứng trong danh sách keys
-        found_symbol = None
-        for market_symbol in markets.keys():
-            if formatted_symbol in market_symbol.replace(":", "").replace("/", ""):
-                found_symbol = market_symbol
-                break
-        if not found_symbol:
-            self.logger.error(f"Cặp giao dịch {original_symbol} (formatted: {formatted_symbol}) không hợp lệ cho {self.exchange_id}")
-            return pd.DataFrame()
-                
-        # Xác định đường dẫn file và kiểm tra dữ liệu hiện có
-        filename = f"{symbol.replace('/', '_')}_{timeframe}".lower()
-        file_path = None
-        
-        if save_format == 'parquet':
-            file_path = self.ohlcv_dir / f"{filename}.parquet"
-        elif save_format == 'csv':
-            file_path = self.ohlcv_dir / f"{filename}.csv"
-        elif save_format == 'json':
-            file_path = self.ohlcv_dir / f"{filename}.json"
-        else:
-            self.logger.warning(f"Định dạng lưu trữ {save_format} không được hỗ trợ, sử dụng parquet")
-            file_path = self.ohlcv_dir / f"{filename}.parquet"
-        
-        # Kiểm tra và tải dữ liệu hiện có
-        existing_data = None
-        last_timestamp = None
-        
-        if update_existing and file_path.exists():
-            try:
-                if save_format == 'parquet':
-                    existing_data = pd.read_parquet(file_path)
-                elif save_format == 'csv':
-                    existing_data = pd.read_csv(file_path, parse_dates=['timestamp'])
-                elif save_format == 'json':
-                    existing_data = pd.read_json(file_path, orient='records')
-                
-                if not existing_data.empty:
-                    existing_data = existing_data.sort_values('timestamp')
-                    last_timestamp = existing_data['timestamp'].max()
-                    
-                    # Cập nhật thời gian bắt đầu nếu có dữ liệu hiện có
-                    if last_timestamp:
-                        actual_last_time = pd.to_datetime(last_timestamp).to_pydatetime()
-                        # Trừ đi một khoảng thời gian của timeframe để chắc chắn không bỏ lỡ dữ liệu
-                        tf_seconds = TIMEFRAME_TO_SECONDS.get(timeframe, 3600)
-                        start_time = max(start_time, actual_last_time - timedelta(seconds=tf_seconds))
-                        self.logger.info(f"Cập nhật dữ liệu từ {start_time} (dữ liệu cuối {actual_last_time})")
-            except Exception as e:
-                self.logger.warning(f"Không thể đọc dữ liệu hiện có từ {file_path}: {e}")
-                existing_data = None
-        
-        # Chuyển đổi datetime sang timestamp (ms)
-        start_ts = int(start_time.timestamp() * 1000)
-        end_ts = int(end_time.timestamp() * 1000)
-        
-        # Thu thập dữ liệu
-        all_candles = []
-        current_start_ts = start_ts
-        
-        while current_start_ts < end_ts:
-            try:
-                # Gọi API với giới hạn rate
-                async with self.semaphore:
-                    candles = self.exchange_connector.fetch_ohlcv(
-                        found_symbol, timeframe, current_start_ts, limit
-                    )
-                    await asyncio.sleep(self.rate_limit_sleep)
-                
-                if not candles or len(candles) == 0:
-                    self.logger.debug(f"Không có dữ liệu mới từ {datetime.fromtimestamp(current_start_ts/1000)}")
-                    break
-                
-                all_candles.extend(candles)
-                self.logger.debug(f"Đã lấy {len(candles)} nến từ {datetime.fromtimestamp(current_start_ts/1000)}")
-                
-                # Cập nhật timestamp cho lần gọi tiếp theo
-                last_candle_time = candles[-1][0]
-                if last_candle_time <= current_start_ts:
-                    # Tránh lặp vô hạn nếu không tăng timestamp
-                    self.logger.warning("Timestamp không tăng, dừng thu thập")
-                    break
-                
-                current_start_ts = last_candle_time + 1
-                
-                # Tạm dừng để tránh rate limit
-                await asyncio.sleep(self.rate_limit_sleep)
-                
-            except Exception as e:
-                self.logger.error(f"Lỗi khi thu thập OHLCV cho {symbol}: {e}")
-                # Tạm dừng dài hơn khi có lỗi
-                await asyncio.sleep(self.rate_limit_sleep * 2)
-                break
-            
-            # Kiểm tra đã đạt đến end_time chưa
-            if current_start_ts >= end_ts:
-                break
-        
-        # Chuyển đổi dữ liệu thành DataFrame
-        if all_candles:
-            df = pd.DataFrame(all_candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            
-            # Loại bỏ các bản ghi trùng lặp
-            df = df.drop_duplicates(subset=['timestamp'])
-            
-            # Ghép với dữ liệu hiện có nếu có
-            if existing_data is not None and not existing_data.empty:
-                # Kết hợp dữ liệu cũ và mới
-                combined_df = pd.concat([existing_data, df])
-                combined_df = combined_df.drop_duplicates(subset=['timestamp'])
-                combined_df = combined_df.sort_values('timestamp')
-                df = combined_df
-            
-            # Lưu dữ liệu
-            try:
-                if save_format == 'parquet':
-                    df.to_parquet(file_path, index=False)
-                elif save_format == 'csv':
-                    df.to_csv(file_path, index=False)
-                elif save_format == 'json':
-                    df.to_json(file_path, orient='records', date_format='iso')
-                
-                self.logger.info(f"Đã lưu {len(df)} bản ghi OHLCV cho {symbol} vào {file_path}")
-                
-            except Exception as e:
-                self.logger.error(f"Lỗi khi lưu dữ liệu: {e}")
-            
-            return df
-        else:
-            self.logger.warning(f"Không có dữ liệu mới cho {symbol}")
-            if existing_data is not None:
-                return existing_data
-            return pd.DataFrame()
-    
-    async def collect_orderbook_snapshots(
-        self,
-        symbol: str,
-        interval: int = 3600,  # 1 giờ
-        depth: int = 20,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        save_format: str = 'parquet'
-    ) -> List[Dict]:
-        """
-        Thu thập snapshot của orderbook theo định kỳ.
-        
-        Args:
-            symbol: Cặp giao dịch
-            interval: Khoảng thời gian giữa các snapshot (giây)
-            depth: Độ sâu của orderbook
-            start_time: Thời gian bắt đầu (mặc định là 7 ngày trước)
-            end_time: Thời gian kết thúc (mặc định là hiện tại)
-            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
-            
-        Returns:
-            Danh sách snapshot orderbook
-        """
-        # Xác định thời gian mặc định nếu không được cung cấp
-        if end_time is None:
-            end_time = datetime.now()
-        
-        if start_time is None:
-            # Mặc định lấy dữ liệu 7 ngày
-            start_time = datetime.now().replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) - timedelta(days=7)
-        
-        self.logger.info(f"Thu thập orderbook snapshot cho {symbol} từ {start_time} đến {end_time}")
-        
-        # Xác định đường dẫn file
-        filename = f"{symbol.replace('/', '_')}_depth{depth}_interval{interval}s".lower()
-        file_path = None
-        
-        if save_format == 'parquet':
-            file_path = self.orderbook_dir / f"{filename}.parquet"
-        elif save_format == 'csv':
-            file_path = self.orderbook_dir / f"{filename}.csv"
-        elif save_format == 'json':
-            file_path = self.orderbook_dir / f"{filename}.json"
-        else:
-            self.logger.warning(f"Định dạng lưu trữ {save_format} không được hỗ trợ, sử dụng parquet")
-            file_path = self.orderbook_dir / f"{filename}.parquet"
-        
-        # Tạo danh sách các mốc thời gian cần lấy snapshot
-        time_points = []
-        current_time = start_time
-        while current_time <= end_time:
-            time_points.append(current_time)
-            current_time += timedelta(seconds=interval)
-        
-        if not time_points:
-            self.logger.warning("Không có điểm thời gian nào để thu thập")
-            return []
-        
-        # Dữ liệu hiện có
-        existing_snapshots = []
-        existing_timestamps = set()
-        
-        if file_path.exists():
-            try:
-                if save_format == 'parquet':
-                    existing_df = pd.read_parquet(file_path)
-                elif save_format == 'csv':
-                    existing_df = pd.read_csv(file_path)
-                    # Chuyển timestamp thành datetime
-                    existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
-                elif save_format == 'json':
-                    with open(file_path, 'r') as f:
-                        existing_snapshots = json.load(f)
-                    # Chuyển chuỗi timestamp thành datetime object
-                    for snapshot in existing_snapshots:
-                        timestamp = datetime.fromisoformat(snapshot['timestamp'].replace('Z', '+00:00'))
-                        existing_timestamps.add(timestamp.timestamp())
-                
-                if save_format != 'json':
-                    # Chuyển từ dataframe sang list và lấy timestamps
-                    existing_snapshots = existing_df.to_dict('records')
-                    existing_timestamps = set(pd.to_datetime(existing_df['timestamp']).map(lambda x: x.timestamp()))
-                
-                self.logger.info(f"Đã tải {len(existing_snapshots)} snapshot hiện có")
-            except Exception as e:
-                self.logger.warning(f"Không thể đọc dữ liệu hiện có: {e}")
-        
-        # Thu thập orderbook snapshots
-        snapshots = []
-        
-        for time_point in time_points:
-            # Bỏ qua các điểm thời gian đã có dữ liệu
-            if time_point.timestamp() in existing_timestamps:
-                continue
-            
-            try:
-                # Lấy snapshot orderbook
-                async with self.semaphore:
-                    orderbook = await self.exchange_connector.fetch_order_book(
-                        symbol, depth
-                    )
-                    await asyncio.sleep(self.rate_limit_sleep)
-                
-                if orderbook:
-                    # Tạo snapshot với thông tin timestamp
-                    snapshot = {
-                        "symbol": symbol,
-                        "timestamp": time_point.isoformat(),
-                        "bids": orderbook['bids'],
-                        "asks": orderbook['asks'],
-                        "datetime": orderbook.get('datetime', None),
-                        "nonce": orderbook.get('nonce', None)
-                    }
-                    snapshots.append(snapshot)
-                    self.logger.debug(f"Đã lấy snapshot cho {symbol} tại {time_point}")
-            
-            except Exception as e:
-                self.logger.error(f"Lỗi khi lấy orderbook cho {symbol} tại {time_point}: {e}")
-            
-            # Tạm dừng để tránh rate limit
-            await asyncio.sleep(self.rate_limit_sleep)
-        
-        # Kết hợp với dữ liệu hiện có
-        all_snapshots = existing_snapshots + snapshots
-        
-        # Sắp xếp theo thời gian
-        all_snapshots.sort(key=lambda x: x['timestamp'])
-        
-        # Lưu dữ liệu
-        if all_snapshots:
-            try:
-                if save_format == 'parquet':
-                    pd.DataFrame(all_snapshots).to_parquet(file_path, index=False)
-                elif save_format == 'csv':
-                    pd.DataFrame(all_snapshots).to_csv(file_path, index=False)
-                elif save_format == 'json':
-                    with open(file_path, 'w') as f:
-                        json.dump(all_snapshots, f, indent=2)
-                
-                self.logger.info(f"Đã lưu {len(all_snapshots)} orderbook snapshot cho {symbol}")
-            
-            except Exception as e:
-                self.logger.error(f"Lỗi khi lưu dữ liệu orderbook: {e}")
-        
-        return all_snapshots
-    
-    async def collect_historical_trades(
-        self,
-        symbol: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        limit: int = 1000,
-        save_format: str = 'parquet',
-        update_existing: bool = True
-    ) -> pd.DataFrame:
-        """
-        Thu thập lịch sử giao dịch.
-        
-        Args:
-            symbol: Cặp giao dịch
-            start_time: Thời gian bắt đầu (mặc định là 1 ngày trước)
-            end_time: Thời gian kết thúc (mặc định là hiện tại)
-            limit: Số lượng giao dịch tối đa mỗi lần gọi API
-            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
-            update_existing: Cập nhật dữ liệu hiện có nếu có
-            
-        Returns:
-            DataFrame chứa lịch sử giao dịch
-        """
-        # Xác định thời gian mặc định nếu không được cung cấp
-        if end_time is None:
-            end_time = datetime.now()
-        
-        if start_time is None:
-            # Mặc định lấy dữ liệu 1 ngày
-            start_time = datetime.now().replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) - timedelta(days=1)
-        
-        self.logger.info(f"Thu thập lịch sử giao dịch cho {symbol} từ {start_time} đến {end_time}")
-        
-        # Xác định đường dẫn file
-        filename = f"{symbol.replace('/', '_')}_trades".lower()
-        file_path = None
-        
-        if save_format == 'parquet':
-            file_path = self.trades_dir / f"{filename}.parquet"
-        elif save_format == 'csv':
-            file_path = self.trades_dir / f"{filename}.csv"
-        elif save_format == 'json':
-            file_path = self.trades_dir / f"{filename}.json"
-        else:
-            self.logger.warning(f"Định dạng lưu trữ {save_format} không được hỗ trợ, sử dụng parquet")
-            file_path = self.trades_dir / f"{filename}.parquet"
-        
-        # Kiểm tra và tải dữ liệu hiện có
-        existing_data = None
-        last_timestamp = None
-        
-        if update_existing and file_path.exists():
-            try:
-                if save_format == 'parquet':
-                    existing_data = pd.read_parquet(file_path)
-                elif save_format == 'csv':
-                    existing_data = pd.read_csv(file_path, parse_dates=['timestamp'])
-                elif save_format == 'json':
-                    existing_data = pd.read_json(file_path, orient='records')
-                
-                if not existing_data.empty:
-                    existing_data = existing_data.sort_values('timestamp')
-                    last_timestamp = existing_data['timestamp'].max()
-                    
-                    # Cập nhật thời gian bắt đầu nếu có dữ liệu hiện có
-                    if last_timestamp:
-                        actual_last_time = pd.to_datetime(last_timestamp).to_pydatetime()
-                        # Bắt đầu từ thời điểm cuối cùng có dữ liệu
-                        start_time = max(start_time, actual_last_time)
-                        self.logger.info(f"Cập nhật dữ liệu từ {start_time} (dữ liệu cuối {actual_last_time})")
-            except Exception as e:
-                self.logger.warning(f"Không thể đọc dữ liệu hiện có từ {file_path}: {e}")
-                existing_data = None
-        
-        # Chuyển đổi datetime sang timestamp (ms)
-        start_ts = int(start_time.timestamp() * 1000)
-        end_ts = int(end_time.timestamp() * 1000)
-        
-        # Thu thập dữ liệu
-        all_trades = []
-        current_since = start_ts
-        
-        while current_since < end_ts:
-            try:
-                # Gọi API với giới hạn rate
-                async with self.semaphore:
-                    trades = await self.exchange_connector.fetch_trades(
-                        symbol, current_since, limit
-                    )
-                    await asyncio.sleep(self.rate_limit_sleep)
-                
-                if not trades or len(trades) == 0:
-                    self.logger.debug(f"Không có giao dịch mới từ {datetime.fromtimestamp(current_since/1000)}")
-                    break
-                
-                all_trades.extend(trades)
-                self.logger.debug(f"Đã lấy {len(trades)} giao dịch từ {datetime.fromtimestamp(current_since/1000)}")
-                
-                # Cập nhật timestamp cho lần gọi tiếp theo
-                last_trade_time = max(trade['timestamp'] for trade in trades)
-                if last_trade_time <= current_since:
-                    # Tránh lặp vô hạn nếu không tăng timestamp
-                    self.logger.warning("Timestamp không tăng, dừng thu thập")
-                    break
-                
-                current_since = last_trade_time + 1
-                
-                # Tạm dừng để tránh rate limit
-                await asyncio.sleep(self.rate_limit_sleep)
-                
-            except Exception as e:
-                self.logger.error(f"Lỗi khi thu thập lịch sử giao dịch cho {symbol}: {e}")
-                # Tạm dừng dài hơn khi có lỗi
-                await asyncio.sleep(self.rate_limit_sleep * 2)
-                break
-            
-            # Kiểm tra đã đạt đến end_time chưa
-            if current_since >= end_ts:
-                break
-        
-        # Chuyển đổi dữ liệu thành DataFrame
-        if all_trades:
-            # Chuẩn hóa dữ liệu
-            normalized_trades = []
-            
-            for trade in all_trades:
-                normalized_trade = {
-                    'id': trade.get('id', None),
-                    'timestamp': trade.get('timestamp', None),
-                    'datetime': trade.get('datetime', None),
-                    'symbol': trade.get('symbol', symbol),
-                    'side': trade.get('side', None),
-                    'price': trade.get('price', None),
-                    'amount': trade.get('amount', None),
-                    'cost': trade.get('cost', None),
-                    'fee': trade.get('fee', None),
-                    'fee_currency': trade.get('feeCurrency', None) if 'feeCurrency' in trade else None,
-                    'type': trade.get('type', None),
-                    'takerOrMaker': trade.get('takerOrMaker', None),
-                }
-                normalized_trades.append(normalized_trade)
-            
-            df = pd.DataFrame(normalized_trades)
-            
-            # Chuyển đổi timestamp sang datetime
-            if 'timestamp' in df.columns:
-                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            
-            # Loại bỏ các bản ghi trùng lặp
-            if 'id' in df.columns:
-                df = df.drop_duplicates(subset=['id'])
+            # Lấy dữ liệu OHLCV từ sàn giao dịch
+            if hasattr(self.exchange_connector, 'fetch_historical_klines'):
+                # Sử dụng phương thức đặc biệt nếu có
+                ohlcv_data = await self._fetch_historical_klines(
+                    symbol, timeframe, start_timestamp, end_timestamp, limit
+                )
             else:
-                # Nếu không có id, dùng timestamp và price để xác định trùng lặp
-                df = df.drop_duplicates(subset=['timestamp', 'price', 'amount'])
+                # Sử dụng phương thức chung
+                ohlcv_data = await self._fetch_ohlcv(
+                    symbol, timeframe, start_timestamp, end_timestamp, limit
+                )
             
-            # Ghép với dữ liệu hiện có nếu có
-            if existing_data is not None and not existing_data.empty:
-                # Kết hợp dữ liệu cũ và mới
-                combined_df = pd.concat([existing_data, df])
-                
-                # Loại bỏ trùng lặp
-                if 'id' in combined_df.columns:
-                    combined_df = combined_df.drop_duplicates(subset=['id'])
-                else:
-                    combined_df = combined_df.drop_duplicates(subset=['timestamp', 'price', 'amount'])
-                
-                combined_df = combined_df.sort_values('timestamp')
-                df = combined_df
+            # Chuyển đổi dữ liệu thành DataFrame
+            df = self._convert_ohlcv_to_dataframe(ohlcv_data, symbol)
             
-            # Lưu dữ liệu
-            try:
-                if save_format == 'parquet':
-                    df.to_parquet(file_path, index=False)
-                elif save_format == 'csv':
-                    df.to_csv(file_path, index=False)
-                elif save_format == 'json':
-                    df.to_json(file_path, orient='records', date_format='iso')
-                
-                self.logger.info(f"Đã lưu {len(df)} bản ghi giao dịch cho {symbol} vào {file_path}")
-                
-            except Exception as e:
-                self.logger.error(f"Lỗi khi lưu dữ liệu giao dịch: {e}")
+            if df.empty:
+                self.logger.warning(f"Không có dữ liệu OHLCV cho {symbol} ({timeframe})")
+                return df
             
+            # Lọc dữ liệu theo thời gian
+            df = df[(df.index >= start_time) & (df.index <= end_time)]
+            
+            # Cập nhật dữ liệu hiện có nếu cần
+            if update_existing and save_path is not None and save_path.exists():
+                df = self._update_existing_data(df, save_path, save_format)
+            
+            # Lưu dữ liệu nếu cần
+            if save_path is not None:
+                self._save_dataframe(df, save_path, save_format)
+            
+            self.logger.info(f"Đã thu thập {len(df)} candles cho {symbol} ({timeframe})")
             return df
-        else:
-            self.logger.warning(f"Không có dữ liệu giao dịch mới cho {symbol}")
-            if existing_data is not None:
-                return existing_data
-            return pd.DataFrame()
-    
-    async def collect_funding_rates(
-        self,
-        symbol: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        save_format: str = 'parquet',
-        update_existing: bool = True
-    ) -> pd.DataFrame:
-        """
-        Thu thập tỷ lệ tài trợ cho hợp đồng tương lai.
-        
-        Args:
-            symbol: Cặp giao dịch
-            start_time: Thời gian bắt đầu (mặc định là 30 ngày trước)
-            end_time: Thời gian kết thúc (mặc định là hiện tại)
-            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
-            update_existing: Cập nhật dữ liệu hiện có nếu có
-            
-        Returns:
-            DataFrame chứa dữ liệu tỷ lệ tài trợ
-        """
-        # Xác định thời gian mặc định nếu không được cung cấp
-        if end_time is None:
-            end_time = datetime.now()
-        
-        if start_time is None:
-            # Mặc định lấy dữ liệu 30 ngày
-            start_time = datetime.now().replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) - timedelta(days=30)
-        
-        self.logger.info(f"Thu thập tỷ lệ tài trợ cho {symbol} từ {start_time} đến {end_time}")
-        
-        # Xác định đường dẫn file
-        filename = f"{symbol.replace('/', '_')}_funding".lower()
-        file_path = None
-        
-        if save_format == 'parquet':
-            file_path = self.funding_dir / f"{filename}.parquet"
-        elif save_format == 'csv':
-            file_path = self.funding_dir / f"{filename}.csv"
-        elif save_format == 'json':
-            file_path = self.funding_dir / f"{filename}.json"
-        else:
-            self.logger.warning(f"Định dạng lưu trữ {save_format} không được hỗ trợ, sử dụng parquet")
-            file_path = self.funding_dir / f"{filename}.parquet"
-        
-        # Tỷ lệ tài trợ chỉ khả dụng cho hợp đồng tương lai
-        if not hasattr(self.exchange_connector, 'fetch_funding_rate'):
-            self.logger.error(f"Sàn giao dịch {self.exchange_id} không hỗ trợ thu thập tỷ lệ tài trợ")
-            return pd.DataFrame()
-        
-        # Kiểm tra và tải dữ liệu hiện có
-        existing_data = None
-        
-        if update_existing and file_path.exists():
-            try:
-                if save_format == 'parquet':
-                    existing_data = pd.read_parquet(file_path)
-                elif save_format == 'csv':
-                    existing_data = pd.read_csv(file_path, parse_dates=['timestamp'])
-                elif save_format == 'json':
-                    existing_data = pd.read_json(file_path, orient='records')
-                
-                self.logger.info(f"Đã tải {len(existing_data)} bản ghi tỷ lệ tài trợ hiện có")
-            except Exception as e:
-                self.logger.warning(f"Không thể đọc dữ liệu hiện có từ {file_path}: {e}")
-                existing_data = None
-        
-        # Thu thập dữ liệu
-        try:
-            # Gọi API để lấy tỷ lệ tài trợ hiện tại
-            async with self.semaphore:
-                funding_rate = await self.exchange_connector.fetch_funding_rate(symbol)
-                await asyncio.sleep(self.rate_limit_sleep)
-            
-            if not funding_rate:
-                self.logger.warning(f"Không có dữ liệu tỷ lệ tài trợ cho {symbol}")
-                return pd.DataFrame() if existing_data is None else existing_data
-            
-            # Tạo DataFrame
-            new_data = pd.DataFrame([{
-                'symbol': symbol,
-                'timestamp': pd.to_datetime(funding_rate.get('timestamp', datetime.now().timestamp() * 1000), unit='ms'),
-                'fundingRate': funding_rate.get('fundingRate', None),
-                'fundingTime': pd.to_datetime(funding_rate.get('fundingTime', None), unit='ms') if funding_rate.get('fundingTime') else None,
-                'datetime': funding_rate.get('datetime', None)
-            }])
-            
-            # Thêm dữ liệu mới vào dữ liệu hiện có
-            if existing_data is not None and not existing_data.empty:
-                # Kết hợp dữ liệu
-                combined_df = pd.concat([existing_data, new_data])
-                # Loại bỏ trùng lặp
-                combined_df = combined_df.drop_duplicates(subset=['timestamp'])
-                combined_df = combined_df.sort_values('timestamp')
-                new_data = combined_df
-            
-            # Lưu dữ liệu
-            try:
-                if save_format == 'parquet':
-                    new_data.to_parquet(file_path, index=False)
-                elif save_format == 'csv':
-                    new_data.to_csv(file_path, index=False)
-                elif save_format == 'json':
-                    new_data.to_json(file_path, orient='records', date_format='iso')
-                
-                self.logger.info(f"Đã lưu {len(new_data)} bản ghi tỷ lệ tài trợ cho {symbol}")
-                
-            except Exception as e:
-                self.logger.error(f"Lỗi khi lưu dữ liệu tỷ lệ tài trợ: {e}")
-            
-            return new_data
             
         except Exception as e:
-            self.logger.error(f"Lỗi khi thu thập tỷ lệ tài trợ cho {symbol}: {e}")
-            if existing_data is not None:
-                return existing_data
-            return pd.DataFrame()
+            self.logger.error(f"Lỗi khi thu thập dữ liệu OHLCV cho {symbol}: {str(e)}")
+            raise
     
-    async def collect_all_symbols_ohlcv(
+    async def collect_all_ohlcv(
         self,
         symbols: List[str],
-        timeframe: str = '1h',
+        timeframe: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        concurrency: int = 3,
-        save_format: str = 'parquet'
+        limit: Optional[int] = None,
+        update_existing: bool = False,
+        save_dir: Optional[Path] = None,
+        save_format: str = 'parquet',
+        concurrency: Optional[int] = None
     ) -> Dict[str, pd.DataFrame]:
         """
-        Thu thập dữ liệu OHLCV cho nhiều cặp giao dịch.
+        Thu thập dữ liệu OHLCV cho nhiều cặp giao dịch song song.
         
         Args:
             symbols: Danh sách cặp giao dịch
             timeframe: Khung thời gian
-            start_time: Thời gian bắt đầu
-            end_time: Thời gian kết thúc
-            concurrency: Số lượng cặp giao dịch thu thập đồng thời
-            save_format: Định dạng lưu trữ
+            start_time: Thời gian bắt đầu (tùy chọn)
+            end_time: Thời gian kết thúc (tùy chọn)
+            limit: Số lượng candle tối đa (tùy chọn)
+            update_existing: True để cập nhật dữ liệu hiện có, False để ghi đè
+            save_dir: Thư mục lưu dữ liệu (tùy chọn)
+            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
+            concurrency: Số tác vụ thực hiện đồng thời (nếu None, sử dụng max_workers)
             
         Returns:
-            Dict với key là symbol và value là DataFrame
+            Dict với key là symbol và value là DataFrame chứa dữ liệu OHLCV
         """
-        self.logger.info(f"Thu thập OHLCV cho {len(symbols)} cặp giao dịch với {timeframe}")
+        self.logger.info(f"Thu thập dữ liệu OHLCV cho {len(symbols)} cặp giao dịch ({timeframe})")
         
-        # Giới hạn số lượng concurrency để tránh rate limit
-        max_concurrent = min(concurrency, self.max_workers)
-        semaphore = asyncio.Semaphore(max_concurrent)
+        # Kiểm tra thư mục lưu dữ liệu
+        if save_dir is None:
+            save_dir = self.data_dir / timeframe
         
-        async def fetch_symbol_data(symbol):
-            async with semaphore:
-                self.logger.debug(f"Bắt đầu thu thập dữ liệu cho {symbol}")
-                try:
-                    df = await self.collect_ohlcv(
-                        symbol, timeframe, start_time, end_time, save_format=save_format
-                    )
-                    return symbol, df
-                except Exception as e:
-                    self.logger.error(f"Lỗi khi thu thập dữ liệu cho {symbol}: {e}")
-                    return symbol, pd.DataFrame()
+        save_dir.mkdir(parents=True, exist_ok=True)
         
-        # Tạo danh sách các task
-        tasks = [fetch_symbol_data(symbol) for symbol in symbols]
-        
-        # Thực hiện các task
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Xử lý kết quả
-        data_dict = {}
-        for res in results:
-            if isinstance(res, Exception):
-                self.logger.error(f"Lỗi khi thu thập dữ liệu: {res}")
+        # Tạo danh sách các tác vụ
+        tasks = []
+        for symbol in symbols:
+            if save_dir:
+                symbol_filename = f"{symbol.replace('/', '_')}_{timeframe}.{save_format}"
+                save_path = save_dir / symbol_filename
             else:
-                symbol, df = res
-                data_dict[symbol] = df
+                save_path = None
+            
+            task = self.collect_ohlcv(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                update_existing=update_existing,
+                save_path=save_path,
+                save_format=save_format
+            )
+            tasks.append(task)
         
-        self.logger.info(f"Đã thu thập dữ liệu cho {len(data_dict)} cặp giao dịch")
-        return data_dict
+        # Thực hiện các tác vụ với giới hạn số lượng tác vụ đồng thời
+        results = {}
+        chunk_size = concurrency or self.max_workers  # Sử dụng concurrency nếu được cung cấp, nếu không sử dụng max_workers
+        
+        self.logger.info(f"Thực hiện thu thập với {chunk_size} tác vụ đồng thời")
+        
+        for i in range(0, len(tasks), chunk_size):
+            chunk_tasks = tasks[i:i+chunk_size]
+            chunk_results = await asyncio.gather(*chunk_tasks, return_exceptions=True)
+            
+            for j, result in enumerate(chunk_results):
+                symbol = symbols[i+j]
+                if isinstance(result, Exception):
+                    self.logger.error(f"Lỗi khi thu thập dữ liệu cho {symbol}: {str(result)}")
+                    results[symbol] = pd.DataFrame()
+                else:
+                    results[symbol] = result
+            
+            # Nghỉ một chút để tránh vượt quá giới hạn API
+            await asyncio.sleep(1)
+        
+        return results
+    
+    async def collect_all_symbols_ohlcv(
+        self,
+        symbols: Optional[List[str]] = None,
+        timeframe: str = '1h',
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: Optional[int] = None,
+        update_existing: bool = False,
+        save_dir: Optional[Path] = None,
+        save_format: str = 'parquet',
+        top_symbols: Optional[int] = None,
+        concurrency: Optional[int] = None
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Thu thập dữ liệu OHLCV cho tất cả các cặp giao dịch hoặc danh sách cặp được chỉ định.
+        
+        Args:
+            symbols: Danh sách cặp giao dịch (tùy chọn, nếu None sẽ lấy tất cả các cặp có sẵn)
+            timeframe: Khung thời gian (mặc định: '1h')
+            start_time: Thời gian bắt đầu (tùy chọn)
+            end_time: Thời gian kết thúc (tùy chọn)
+            limit: Số lượng candle tối đa (tùy chọn)
+            update_existing: True để cập nhật dữ liệu hiện có, False để ghi đè
+            save_dir: Thư mục lưu dữ liệu (tùy chọn)
+            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
+            top_symbols: Chỉ lấy n cặp giao dịch hàng đầu (tùy chọn)
+            concurrency: Số tác vụ thực hiện đồng thời (nếu None, sử dụng max_workers)
+            
+        Returns:
+            Dict với key là symbol và value là DataFrame chứa dữ liệu OHLCV
+        """
+        # Nếu không cung cấp danh sách symbols, lấy tất cả các cặp giao dịch có sẵn
+        if symbols is None or len(symbols) == 0:
+            self.logger.info("Không cung cấp danh sách symbols, lấy danh sách từ sàn giao dịch")
+            symbols = await self.get_all_available_symbols()
+            
+            # Lọc symbols dựa trên các patterns phổ biến
+            if self.is_futures:
+                # Đối với futures, ưu tiên cặp USDT
+                usdt_pairs = [s for s in symbols if s.endswith('/USDT') or s.endswith('/USDT:USDT')]
+                if usdt_pairs:
+                    symbols = usdt_pairs
+            else:
+                # Đối với spot, ưu tiên cặp BTC, ETH, USDT
+                main_pairs = [
+                    s for s in symbols if 
+                    s.endswith('/BTC') or 
+                    s.endswith('/ETH') or 
+                    s.endswith('/USDT') or 
+                    s.endswith('/BUSD')
+                ]
+                if main_pairs:
+                    symbols = main_pairs
+        
+        # Lấy thông tin khối lượng giao dịch để xếp hạng các cặp
+        if top_symbols is not None and top_symbols > 0 and len(symbols) > top_symbols:
+            self.logger.info(f"Lọc {top_symbols} cặp giao dịch hàng đầu từ {len(symbols)} cặp")
+            try:
+                # Lấy thông tin tickers để sắp xếp theo khối lượng giao dịch
+                tickers = await self._get_tickers_volumes(symbols)
+                # Lọc ra top_symbols cặp giao dịch có khối lượng lớn nhất
+                volume_sorted_symbols = sorted(
+                    tickers.items(), 
+                    key=lambda x: x[1].get('quoteVolume', 0) if isinstance(x[1], dict) else 0, 
+                    reverse=True
+                )
+                symbols = [s[0] for s in volume_sorted_symbols[:top_symbols]]
+                self.logger.info(f"Đã lọc ra {len(symbols)} cặp giao dịch hàng đầu dựa trên khối lượng")
+            except Exception as e:
+                self.logger.warning(f"Không thể lọc cặp theo khối lượng: {str(e)}")
+                # Nếu không thể sắp xếp theo khối lượng, chỉ lấy top_symbols cặp đầu tiên
+                symbols = symbols[:top_symbols]
+                self.logger.info(f"Đã lọc ra {len(symbols)} cặp giao dịch đầu tiên")
+        
+        # Thu thập dữ liệu OHLCV cho các cặp đã lọc
+        self.logger.info(f"Thu thập dữ liệu OHLCV cho {len(symbols)} cặp giao dịch")
+        return await self.collect_all_ohlcv(
+            symbols=symbols,
+            timeframe=timeframe,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            update_existing=update_existing,
+            save_dir=save_dir,
+            save_format=save_format,
+            concurrency=concurrency
+        )
+    
+    async def _get_tickers_volumes(self, symbols: List[str]) -> Dict[str, Dict]:
+        """
+        Lấy thông tin khối lượng giao dịch cho các cặp giao dịch.
+        
+        Args:
+            symbols: Danh sách cặp giao dịch
+            
+        Returns:
+            Dict với key là symbol và value là thông tin ticker
+        """
+        try:
+            if hasattr(self.exchange_connector, 'fetch_tickers'):
+                # Nếu có phương thức fetch_tickers, sử dụng nó để lấy thông tin tất cả tickers
+                tickers = await self.exchange_connector.fetch_tickers(symbols)
+                return tickers
+            else:
+                # Nếu không có, lấy từng ticker một
+                tickers = {}
+                for symbol in symbols:
+                    try:
+                        ticker = await self.exchange_connector.fetch_ticker(symbol)
+                        tickers[symbol] = ticker
+                    except Exception as e:
+                        self.logger.debug(f"Không thể lấy ticker cho {symbol}: {str(e)}")
+                return tickers
+        except Exception as e:
+            self.logger.warning(f"Lỗi khi lấy thông tin tickers: {str(e)}")
+            return {}
+    
+    async def collect_funding_rate(
+        self,
+        symbol: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: Optional[int] = None,
+        save_path: Optional[Path] = None,
+        save_format: str = 'parquet'
+    ) -> pd.DataFrame:
+        """
+        Thu thập dữ liệu tỷ lệ tài trợ cho một cặp giao dịch.
+        
+        Args:
+            symbol: Cặp giao dịch (ví dụ: 'BTC/USDT')
+            start_time: Thời gian bắt đầu (tùy chọn)
+            end_time: Thời gian kết thúc (tùy chọn)
+            limit: Số lượng kết quả tối đa (tùy chọn)
+            save_path: Đường dẫn file để lưu dữ liệu (tùy chọn)
+            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
+            
+        Returns:
+            DataFrame chứa dữ liệu tỷ lệ tài trợ
+        """
+        self.logger.info(f"Thu thập dữ liệu tỷ lệ tài trợ cho {symbol}")
+        
+        # Kiểm tra xem có đang sử dụng thị trường futures không
+        if not self.is_futures:
+            self.logger.error(f"Không thể thu thập tỷ lệ tài trợ cho thị trường spot")
+            return pd.DataFrame()
+        
+        # Nếu không cung cấp end_time, sử dụng thời gian hiện tại
+        if end_time is None:
+            end_time = datetime.now()
+        
+        # Nếu không cung cấp start_time, lấy dữ liệu 30 ngày trước end_time
+        if start_time is None:
+            start_time = end_time - timedelta(days=30)
+        
+        # Chuyển đổi datetime sang timestamp (milliseconds)
+        start_timestamp = int(start_time.timestamp() * 1000)
+        end_timestamp = int(end_time.timestamp() * 1000)
+        
+        try:
+            # Kiểm tra xem connector có hỗ trợ fetch_funding_history không
+            if not hasattr(self.exchange_connector, 'fetch_funding_history'):
+                self.logger.error(f"Sàn {self.exchange_id} không hỗ trợ thu thập lịch sử tỷ lệ tài trợ")
+                return pd.DataFrame()
+            
+            # Lấy dữ liệu tỷ lệ tài trợ
+            funding_data = await self._fetch_funding_history(
+                symbol, start_timestamp, end_timestamp, limit
+            )
+            
+            # Chuyển đổi dữ liệu thành DataFrame
+            df = self._convert_funding_to_dataframe(funding_data, symbol)
+            
+            if df.empty:
+                self.logger.warning(f"Không có dữ liệu tỷ lệ tài trợ cho {symbol}")
+                return df
+            
+            # Lọc dữ liệu theo thời gian
+            df = df[(df.index >= start_time) & (df.index <= end_time)]
+            
+            # Lưu dữ liệu nếu cần
+            if save_path is not None:
+                self._save_dataframe(df, save_path, save_format)
+            
+            self.logger.info(f"Đã thu thập {len(df)} tỷ lệ tài trợ cho {symbol}")
+            return df
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi thu thập dữ liệu tỷ lệ tài trợ cho {symbol}: {str(e)}")
+            raise
     
     async def collect_all_funding_rates(
         self,
         symbols: List[str],
-        save_format: str = 'parquet'
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: Optional[int] = None,
+        save_dir: Optional[Path] = None,
+        save_format: str = 'parquet',
+        concurrency: Optional[int] = None
     ) -> Dict[str, pd.DataFrame]:
         """
-        Thu thập tỷ lệ tài trợ cho nhiều cặp giao dịch.
+        Thu thập dữ liệu tỷ lệ tài trợ cho nhiều cặp giao dịch song song.
         
         Args:
             symbols: Danh sách cặp giao dịch
-            save_format: Định dạng lưu trữ
+            start_time: Thời gian bắt đầu (tùy chọn)
+            end_time: Thời gian kết thúc (tùy chọn)
+            limit: Số lượng kết quả tối đa (tùy chọn)
+            save_dir: Thư mục lưu dữ liệu (tùy chọn)
+            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
+            concurrency: Số tác vụ thực hiện đồng thời (nếu None, sử dụng max_workers)
             
         Returns:
-            Dict với key là symbol và value là DataFrame
+            Dict với key là symbol và value là DataFrame chứa dữ liệu tỷ lệ tài trợ
         """
-        self.logger.info(f"Thu thập tỷ lệ tài trợ cho {len(symbols)} cặp giao dịch")
+        self.logger.info(f"Thu thập dữ liệu tỷ lệ tài trợ cho {len(symbols)} cặp giao dịch")
         
-        # Xác định số lượng concurrency tối đa
-        max_concurrent = min(5, self.max_workers)  # Giới hạn thấp hơn cho funding rate
-        semaphore = asyncio.Semaphore(max_concurrent)
+        # Kiểm tra xem có đang sử dụng thị trường futures không
+        if not self.is_futures:
+            self.logger.error(f"Không thể thu thập tỷ lệ tài trợ cho thị trường spot")
+            return {symbol: pd.DataFrame() for symbol in symbols}
         
-        async def fetch_funding_data(symbol):
-            async with semaphore:
-                self.logger.debug(f"Bắt đầu thu thập tỷ lệ tài trợ cho {symbol}")
-                try:
-                    df = await self.collect_funding_rates(
-                        symbol, save_format=save_format
-                    )
-                    return symbol, df
-                except Exception as e:
-                    self.logger.error(f"Lỗi khi thu thập tỷ lệ tài trợ cho {symbol}: {e}")
-                    return symbol, pd.DataFrame()
+        # Kiểm tra thư mục lưu dữ liệu
+        if save_dir is None:
+            save_dir = self.data_dir / "funding"
         
-        # Tạo danh sách các task
-        tasks = [fetch_funding_data(symbol) for symbol in symbols]
+        save_dir.mkdir(parents=True, exist_ok=True)
         
-        # Thực hiện các task
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Xử lý kết quả
-        data_dict = {}
-        for res in results:
-            if isinstance(res, Exception):
-                self.logger.error(f"Lỗi khi thu thập tỷ lệ tài trợ: {res}")
+        # Tạo danh sách các tác vụ
+        tasks = []
+        for symbol in symbols:
+            if save_dir:
+                symbol_filename = f"{symbol.replace('/', '_')}_funding.{save_format}"
+                save_path = save_dir / symbol_filename
             else:
-                symbol, df = res
-                data_dict[symbol] = df
+                save_path = None
+            
+            task = self.collect_funding_rate(
+                symbol=symbol,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                save_path=save_path,
+                save_format=save_format
+            )
+            tasks.append(task)
         
-        self.logger.info(f"Đã thu thập tỷ lệ tài trợ cho {len(data_dict)} cặp giao dịch")
-        return data_dict
+        # Thực hiện các tác vụ với giới hạn số lượng tác vụ đồng thời
+        results = {}
+        chunk_size = concurrency or self.max_workers  # Sử dụng concurrency nếu được cung cấp, nếu không sử dụng max_workers
+        
+        self.logger.info(f"Thực hiện thu thập funding rates với {chunk_size} tác vụ đồng thời")
+        
+        for i in range(0, len(tasks), chunk_size):
+            chunk_tasks = tasks[i:i+chunk_size]
+            chunk_results = await asyncio.gather(*chunk_tasks, return_exceptions=True)
+            
+            for j, result in enumerate(chunk_results):
+                symbol = symbols[i+j]
+                if isinstance(result, Exception):
+                    self.logger.error(f"Lỗi khi thu thập dữ liệu tỷ lệ tài trợ cho {symbol}: {str(result)}")
+                    results[symbol] = pd.DataFrame()
+                else:
+                    results[symbol] = result
+            
+            # Nghỉ một chút để tránh vượt quá giới hạn API
+            await asyncio.sleep(1)
+        
+        return results
     
-    @staticmethod
-    def get_available_timeframes() -> Dict[str, int]:
+    async def _fetch_ohlcv(
+        self,
+        symbol: str,
+        timeframe: str,
+        since: Optional[int] = None,
+        until: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[List]:
         """
-        Lấy danh sách khung thời gian có sẵn.
+        Lấy dữ liệu OHLCV từ sàn giao dịch.
         
+        Args:
+            symbol: Cặp giao dịch
+            timeframe: Khung thời gian
+            since: Thời gian bắt đầu tính từ millisecond epoch
+            until: Thời gian kết thúc tính từ millisecond epoch
+            limit: Số lượng candle tối đa
+            
         Returns:
-            Dict với key là tên timeframe và value là số giây
+            Dữ liệu OHLCV dưới dạng list of lists
         """
-        return TIMEFRAME_TO_SECONDS
+        all_candles = []
+        current_since = since
+        
+        while True:
+            params = {}
+            if until:
+                # Một số sàn hỗ trợ tham số endTime/until
+                if self.exchange_id.lower() == "binance":
+                    params['endTime'] = until
+                elif self.exchange_id.lower() == "bybit":
+                    params['end_time'] = until
+            
+            # Lấy dữ liệu OHLCV
+            candles = await self.exchange_connector.fetch_ohlcv(
+                symbol=symbol,
+                timeframe=timeframe,
+                since=current_since,
+                limit=limit,
+                params=params
+            )
+            
+            if not candles:
+                break
+                
+            all_candles.extend(candles)
+            
+            # Cập nhật timestamp cho lần gọi tiếp theo
+            last_timestamp = candles[-1][0]
+            if last_timestamp <= current_since:
+                break
+                
+            current_since = last_timestamp + 1
+            
+            # Kiểm tra nếu đã đến hoặc vượt quá thời gian kết thúc
+            if until and current_since >= until:
+                break
+            
+            # Kiểm tra nếu đã đủ số lượng candle yêu cầu
+            if limit and len(all_candles) >= limit:
+                all_candles = all_candles[:limit]
+                break
+            
+            # Tránh rate limit
+            await asyncio.sleep(0.5)
+        
+        return all_candles
     
-    def get_local_data_info(self) -> Dict[str, Any]:
+    async def _fetch_historical_klines(
+        self,
+        symbol: str,
+        timeframe: str,
+        since: Optional[int] = None,
+        until: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[List]:
         """
-        Lấy thông tin về dữ liệu đã được lưu trữ cục bộ.
+        Lấy dữ liệu lịch sử klines từ sàn giao dịch.
+        Sử dụng phương thức đặc biệt nếu có (như fetch_historical_klines của Binance).
         
+        Args:
+            symbol: Cặp giao dịch
+            timeframe: Khung thời gian
+            since: Thời gian bắt đầu tính từ millisecond epoch
+            until: Thời gian kết thúc tính từ millisecond epoch
+            limit: Số lượng candle tối đa
+            
         Returns:
-            Dict chứa thông tin về dữ liệu
+            Dữ liệu klines dưới dạng list of lists
         """
-        info = {
-            "exchange": self.exchange_id,
-            "ohlcv": {},
-            "orderbook": {},
-            "trades": {},
-            "funding": {}
+        # Sử dụng phương thức fetch_historical_klines nếu có
+        if hasattr(self.exchange_connector, 'fetch_historical_klines'):
+            # Kiểm tra xem phương thức có phải là coroutine function không
+            method = self.exchange_connector.fetch_historical_klines
+            
+            # Phương thức có thể là một coroutine function hoặc một hàm thông thường
+            if inspect.iscoroutinefunction(method):
+                # Nếu là coroutine function, await nó
+                return await method(
+                    symbol=symbol,
+                    interval=timeframe,
+                    start_time=since,
+                    end_time=until,
+                    limit=limit
+                )
+            else:
+                # Nếu không phải coroutine function, gọi trực tiếp như một hàm thông thường
+                return method(
+                    symbol=symbol,
+                    interval=timeframe,
+                    start_time=since,
+                    end_time=until,
+                    limit=limit
+                )
+        # Nếu không có fetch_historical_klines, sử dụng phương thức thông thường
+        else:
+            return await self._fetch_ohlcv(
+                symbol=symbol,
+                timeframe=timeframe,
+                since=since,
+                until=until,
+                limit=limit
+            )
+    
+    async def _fetch_funding_history(
+        self,
+        symbol: str,
+        since: Optional[int] = None,
+        until: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict]:
+        """
+        Lấy lịch sử tỷ lệ tài trợ từ sàn giao dịch.
+        
+        Args:
+            symbol: Cặp giao dịch
+            since: Thời gian bắt đầu tính từ millisecond epoch
+            until: Thời gian kết thúc tính từ millisecond epoch
+            limit: Số lượng kết quả tối đa
+            
+        Returns:
+            Lịch sử tỷ lệ tài trợ dưới dạng list of dicts
+        """
+        all_funding = []
+        current_since = since
+        
+        # Kiểm tra xem connector có hỗ trợ fetch_funding_history không
+        if not hasattr(self.exchange_connector, 'fetch_funding_history'):
+            self.logger.error(f"Sàn {self.exchange_id} không hỗ trợ thu thập lịch sử tỷ lệ tài trợ")
+            return []
+        
+        # Kiểm tra xem phương thức có phải là coroutine function không
+        method = self.exchange_connector.fetch_funding_history
+        is_coro = inspect.iscoroutinefunction(method)
+        
+        while True:
+            params = {}
+            if until:
+                # Một số sàn hỗ trợ tham số endTime/until
+                if self.exchange_id.lower() == "binance":
+                    params['endTime'] = until
+                elif self.exchange_id.lower() == "bybit":
+                    params['end_time'] = until
+            
+            # Lấy dữ liệu tỷ lệ tài trợ
+            if is_coro:
+                funding_rates = await method(
+                    symbol=symbol,
+                    since=current_since,
+                    limit=limit,
+                    params=params
+                )
+            else:
+                funding_rates = method(
+                    symbol=symbol,
+                    since=current_since,
+                    limit=limit,
+                    params=params
+                )
+            
+            if not funding_rates:
+                break
+                
+            all_funding.extend(funding_rates)
+            
+            # Cập nhật timestamp cho lần gọi tiếp theo
+            if 'timestamp' in funding_rates[-1]:
+                last_timestamp = funding_rates[-1]['timestamp']
+            elif 'time' in funding_rates[-1]:
+                last_timestamp = funding_rates[-1]['time']
+            else:
+                self.logger.warning(f"Không thể xác định timestamp trong kết quả tỷ lệ tài trợ")
+                break
+                
+            if last_timestamp <= current_since:
+                break
+                
+            current_since = last_timestamp + 1
+            
+            # Kiểm tra nếu đã đến hoặc vượt quá thời gian kết thúc
+            if until and current_since >= until:
+                break
+            
+            # Kiểm tra nếu đã đủ số lượng kết quả yêu cầu
+            if limit and len(all_funding) >= limit:
+                all_funding = all_funding[:limit]
+                break
+            
+            # Tránh rate limit
+            await asyncio.sleep(0.5)
+        
+        return all_funding
+    
+    def _convert_ohlcv_to_dataframe(self, ohlcv_data: List[List], symbol: str) -> pd.DataFrame:
+        """
+        Chuyển đổi dữ liệu OHLCV từ list of lists sang DataFrame.
+        
+        Args:
+            ohlcv_data: Dữ liệu OHLCV dưới dạng list of lists
+            symbol: Cặp giao dịch
+            
+        Returns:
+            DataFrame chứa dữ liệu OHLCV
+        """
+        if not ohlcv_data:
+            return pd.DataFrame()
+        
+        # Tạo DataFrame từ dữ liệu OHLCV
+        df = pd.DataFrame(
+            ohlcv_data,
+            columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        )
+        
+        # Chuyển đổi timestamp sang datetime index
+        df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('datetime', inplace=True)
+        
+        # Thêm thông tin symbol
+        df['symbol'] = symbol
+        
+        # Đảm bảo các cột số có kiểu dữ liệu float
+        numeric_cols = ['open', 'high', 'low', 'close', 'volume']
+        for col in numeric_cols:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Sắp xếp theo thời gian
+        df.sort_index(inplace=True)
+        
+        return df
+    
+    def _convert_funding_to_dataframe(self, funding_data: List[Dict], symbol: str) -> pd.DataFrame:
+        """
+        Chuyển đổi dữ liệu tỷ lệ tài trợ từ list of dicts sang DataFrame.
+        
+        Args:
+            funding_data: Dữ liệu tỷ lệ tài trợ dưới dạng list of dicts
+            symbol: Cặp giao dịch
+            
+        Returns:
+            DataFrame chứa dữ liệu tỷ lệ tài trợ
+        """
+        if not funding_data:
+            return pd.DataFrame()
+        
+        # Tạo DataFrame từ dữ liệu tỷ lệ tài trợ
+        df = pd.DataFrame(funding_data)
+        
+        # Chuẩn hóa tên cột
+        column_mapping = {
+            'timestamp': 'timestamp',
+            'time': 'timestamp',
+            'fundingRate': 'funding_rate',
+            'funding_rate': 'funding_rate',
+            'rate': 'funding_rate',
+            'fundingTimestamp': 'funding_timestamp',
+            'funding_timestamp': 'funding_timestamp',
         }
         
-        # Thu thập thông tin về OHLCV
-        ohlcv_files = list(self.ohlcv_dir.glob("*.parquet")) + list(self.ohlcv_dir.glob("*.csv")) + list(self.ohlcv_dir.glob("*.json"))
-        for file in ohlcv_files:
-            try:
-                if file.suffix == '.parquet':
-                    df = pd.read_parquet(file)
-                elif file.suffix == '.csv':
-                    df = pd.read_csv(file)
-                elif file.suffix == '.json':
-                    df = pd.read_json(file)
-                
-                symbol = file.stem.split('_')[0]
-                timeframe = file.stem.split('_')[1] if len(file.stem.split('_')) > 1 else 'unknown'
-                
-                if 'timestamp' in df.columns:
-                    min_date = pd.to_datetime(df['timestamp'].min()).strftime('%Y-%m-%d')
-                    max_date = pd.to_datetime(df['timestamp'].max()).strftime('%Y-%m-%d')
-                    info["ohlcv"][file.stem] = {
-                        "symbol": symbol,
-                        "timeframe": timeframe,
-                        "rows": len(df),
-                        "start_date": min_date,
-                        "end_date": max_date,
-                        "file": str(file)
-                    }
-            except Exception as e:
-                self.logger.warning(f"Không thể đọc file {file}: {e}")
+        df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
         
-        # Thu thập thông tin về orderbook
-        orderbook_files = list(self.orderbook_dir.glob("*.parquet")) + list(self.orderbook_dir.glob("*.csv")) + list(self.orderbook_dir.glob("*.json"))
-        for file in orderbook_files:
-            try:
-                info["orderbook"][file.stem] = {
-                    "file": str(file),
-                    "size": file.stat().st_size
-                }
-            except Exception as e:
-                self.logger.warning(f"Không thể đọc file {file}: {e}")
+        # Đảm bảo có các cột cần thiết
+        if 'timestamp' not in df.columns:
+            self.logger.error(f"Không tìm thấy cột 'timestamp' trong dữ liệu tỷ lệ tài trợ")
+            return pd.DataFrame()
         
-        # Thu thập thông tin về trades
-        trades_files = list(self.trades_dir.glob("*.parquet")) + list(self.trades_dir.glob("*.csv")) + list(self.trades_dir.glob("*.json"))
-        for file in trades_files:
-            try:
-                if file.suffix == '.parquet':
-                    df = pd.read_parquet(file)
-                elif file.suffix == '.csv':
-                    df = pd.read_csv(file)
-                elif file.suffix == '.json':
-                    df = pd.read_json(file)
-                
-                symbol = file.stem.split('_')[0]
-                
-                if 'timestamp' in df.columns:
-                    min_date = pd.to_datetime(df['timestamp'].min()).strftime('%Y-%m-%d')
-                    max_date = pd.to_datetime(df['timestamp'].max()).strftime('%Y-%m-%d')
-                    info["trades"][file.stem] = {
-                        "symbol": symbol,
-                        "rows": len(df),
-                        "start_date": min_date,
-                        "end_date": max_date,
-                        "file": str(file)
-                    }
-            except Exception as e:
-                self.logger.warning(f"Không thể đọc file {file}: {e}")
+        if 'funding_rate' not in df.columns:
+            # Thử tìm cột có tên chứa 'rate'
+            rate_columns = [col for col in df.columns if 'rate' in col.lower()]
+            if rate_columns:
+                df['funding_rate'] = df[rate_columns[0]]
+            else:
+                self.logger.error(f"Không tìm thấy cột 'funding_rate' trong dữ liệu tỷ lệ tài trợ")
+                return pd.DataFrame()
         
-        # Thu thập thông tin về funding
-        funding_files = list(self.funding_dir.glob("*.parquet")) + list(self.funding_dir.glob("*.csv")) + list(self.funding_dir.glob("*.json"))
-        for file in funding_files:
-            try:
-                if file.suffix == '.parquet':
-                    df = pd.read_parquet(file)
-                elif file.suffix == '.csv':
-                    df = pd.read_csv(file)
-                elif file.suffix == '.json':
-                    df = pd.read_json(file)
-                
-                symbol = file.stem.split('_')[0]
-                
-                if 'timestamp' in df.columns:
-                    min_date = pd.to_datetime(df['timestamp'].min()).strftime('%Y-%m-%d')
-                    max_date = pd.to_datetime(df['timestamp'].max()).strftime('%Y-%m-%d')
-                    info["funding"][file.stem] = {
-                        "symbol": symbol,
-                        "rows": len(df),
-                        "start_date": min_date,
-                        "end_date": max_date,
-                        "file": str(file)
-                    }
-            except Exception as e:
-                self.logger.warning(f"Không thể đọc file {file}: {e}")
+        # Chuyển đổi timestamp sang datetime index
+        df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('datetime', inplace=True)
         
-        return info
+        # Thêm thông tin symbol
+        df['symbol'] = symbol
+        
+        # Đảm bảo funding_rate có kiểu dữ liệu float
+        df['funding_rate'] = pd.to_numeric(df['funding_rate'], errors='coerce')
+        
+        # Sắp xếp theo thời gian
+        df.sort_index(inplace=True)
+        
+        return df
+    
+    def _update_existing_data(self, df: pd.DataFrame, file_path: Path, file_format: str) -> pd.DataFrame:
+        """
+        Cập nhật dữ liệu hiện có với dữ liệu mới.
+        
+        Args:
+            df: DataFrame chứa dữ liệu mới
+            file_path: Đường dẫn file dữ liệu hiện có
+            file_format: Định dạng file ('parquet', 'csv', 'json')
+            
+        Returns:
+            DataFrame đã được cập nhật
+        """
+        if not file_path.exists():
+            return df
+        
+        try:
+            # Đọc dữ liệu hiện có
+            existing_df = None
+            
+            if file_format == 'parquet':
+                existing_df = pd.read_parquet(file_path)
+            elif file_format == 'csv':
+                existing_df = pd.read_csv(file_path, index_col='datetime', parse_dates=True)
+            elif file_format == 'json':
+                existing_df = pd.read_json(file_path, orient='records')
+                existing_df['datetime'] = pd.to_datetime(existing_df['datetime'])
+                existing_df.set_index('datetime', inplace=True)
+            
+            if existing_df is None or existing_df.empty:
+                return df
+            
+            # Kết hợp dữ liệu cũ và mới
+            combined_df = pd.concat([existing_df, df])
+            
+            # Loại bỏ dữ liệu trùng lặp
+            combined_df = combined_df[~combined_df.index.duplicated(keep='last')]
+            
+            # Sắp xếp theo thời gian
+            combined_df.sort_index(inplace=True)
+            
+            return combined_df
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi cập nhật dữ liệu hiện có: {str(e)}")
+            return df
+    
+    def _save_dataframe(self, df: pd.DataFrame, file_path: Path, file_format: str) -> bool:
+        """
+        Lưu DataFrame vào file.
+        
+        Args:
+            df: DataFrame cần lưu
+            file_path: Đường dẫn file
+            file_format: Định dạng file ('parquet', 'csv', 'json')
+            
+        Returns:
+            True nếu thành công, False nếu thất bại
+        """
+        try:
+            # Đảm bảo thư mục cha tồn tại
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Lưu DataFrame theo định dạng yêu cầu
+            if file_format == 'parquet':
+                df.to_parquet(file_path, index=True)
+            elif file_format == 'csv':
+                df.to_csv(file_path, index=True)
+            elif file_format == 'json':
+                df.reset_index().to_json(file_path, orient='records', date_format='iso')
+            else:
+                self.logger.error(f"Định dạng file {file_format} không được hỗ trợ")
+                return False
+            
+            self.logger.info(f"Đã lưu dữ liệu vào {file_path}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi lưu dữ liệu: {str(e)}")
+            return False
+    
+    async def get_symbol_metadata(self, symbol: str) -> Dict:
+        """
+        Lấy metadata cho một cặp giao dịch.
+        
+        Args:
+            symbol: Cặp giao dịch
+            
+        Returns:
+            Dict chứa thông tin metadata
+        """
+        # Kiểm tra cache
+        if symbol in self._symbol_metadata:
+            return self._symbol_metadata[symbol]
+        
+        try:
+            # Lấy thông tin market
+            markets = await self.exchange_connector.fetch_markets(force_update=False)
+            
+            for market in markets:
+                if market.get('symbol') == symbol:
+                    # Lưu vào cache
+                    self._symbol_metadata[symbol] = market
+                    return market
+            
+            self.logger.warning(f"Không tìm thấy thông tin metadata cho {symbol}")
+            return {}
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi lấy metadata cho {symbol}: {str(e)}")
+            return {}
+    
+    async def get_all_available_symbols(self) -> List[str]:
+        """
+        Lấy danh sách tất cả các cặp giao dịch có sẵn.
+        
+        Returns:
+            Danh sách các cặp giao dịch
+        """
+        try:
+            # Lấy thông tin market
+            markets = await self.exchange_connector.fetch_markets(force_update=False)
+            
+            # Trích xuất danh sách symbol
+            symbols = [market.get('symbol') for market in markets if 'symbol' in market]
+            
+            return symbols
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi lấy danh sách symbol: {str(e)}")
+            return []
 
-# Factory function
 async def create_data_collector(
     exchange_id: str,
-    api_key: Optional[str] = None,
-    api_secret: Optional[str] = None,
-    testnet: bool = True,
+    api_key: str = '',
+    api_secret: str = '',
+    testnet: bool = False,
     is_futures: bool = False,
+    data_dir: Optional[Path] = None,
+    logger: Optional[logging.Logger] = None,
     max_workers: int = 4
 ) -> HistoricalDataCollector:
     """
-    Tạo một instance của HistoricalDataCollector cho sàn giao dịch cụ thể.
+    Tạo một phiên bản của HistoricalDataCollector.
     
     Args:
         exchange_id: ID của sàn giao dịch
-        api_key: Khóa API
-        api_secret: Mật khẩu API
-        testnet: Sử dụng môi trường testnet
-        is_futures: Sử dụng tài khoản futures
-        max_workers: Số luồng tối đa cho việc thu thập song song
+        api_key: API key (tùy chọn)
+        api_secret: API secret (tùy chọn)
+        testnet: True để sử dụng testnet
+        is_futures: True để sử dụng thị trường futures
+        data_dir: Thư mục lưu dữ liệu
+        logger: Logger tùy chỉnh
+        max_workers: Số luồng tối đa
         
     Returns:
-        Instance của HistoricalDataCollector
+        Phiên bản của HistoricalDataCollector
     """
-    # Tạo connector cho sàn giao dịch
-    exchange_connector = None
+    # Tạo logger nếu không được cung cấp
+    if logger is None:
+        logger = get_logger(f"historical_collector_{exchange_id}")
     
-    if exchange_id.lower() == 'binance':
-        exchange_connector = BinanceConnector(
-            api_key=api_key,
-            api_secret=api_secret,
-            testnet=testnet,
-            is_futures=is_futures
+    try:
+        # Tạo exchange connector tương ứng
+        exchange_connector = None
+        
+        if exchange_id.lower() == "binance":
+            # Tạo Binance connector
+            exchange_connector = BinanceConnector(
+                api_key=api_key,
+                api_secret=api_secret,
+                is_futures=is_futures,
+                testnet=testnet
+            )
+        elif exchange_id.lower() == "bybit":
+            # Tạo Bybit connector
+            market_type = "linear" if is_futures else "spot"
+            exchange_connector = BybitConnector(
+                api_key=api_key,
+                api_secret=api_secret,
+                market_type=market_type,
+                testnet=testnet
+            )
+        else:
+            # Tạo generic connector thông qua ccxt
+            from data_collectors.exchange_api.generic_connector import ExchangeConnector
+            
+            class GenericConnector(ExchangeConnector):
+                def _init_ccxt(self):
+                    import ccxt
+                    params = {
+                        'apiKey': self.api_key,
+                        'secret': self.api_secret,
+                        'timeout': self.timeout,
+                        'enableRateLimit': True
+                    }
+                    
+                    if self.testnet:
+                        # Thiết lập testnet nếu có
+                        params['test'] = True
+                    
+                    # Tạo đối tượng ccxt exchange
+                    return getattr(ccxt, exchange_id)(params)
+                
+                def _init_mapping(self):
+                    # Khởi tạo mapping mặc định
+                    self._timeframe_map = {}
+                    self._order_type_map = {}
+                    self._time_in_force_map = {}
+            
+            exchange_connector = GenericConnector(
+                exchange_id=exchange_id,
+                api_key=api_key,
+                api_secret=api_secret,
+                testnet=testnet
+            )
+        
+        # Khởi tạo kết nối
+        await exchange_connector.initialize()
+        
+        # Tạo HistoricalDataCollector
+        collector = HistoricalDataCollector(
+            exchange_connector=exchange_connector,
+            data_dir=data_dir,
+            logger=logger,
+            max_workers=max_workers
         )
-    elif exchange_id.lower() == 'bybit':
-        exchange_connector = BybitConnector(
-            api_key=api_key,
-            api_secret=api_secret,
-            testnet=testnet,
-            category='linear' if is_futures else 'spot'
-        )
-    else:
-        # Sử dụng ExchangeConnector cho các sàn khác
-        exchange_connector = ExchangeConnector(
-            exchange_id=exchange_id,
-            api_key=api_key,
-            api_secret=api_secret,
-            testnet=testnet
-        )
-    
-    # Khởi tạo connector
-    await exchange_connector.initialize()
-    
-    # Tạo collector
-    collector = HistoricalDataCollector(
-        exchange_connector=exchange_connector,
-        max_workers=max_workers
-    )
-    
-    return collector
-
-async def main():
-    """
-    Hàm chính để chạy collector.
-    """
-    # Đọc thông tin cấu hình từ biến môi trường
-    exchange_id = get_env('DEFAULT_EXCHANGE', 'binance')
-    api_key = get_env(f'{exchange_id.upper()}_API_KEY', '')
-    api_secret = get_env(f'{exchange_id.upper()}_API_SECRET', '')
-    
-    # Khởi tạo collector
-    collector = await create_data_collector(
-        exchange_id=exchange_id,
-        api_key=api_key,
-        api_secret=api_secret,
-        testnet=True
-    )
-    
-    # Lấy danh sách cặp giao dịch phổ biến
-    symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
-    
-    # Thu thập dữ liệu OHLCV
-    for symbol in symbols:
-        await collector.collect_ohlcv(
-            symbol=symbol,
-            timeframe='1h',
-            start_time=datetime.now() - timedelta(days=7),
-            end_time=datetime.now()
-        )
-    
-    # Thu thập orderbook snapshot
-    for symbol in symbols:
-        await collector.collect_orderbook_snapshots(
-            symbol=symbol,
-            interval=3600,  # 1 giờ
-            depth=20,
-            start_time=datetime.now() - timedelta(days=1),
-            end_time=datetime.now()
-        )
-    
-    # Đóng kết nối
-    await collector.exchange_connector.close()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        
+        return collector
+        
+    except Exception as e:
+        logger.error(f"Lỗi khi tạo data collector cho {exchange_id}: {str(e)}")
+        raise
