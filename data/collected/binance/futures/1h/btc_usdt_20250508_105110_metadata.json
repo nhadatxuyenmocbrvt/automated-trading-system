@@ -1,0 +1,55 @@
+{
+    "symbol": "BTC/USDT",
+    "rows": 6000,
+    "columns": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume"
+    ],
+    "dtypes": {
+        "timestamp": "datetime64[ns]",
+        "open": "float64",
+        "high": "float64",
+        "low": "float64",
+        "close": "float64",
+        "volume": "float64"
+    },
+    "saved_at": "2025-05-08T10:51:10.084806",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\futures\\1h\\btc_usdt_20250508_105110.parquet",
+    "data_stats": {
+        "open": {
+            "min": 49788.4,
+            "max": 108331.9,
+            "mean": 75374.70581666667,
+            "null_count": 0
+        },
+        "high": {
+            "min": 51530.0,
+            "max": 110000.0,
+            "mean": 75659.76906666666,
+            "null_count": 0
+        },
+        "low": {
+            "min": 48888.0,
+            "max": 107800.3,
+            "mean": 75084.61061666666,
+            "null_count": 0
+        },
+        "close": {
+            "min": 49790.0,
+            "max": 108332.0,
+            "mean": 75379.77415000001,
+            "null_count": 0
+        },
+        "volume": {
+            "min": 697.404,
+            "max": 148957.737,
+            "mean": 10143.628054,
+            "null_count": 0
+        }
+    }
+}

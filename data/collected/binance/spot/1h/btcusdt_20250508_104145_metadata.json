@@ -1,0 +1,55 @@
+{
+    "symbol": "BTCUSDT",
+    "rows": 6000,
+    "columns": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume"
+    ],
+    "dtypes": {
+        "timestamp": "datetime64[ns]",
+        "open": "float64",
+        "high": "float64",
+        "low": "float64",
+        "close": "float64",
+        "volume": "float64"
+    },
+    "saved_at": "2025-05-08T10:41:45.130489",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\spot\\1h\\btcusdt_20250508_104145.parquet",
+    "data_stats": {
+        "open": {
+            "min": 49804.01,
+            "max": 108320.0,
+            "mean": 75388.32861,
+            "null_count": 0
+        },
+        "high": {
+            "min": 51542.0,
+            "max": 109588.0,
+            "mean": 75666.18874666667,
+            "null_count": 0
+        },
+        "low": {
+            "min": 49000.0,
+            "max": 107780.51,
+            "mean": 75103.08287666667,
+            "null_count": 0
+        },
+        "close": {
+            "min": 49804.0,
+            "max": 108320.01,
+            "mean": 75393.45747,
+            "null_count": 0
+        },
+        "volume": {
+            "min": 92.16551,
+            "max": 20888.72287,
+            "mean": 1252.9726541651667,
+            "null_count": 0
+        }
+    }
+}

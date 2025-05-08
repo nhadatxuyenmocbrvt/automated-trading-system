@@ -325,18 +325,21 @@ pip install -r requirements.txt
 
 ```bash
 # Thu thập dữ liệu thị trường spot cho BTC/USDT và ETH/USDT
-python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --days 730
+python main.py collect --exchange binance --symbols BTCUSDT,ETHUSDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30
 
 # Thu thập dữ liệu thị trường futures
-python main.py collect --exchange binance --symbols XRP/USDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30 --futures
+python main.py collect --exchange binance --symbols BTC/USDT,ETH/USDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30 --futures
 python main.py collect historical --exchange binance --symbols XRP/USDT --timeframe 1h --start-date 2024-06-01 --end-date 2024-12-30 --futures
 
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
 
-# Làm sạch dữ liệu
-python main.py process clean --data-type ohlcv --symbols BTC/USDT ETH/USDT --timeframes 1h
+# Làm sạch dữ liệu Spot
+python main.py process clean --data-type ohlcv --symbols BTCUSDT --timeframes 1h
 
+# Làm sạch dữ liệu Future
+python main.py process clean --data-type ohlcv --symbols BTC/USDT --timeframes 1h
+python main.py process clean --data-type ohlcv --symbols BTC/USDT --timeframes 1h
 # Tạo đặc trưng kỹ thuật
 python main.py process features --data-type ohlcv --symbols BTC/USDT ETH/USDT --all-indicators
 

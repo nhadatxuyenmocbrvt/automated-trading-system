@@ -1,0 +1,13 @@
+2025-05-08 11:30:47,330 - trading_system.cli_parser - ERROR - [main.py:385] - Lỗi khi thực hiện lệnh process: __init__() got an unexpected keyword argument 'data_type'
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\main.py", line 381, in main
+    result = args.func(args, system)
+  File "E:\AI_AGENT\automated-trading-system\cli\commands\process_commands.py", line 684, in handle_process_command
+    return clean_data(
+  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\click\core.py", line 1161, in __call__
+    return self.main(*args, **kwargs)
+  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\click\core.py", line 1081, in main
+    with self.make_context(prog_name, args, **extra) as ctx:
+  File "C:\Users\MAY10\anaconda3\envs\autotrading_env\lib\site-packages\click\core.py", line 941, in make_context
+    ctx = self.context_class(
+TypeError: __init__() got an unexpected keyword argument 'data_type'
