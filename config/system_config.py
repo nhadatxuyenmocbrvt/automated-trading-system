@@ -19,9 +19,10 @@ MODEL_DIR = BASE_DIR / "saved_models"
 LOG_DIR = BASE_DIR / "logs"
 CONFIG_DIR = BASE_DIR / "config"
 TEMP_DIR = BASE_DIR / "temp"
+BACKTEST_DIR = BASE_DIR / "backtest"
 
 # Tự động tạo các thư mục nếu chưa tồn tại
-for directory in [DATA_DIR, MODEL_DIR, LOG_DIR, TEMP_DIR]:
+for directory in [DATA_DIR, MODEL_DIR, LOG_DIR, TEMP_DIR, BACKTEST_DIR]:
     directory.mkdir(exist_ok=True, parents=True)
 
 # Thông tin phiên bản

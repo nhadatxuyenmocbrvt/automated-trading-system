@@ -312,6 +312,14 @@ class BacktestMetric(Enum):
 
 # --- Hằng số khác ---
 
+# --- Hằng số tính toán hiệu suất ---
+# Đặt các hằng số này NGOÀI enum, như các biến độc lập
+TRADING_DAYS_PER_YEAR = 365  # Thị trường crypto hoạt động 24/7
+TRADING_HOURS_PER_DAY = 24   # Thị trường crypto hoạt động 24 giờ/ngày
+MINUTES_PER_TRADING_DAY = TRADING_HOURS_PER_DAY * 60
+RISK_FREE_RATE = 0.02  # Lãi suất phi rủi ro tham chiếu (2%)
+DEFAULT_WINDOW_SIZE = 20  # Cửa sổ mặc định cho các tính toán như rolling max drawdown
+
 # Tỷ lệ học tối đa và tối thiểu
 MIN_LEARNING_RATE = 1e-6
 MAX_LEARNING_RATE = 1e-2

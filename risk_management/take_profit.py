@@ -995,3 +995,260 @@ class TakeProfit:
             self.logger.error(f"Lỗi khi chọn chốt lời tối ưu: {str(e)}")
             # Trả về ứng viên đầu tiên nếu có lỗi
             return valid_candidates[0] if valid_candidates else self.calculate_fixed_take_profit(entry_price, position_side)
+        
+class TakeProfitManager:
+    """
+    Quản lý các take profit cho nhiều vị thế.
+    Lớp này đóng gói các phương thức để theo dõi, cập nhật và kích hoạt chốt lời cho nhiều vị thế.
+    """
+    
+    def __init__(self, logger=None):
+        """
+        Khởi tạo TakeProfitManager.
+        
+        Args:
+            logger: Logger tùy chỉnh
+        """
+        self.logger = logger or get_logger("take_profit_manager")
+        self.take_profit_calculator = TakeProfit()
+        self.active_take_profits = {}  # Dict với key là symbol_position_id
+    
+    def add_take_profit(self, position: Dict[str, Any], 
+                       take_profit_price: float, 
+                       take_profit_type: str = "fixed") -> bool:
+        """
+        Thêm take profit cho một vị thế.
+        
+        Args:
+            position: Dict thông tin vị thế
+            take_profit_price: Giá chốt lời
+            take_profit_type: Loại chốt lời ('fixed', 'trailing', 'risk_reward', etc.)
+            
+        Returns:
+            True nếu thêm thành công, False nếu không
+        """
+        try:
+            symbol = position.get('symbol', '')
+            position_id = position.get('position_id', str(id(position)))
+            key = f"{symbol}_{position_id}"
+            
+            # Kiểm tra vị thế hợp lệ
+            if 'side' not in position or 'entry_price' not in position:
+                self.logger.warning(f"Vị thế không chứa đủ thông tin: {position}")
+                return False
+            
+            # Tạo đối tượng take profit
+            self.active_take_profits[key] = {
+                'price': take_profit_price,
+                'type': take_profit_type,
+                'symbol': symbol,
+                'position_id': position_id,
+                'side': position.get('side', ''),
+                'entry_price': position.get('entry_price', 0),
+                'creation_time': datetime.now().isoformat(),
+                'last_update_time': datetime.now().isoformat(),
+                'triggered': False
+            }
+            
+            if take_profit_type == 'trailing':
+                # Thêm thông tin cho trailing take profit
+                self.active_take_profits[key]['initial_price'] = take_profit_price
+                self.active_take_profits[key]['highest_price'] = position.get('entry_price', 0)
+                self.active_take_profits[key]['lowest_price'] = position.get('entry_price', 0)
+                
+            elif take_profit_type == 'partial':
+                # Thêm thông tin cho partial take profit
+                self.active_take_profits[key]['levels'] = position.get('tp_levels', [])
+                self.active_take_profits[key]['triggered_levels'] = []
+            
+            self.logger.info(f"Đã thêm {take_profit_type} take profit cho {symbol} tại giá {take_profit_price}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi thêm take profit: {str(e)}")
+            return False
+    
+    def update_take_profit(self, symbol: str, position_id: str, new_price: Optional[float] = None) -> bool:
+        """
+        Cập nhật take profit hiện có.
+        
+        Args:
+            symbol: Symbol của vị thế
+            position_id: ID của vị thế
+            new_price: Giá chốt lời mới
+            
+        Returns:
+            True nếu cập nhật thành công, False nếu không
+        """
+        try:
+            key = f"{symbol}_{position_id}"
+            
+            if key not in self.active_take_profits:
+                self.logger.warning(f"Không tìm thấy take profit cho {key}")
+                return False
+            
+            if new_price is not None:
+                old_price = self.active_take_profits[key]['price']
+                self.active_take_profits[key]['price'] = new_price
+                self.active_take_profits[key]['last_update_time'] = datetime.now().isoformat()
+                
+                self.logger.info(f"Đã cập nhật take profit cho {symbol} từ {old_price} thành {new_price}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi cập nhật take profit: {str(e)}")
+            return False
+    
+    def remove_take_profit(self, symbol: str, position_id: str) -> bool:
+        """
+        Xóa take profit.
+        
+        Args:
+            symbol: Symbol của vị thế
+            position_id: ID của vị thế
+            
+        Returns:
+            True nếu xóa thành công, False nếu không
+        """
+        try:
+            key = f"{symbol}_{position_id}"
+            
+            if key not in self.active_take_profits:
+                self.logger.warning(f"Không tìm thấy take profit cho {key}")
+                return False
+            
+            del self.active_take_profits[key]
+            self.logger.info(f"Đã xóa take profit cho {symbol}_{position_id}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi xóa take profit: {str(e)}")
+            return False
+    
+    def check_take_profit(self, position: Dict[str, Any], current_price: float) -> bool:
+        """
+        Kiểm tra xem take profit có kích hoạt hay không.
+        
+        Args:
+            position: Dict thông tin vị thế
+            current_price: Giá hiện tại
+            
+        Returns:
+            True nếu take profit được kích hoạt, False nếu không
+        """
+        try:
+            symbol = position.get('symbol', '')
+            position_id = position.get('position_id', str(id(position)))
+            key = f"{symbol}_{position_id}"
+            
+            if key not in self.active_take_profits:
+                return False
+            
+            take_profit = self.active_take_profits[key]
+            
+            # Kiểm tra nếu đã kích hoạt trước đó
+            if take_profit.get('triggered', False):
+                return True
+            
+            side = position.get('side', '').lower()
+            take_profit_price = take_profit.get('price', 0)
+            take_profit_type = take_profit.get('type', 'fixed')
+            
+            # Xử lý đặc biệt cho partial take profit
+            if take_profit_type == 'partial':
+                levels = take_profit.get('levels', [])
+                triggered_levels = take_profit.get('triggered_levels', [])
+                
+                for level in levels:
+                    if level in triggered_levels:
+                        continue
+                    
+                    level_price = level.get('price', 0)
+                    
+                    if (side == 'long' and current_price >= level_price) or \
+                       (side == 'short' and current_price <= level_price):
+                        # Đánh dấu level này đã kích hoạt
+                        triggered_levels.append(level)
+                        take_profit['triggered_levels'] = triggered_levels
+                        
+                        if len(triggered_levels) == len(levels):
+                            # Tất cả các level đã được kích hoạt
+                            take_profit['triggered'] = True
+                            take_profit['trigger_price'] = current_price
+                            take_profit['trigger_time'] = datetime.now().isoformat()
+                            
+                            self.logger.info(f"Tất cả partial take profit đã kích hoạt cho {symbol}")
+                            return True
+                        
+                        self.logger.info(f"Partial take profit level {level.get('level', 0)} kích hoạt cho {symbol} tại {current_price}")
+                        return False  # Chưa kích hoạt hoàn toàn
+                
+                return False
+            
+            # Kiểm tra điều kiện kích hoạt cho các loại khác
+            triggered = False
+            
+            if side == 'long' and current_price >= take_profit_price:
+                triggered = True
+            elif side == 'short' and current_price <= take_profit_price:
+                triggered = True
+            
+            if triggered:
+                take_profit['triggered'] = True
+                take_profit['trigger_price'] = current_price
+                take_profit['trigger_time'] = datetime.now().isoformat()
+                
+                self.logger.info(f"Take profit kích hoạt cho {symbol} tại giá {current_price}")
+            
+            return triggered
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi kiểm tra take profit: {str(e)}")
+            return False
+    
+    def get_take_profit(self, symbol: str, position_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Lấy thông tin take profit cho một vị thế cụ thể.
+        
+        Args:
+            symbol: Symbol của vị thế
+            position_id: ID của vị thế
+            
+        Returns:
+            Dict thông tin take profit hoặc None nếu không tìm thấy
+        """
+        key = f"{symbol}_{position_id}"
+        return self.active_take_profits.get(key)
+    
+    def calculate_optimal_take_profit(self, position: Dict[str, Any], stop_loss_price: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Tính toán take profit tối ưu cho một vị thế.
+        
+        Args:
+            position: Dict thông tin vị thế
+            stop_loss_price: Giá dừng lỗ (tùy chọn)
+            
+        Returns:
+            Dict thông tin take profit tối ưu
+        """
+        # Sử dụng TakeProfit để tính toán
+        side = position.get('side', '').lower()
+        entry_price = position.get('entry_price', 0)
+        
+        if stop_loss_price:
+            # Nếu có stop loss, sử dụng risk reward take profit
+            return self.take_profit_calculator.calculate_risk_reward_take_profit(
+                entry_price=entry_price,
+                stop_loss_price=stop_loss_price,
+                position_side=side,
+                risk_reward_ratio=2.0
+            )
+        else:
+            # Mặc định sử dụng fixed take profit
+            return self.take_profit_calculator.calculate_fixed_take_profit(
+                entry_price=entry_price,
+                position_side=side,
+                percent=0.03
+            )

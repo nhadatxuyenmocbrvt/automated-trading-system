@@ -1918,5 +1918,156 @@ def main():
                 std = param_stats.get("std", 0)
                 print(f"{param_name}: {mean:.4f} ± {std:.4f}")
 
+def setup_backtest_parser(subparsers):
+    """
+    Thiết lập parser cho các lệnh backtest.
+    
+    Args:
+        subparsers: Đối tượng subparsers từ argparse
+    """
+    # Tạo parser cho nhóm lệnh backtest
+    backtest_parser = subparsers.add_parser('backtest', help='Các lệnh backtest chiến lược giao dịch')
+    backtest_subparsers = backtest_parser.add_subparsers(dest='backtest_command', help='Lệnh backtest cụ thể')
+    
+    # Parser cho lệnh run
+    run_parser = backtest_subparsers.add_parser('run', help='Chạy backtest chiến lược')
+    run_parser.add_argument("--strategy", "-s", type=str, required=True, help="Tên chiến lược giao dịch")
+    run_parser.add_argument("--data-file", "-f", type=str, required=True, help="Đường dẫn file dữ liệu")
+    run_parser.add_argument("--symbol", type=str, help="Cặp giao dịch")
+    run_parser.add_argument("--timeframe", type=str, default="1h", help="Khung thời gian")
+    run_parser.add_argument("--capital", type=float, default=10000.0, help="Vốn ban đầu")
+    run_parser.add_argument("--commission", type=float, default=0.001, help="Phí giao dịch (0.1%)")
+    run_parser.add_argument("--start-date", type=str, help="Ngày bắt đầu (YYYY-MM-DD)")
+    run_parser.add_argument("--end-date", type=str, help="Ngày kết thúc (YYYY-MM-DD)")
+    run_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu kết quả")
+    run_parser.add_argument("--plot/--no-plot", dest="plot", action="store_true", default=True, help="Hiển thị biểu đồ kết quả")
+    run_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    # Parser cho lệnh compare
+    compare_parser = backtest_subparsers.add_parser('compare', help='So sánh nhiều chiến lược')
+    compare_parser.add_argument("--strategies", "-s", nargs='+', required=True, help="Danh sách chiến lược cần so sánh")
+    compare_parser.add_argument("--data-file", "-f", type=str, required=True, help="Đường dẫn file dữ liệu")
+    compare_parser.add_argument("--symbol", type=str, help="Cặp giao dịch")
+    compare_parser.add_argument("--timeframe", type=str, default="1h", help="Khung thời gian")
+    compare_parser.add_argument("--capital", type=float, default=10000.0, help="Vốn ban đầu")
+    compare_parser.add_argument("--commission", type=float, default=0.001, help="Phí giao dịch (0.1%)")
+    compare_parser.add_argument("--start-date", type=str, help="Ngày bắt đầu (YYYY-MM-DD)")
+    compare_parser.add_argument("--end-date", type=str, help="Ngày kết thúc (YYYY-MM-DD)")
+    compare_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu kết quả")
+    compare_parser.add_argument("--plot/--no-plot", dest="plot", action="store_true", default=True, help="Hiển thị biểu đồ kết quả")
+    compare_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    # Parser cho lệnh optimize
+    optimize_parser = backtest_subparsers.add_parser('optimize', help='Tối ưu hóa tham số chiến lược')
+    optimize_parser.add_argument("--strategy", "-s", type=str, required=True, help="Tên chiến lược giao dịch")
+    optimize_parser.add_argument("--data-file", "-f", type=str, required=True, help="Đường dẫn file dữ liệu")
+    optimize_parser.add_argument("--symbol", type=str, help="Cặp giao dịch")
+    optimize_parser.add_argument("--timeframe", type=str, default="1h", help="Khung thời gian")
+    optimize_parser.add_argument("--params", "-p", type=str, required=True, help="File JSON chứa tham số và phạm vi tối ưu")
+    optimize_parser.add_argument("--metric", "-m", type=str, default="sharpe_ratio", help="Chỉ số tối ưu hóa")
+    optimize_parser.add_argument("--method", type=str, default="grid", choices=["grid", "random", "bayesian"], help="Phương pháp tối ưu hóa")
+    optimize_parser.add_argument("--iterations", "-i", type=int, default=100, help="Số lần lặp tối ưu hóa")
+    optimize_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu kết quả")
+    optimize_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    return backtest_parser
+
+def handle_backtest_command(args):
+    """
+    Xử lý các lệnh liên quan đến backtest.
+    
+    Args:
+        args: Đối tượng chứa các tham số dòng lệnh
+        
+    Returns:
+        int: Mã trạng thái (0 nếu thành công, khác 0 nếu lỗi)
+    """
+    if args.backtest_command == 'run':
+        from backtesting.backtester import Backtester
+        
+        # Tạo đối tượng backtester
+        backtester = Backtester()
+        
+        # Thiết lập tham số
+        backtester.set_strategy(args.strategy)
+        backtester.set_data(args.data_file, args.symbol, args.timeframe)
+        backtester.set_capital(args.capital)
+        backtester.set_commission(args.commission)
+        
+        if args.start_date:
+            backtester.set_start_date(args.start_date)
+        if args.end_date:
+            backtester.set_end_date(args.end_date)
+        
+        # Chạy backtest
+        results = backtester.run()
+        
+        # Lưu kết quả nếu cần
+        if args.output_dir:
+            backtester.save_results(args.output_dir)
+        
+        # Hiển thị biểu đồ nếu cần
+        if args.plot:
+            backtester.plot_results()
+        
+        return 0
+    
+    elif args.backtest_command == 'compare':
+        from backtesting.strategy_tester import StrategyTester
+        
+        # Tạo đối tượng strategy tester
+        tester = StrategyTester()
+        
+        # Thiết lập tham số
+        tester.set_strategies(args.strategies)
+        tester.set_data(args.data_file, args.symbol, args.timeframe)
+        tester.set_capital(args.capital)
+        tester.set_commission(args.commission)
+        
+        if args.start_date:
+            tester.set_start_date(args.start_date)
+        if args.end_date:
+            tester.set_end_date(args.end_date)
+        
+        # Chạy so sánh
+        results = tester.compare()
+        
+        # Lưu kết quả nếu cần
+        if args.output_dir:
+            tester.save_results(args.output_dir)
+        
+        # Hiển thị biểu đồ nếu cần
+        if args.plot:
+            tester.plot_comparison()
+        
+        return 0
+    
+    elif args.backtest_command == 'optimize':
+        from backtesting.strategy_optimizer import StrategyOptimizer
+        
+        # Tạo đối tượng optimizer
+        optimizer = StrategyOptimizer()
+        
+        # Thiết lập tham số
+        optimizer.set_strategy(args.strategy)
+        optimizer.set_data(args.data_file, args.symbol, args.timeframe)
+        optimizer.set_params_from_file(args.params)
+        optimizer.set_metric(args.metric)
+        optimizer.set_method(args.method)
+        optimizer.set_iterations(args.iterations)
+        
+        # Chạy tối ưu hóa
+        results = optimizer.optimize()
+        
+        # Lưu kết quả nếu cần
+        if args.output_dir:
+            optimizer.save_results(args.output_dir)
+        
+        return 0
+    
+    else:
+        print(f"Lệnh backtest không hợp lệ: {args.backtest_command}")
+        return 1
+
 if __name__ == "__main__":
     main()

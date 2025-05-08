@@ -975,3 +975,296 @@ class StopLoss:
             self.logger.error(f"Lỗi khi chọn dừng lỗ tối ưu: {str(e)}")
             # Trả về ứng viên đầu tiên nếu có lỗi
             return valid_candidates[0] if valid_candidates else self.calculate_fixed_stop_loss(entry_price, position_side)
+        
+class StopLossManager:
+    """
+    Quản lý các stop loss cho nhiều vị thế.
+    Lớp này đóng gói các phương thức để theo dõi, cập nhật và kích hoạt dừng lỗ cho nhiều vị thế.
+    """
+    
+    def __init__(self, logger=None):
+        """
+        Khởi tạo StopLossManager.
+        
+        Args:
+            logger: Logger tùy chỉnh
+        """
+        self.logger = logger or get_logger("stop_loss_manager")
+        self.stop_loss_calculator = StopLoss()
+        self.active_stop_losses = {}  # Dict với key là symbol_position_id
+    
+    def add_stop_loss(self, position: Dict[str, Any], 
+                    stop_loss_price: float, 
+                    stop_loss_type: str = "fixed") -> bool:
+        """
+        Thêm stop loss cho một vị thế.
+        
+        Args:
+            position: Dict thông tin vị thế
+            stop_loss_price: Giá dừng lỗ
+            stop_loss_type: Loại dừng lỗ ('fixed', 'trailing', 'atr', etc.)
+            
+        Returns:
+            True nếu thêm thành công, False nếu không
+        """
+        try:
+            symbol = position.get('symbol', '')
+            position_id = position.get('position_id', str(id(position)))
+            key = f"{symbol}_{position_id}"
+            
+            # Kiểm tra vị thế hợp lệ
+            if 'side' not in position or 'entry_price' not in position:
+                self.logger.warning(f"Vị thế không chứa đủ thông tin: {position}")
+                return False
+            
+            # Tạo đối tượng stop loss
+            self.active_stop_losses[key] = {
+                'price': stop_loss_price,
+                'type': stop_loss_type,
+                'symbol': symbol,
+                'position_id': position_id,
+                'side': position.get('side', ''),
+                'entry_price': position.get('entry_price', 0),
+                'creation_time': datetime.now().isoformat(),
+                'last_update_time': datetime.now().isoformat(),
+                'triggered': False
+            }
+            
+            if stop_loss_type == 'trailing':
+                # Thêm thông tin cho trailing stop
+                self.active_stop_losses[key]['initial_price'] = stop_loss_price
+                self.active_stop_losses[key]['highest_price'] = position.get('entry_price', 0)
+                self.active_stop_losses[key]['lowest_price'] = position.get('entry_price', 0)
+                
+            self.logger.info(f"Đã thêm {stop_loss_type} stop loss cho {symbol} tại giá {stop_loss_price}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi thêm stop loss: {str(e)}")
+            return False
+    
+    def update_stop_loss(self, symbol: str, position_id: str, new_price: Optional[float] = None) -> bool:
+        """
+        Cập nhật stop loss hiện có.
+        
+        Args:
+            symbol: Symbol của vị thế
+            position_id: ID của vị thế
+            new_price: Giá dừng lỗ mới
+            
+        Returns:
+            True nếu cập nhật thành công, False nếu không
+        """
+        try:
+            key = f"{symbol}_{position_id}"
+            
+            if key not in self.active_stop_losses:
+                self.logger.warning(f"Không tìm thấy stop loss cho {key}")
+                return False
+            
+            if new_price is not None:
+                old_price = self.active_stop_losses[key]['price']
+                self.active_stop_losses[key]['price'] = new_price
+                self.active_stop_losses[key]['last_update_time'] = datetime.now().isoformat()
+                
+                self.logger.info(f"Đã cập nhật stop loss cho {symbol} từ {old_price} thành {new_price}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi cập nhật stop loss: {str(e)}")
+            return False
+    
+    def remove_stop_loss(self, symbol: str, position_id: str) -> bool:
+        """
+        Xóa stop loss.
+        
+        Args:
+            symbol: Symbol của vị thế
+            position_id: ID của vị thế
+            
+        Returns:
+            True nếu xóa thành công, False nếu không
+        """
+        try:
+            key = f"{symbol}_{position_id}"
+            
+            if key not in self.active_stop_losses:
+                self.logger.warning(f"Không tìm thấy stop loss cho {key}")
+                return False
+            
+            del self.active_stop_losses[key]
+            self.logger.info(f"Đã xóa stop loss cho {symbol}_{position_id}")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi xóa stop loss: {str(e)}")
+            return False
+    
+    def check_stop_loss(self, position: Dict[str, Any], current_price: float) -> bool:
+        """
+        Kiểm tra xem stop loss có kích hoạt hay không.
+        
+        Args:
+            position: Dict thông tin vị thế
+            current_price: Giá hiện tại
+            
+        Returns:
+            True nếu stop loss được kích hoạt, False nếu không
+        """
+        try:
+            symbol = position.get('symbol', '')
+            position_id = position.get('position_id', str(id(position)))
+            key = f"{symbol}_{position_id}"
+            
+            if key not in self.active_stop_losses:
+                return False
+            
+            stop_loss = self.active_stop_losses[key]
+            
+            # Kiểm tra nếu đã kích hoạt trước đó
+            if stop_loss.get('triggered', False):
+                return True
+            
+            side = position.get('side', '').lower()
+            stop_price = stop_loss.get('price', 0)
+            
+            # Kiểm tra điều kiện kích hoạt
+            triggered = False
+            
+            if side == 'long' and current_price <= stop_price:
+                triggered = True
+            elif side == 'short' and current_price >= stop_price:
+                triggered = True
+            
+            if triggered:
+                self.active_stop_losses[key]['triggered'] = True
+                self.active_stop_losses[key]['trigger_price'] = current_price
+                self.active_stop_losses[key]['trigger_time'] = datetime.now().isoformat()
+                
+                self.logger.info(f"Stop loss kích hoạt cho {symbol} tại giá {current_price}")
+            
+            return triggered
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi kiểm tra stop loss: {str(e)}")
+            return False
+    
+    def update_trailing_stop(self, position: Dict[str, Any], current_price: float) -> bool:
+        """
+        Cập nhật trailing stop dựa trên giá hiện tại.
+        
+        Args:
+            position: Dict thông tin vị thế
+            current_price: Giá hiện tại
+            
+        Returns:
+            True nếu cập nhật thành công, False nếu không thay đổi
+        """
+        try:
+            symbol = position.get('symbol', '')
+            position_id = position.get('position_id', str(id(position)))
+            key = f"{symbol}_{position_id}"
+            
+            if key not in self.active_stop_losses:
+                return False
+            
+            stop_loss = self.active_stop_losses[key]
+            
+            # Chỉ cập nhật nếu là trailing stop
+            if stop_loss.get('type', '') != 'trailing':
+                return False
+            
+            side = position.get('side', '').lower()
+            current_stop = stop_loss.get('price', 0)
+            trailing_percent = position.get('trailing_stop_percent', 0.01)
+            
+            updated = False
+            
+            if side == 'long':
+                # Cập nhật giá cao nhất
+                highest_price = stop_loss.get('highest_price', 0)
+                
+                if current_price > highest_price:
+                    stop_loss['highest_price'] = current_price
+                    
+                    # Tính trailing stop mới
+                    new_stop = current_price * (1 - trailing_percent)
+                    
+                    # Cập nhật nếu stop mới cao hơn stop hiện tại
+                    if new_stop > current_stop:
+                        stop_loss['price'] = new_stop
+                        stop_loss['last_update_time'] = datetime.now().isoformat()
+                        updated = True
+                        
+                        self.logger.info(f"Đã cập nhật trailing stop cho {symbol} từ {current_stop} thành {new_stop}")
+            
+            elif side == 'short':
+                # Cập nhật giá thấp nhất
+                lowest_price = stop_loss.get('lowest_price', float('inf'))
+                
+                if current_price < lowest_price:
+                    stop_loss['lowest_price'] = current_price
+                    
+                    # Tính trailing stop mới
+                    new_stop = current_price * (1 + trailing_percent)
+                    
+                    # Cập nhật nếu stop mới thấp hơn stop hiện tại
+                    if new_stop < current_stop:
+                        stop_loss['price'] = new_stop
+                        stop_loss['last_update_time'] = datetime.now().isoformat()
+                        updated = True
+                        
+                        self.logger.info(f"Đã cập nhật trailing stop cho {symbol} từ {current_stop} thành {new_stop}")
+            
+            return updated
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi cập nhật trailing stop: {str(e)}")
+            return False
+    
+    def get_stop_loss(self, symbol: str, position_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Lấy thông tin stop loss cho một vị thế cụ thể.
+        
+        Args:
+            symbol: Symbol của vị thế
+            position_id: ID của vị thế
+            
+        Returns:
+            Dict thông tin stop loss hoặc None nếu không tìm thấy
+        """
+        key = f"{symbol}_{position_id}"
+        return self.active_stop_losses.get(key)
+    
+    def calculate_optimal_stop_loss(self, position: Dict[str, Any], market_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Tính toán stop loss tối ưu cho một vị thế.
+        
+        Args:
+            position: Dict thông tin vị thế
+            market_data: Dict dữ liệu thị trường bổ sung
+            
+        Returns:
+            Dict thông tin stop loss tối ưu
+        """
+        # Sử dụng StopLoss để tính toán
+        side = position.get('side', '').lower()
+        entry_price = position.get('entry_price', 0)
+        
+        if market_data and 'atr' in market_data:
+            # Nếu có dữ liệu ATR, sử dụng ATR stop loss
+            return self.stop_loss_calculator.calculate_atr_stop_loss(
+                entry_price=entry_price,
+                position_side=side,
+                atr_value=market_data['atr'],
+                multiplier=2.0
+            )
+        else:
+            # Mặc định sử dụng fixed stop loss
+            return self.stop_loss_calculator.calculate_fixed_stop_loss(
+                entry_price=entry_price,
+                position_side=side,
+                percent=0.02
+            )

@@ -810,6 +810,305 @@ def open():
     else:
         subprocess.run(["xdg-open", url])
 
+def setup_dashboard_parser(subparsers):
+    """
+    Thiết lập trình phân tích cú pháp cho các lệnh dashboard.
+    
+    Args:
+        subparsers: Đối tượng subparsers từ argparse
+    """
+    dashboard_parser = subparsers.add_parser(
+        'dashboard', 
+        help='Quản lý dashboard giao dịch'
+    )
+    
+    # Tạo các subcommand cho dashboard
+    dashboard_subparsers = dashboard_parser.add_subparsers(
+        dest='dashboard_command',
+        help='Lệnh dashboard'
+    )
+    
+    # Lệnh start
+    start_parser = dashboard_subparsers.add_parser(
+        'start', 
+        help='Khởi động dashboard'
+    )
+    start_parser.add_argument(
+        '--port', '-p', 
+        type=int, 
+        help='Cổng để chạy dashboard'
+    )
+    start_parser.add_argument(
+        '--host', '-h', 
+        default='localhost', 
+        help='Địa chỉ host'
+    )
+    start_parser.add_argument(
+        '--theme', '-t', 
+        choices=['light', 'dark'], 
+        default='light', 
+        help='Chủ đề giao diện'
+    )
+    start_parser.add_argument(
+        '--debug', 
+        action='store_true', 
+        help='Bật chế độ debug'
+    )
+    
+    # Lệnh stop
+    stop_parser = dashboard_subparsers.add_parser(
+        'stop', 
+        help='Dừng dashboard đang chạy'
+    )
+    stop_parser.add_argument(
+        '--force', '-f', 
+        action='store_true', 
+        help='Buộc dừng dashboard'
+    )
+    
+    # Lệnh restart
+    dashboard_subparsers.add_parser(
+        'restart', 
+        help='Khởi động lại dashboard'
+    )
+    
+    # Lệnh status
+    status_parser = dashboard_subparsers.add_parser(
+        'status', 
+        help='Kiểm tra trạng thái dashboard'
+    )
+    status_parser.add_argument(
+        '--json', 
+        dest='json_output',
+        action='store_true', 
+        help='Xuất kết quả dạng JSON'
+    )
+    
+    # Lệnh config
+    config_parser = dashboard_subparsers.add_parser(
+        'config', 
+        help='Hiển thị cấu hình dashboard'
+    )
+    config_parser.add_argument(
+        '--json', 
+        dest='json_output',
+        action='store_true', 
+        help='Xuất kết quả dạng JSON'
+    )
+    
+    # Lệnh set-config
+    set_config_parser = dashboard_subparsers.add_parser(
+        'set-config', 
+        help='Cập nhật cấu hình dashboard'
+    )
+    set_config_parser.add_argument(
+        'param', 
+        help='Tên tham số'
+    )
+    set_config_parser.add_argument(
+        'value', 
+        help='Giá trị mới'
+    )
+    
+    # Lệnh create-public-url
+    public_url_parser = dashboard_subparsers.add_parser(
+        'create-public-url', 
+        help='Tạo URL truy cập public'
+    )
+    public_url_parser.add_argument(
+        '--service', '-s', 
+        choices=['ngrok', 'localtunnel'], 
+        default='ngrok', 
+        help='Dịch vụ tạo URL public'
+    )
+    public_url_parser.add_argument(
+        '--region', '-r', 
+        default='auto', 
+        help='Khu vực cho ngrok (ví dụ: us, eu, ap)'
+    )
+    
+    # Lệnh open
+    dashboard_subparsers.add_parser(
+        'open', 
+        help='Mở dashboard trong trình duyệt'
+    )
+    
+    return dashboard_parser
+
+def handle_dashboard_command(args):
+    """
+    Xử lý các lệnh dashboard.
+    
+    Args:
+        args: Đối tượng ArgumentParser đã phân tích
+        
+    Returns:
+        int: Mã thoát (0 nếu thành công)
+    """
+    # Khởi tạo DashboardManager
+    manager = DashboardManager()
+    
+    # Xử lý lệnh
+    if args.dashboard_command == 'start':
+        success, message = manager.start_dashboard(
+            port=args.port,
+            host=args.host,
+            theme=args.theme,
+            debug=args.debug
+        )
+        if success:
+            print(message)
+            return 0
+        else:
+            print(f"Lỗi: {message}")
+            return 1
+    
+    elif args.dashboard_command == 'stop':
+        success, message = manager.stop_dashboard(force=args.force)
+        if success:
+            print(message)
+            return 0
+        else:
+            print(f"Lỗi: {message}")
+            return 1
+    
+    elif args.dashboard_command == 'restart':
+        success, message = manager.restart_dashboard()
+        if success:
+            print(message)
+            return 0
+        else:
+            print(f"Lỗi: {message}")
+            return 1
+    
+    elif args.dashboard_command == 'status':
+        info = manager.get_dashboard_info()
+        
+        if args.json_output:
+            import json
+            print(json.dumps(info, indent=2))
+        else:
+            if info["running"]:
+                print("✅ Dashboard đang chạy")
+                print(f"PID: {info['pid']}")
+                print(f"URL: {info['url']}")
+                print(f"Thời gian chạy: {info['uptime']:.1f} giây")
+                print(f"Bộ nhớ sử dụng: {info['memory_usage']:.2f} MB")
+            else:
+                print("❌ Dashboard không chạy")
+        
+        return 0
+    
+    elif args.dashboard_command == 'config':
+        config_data = manager.load_config()
+        
+        if args.json_output:
+            import json
+            print(json.dumps(config_data, indent=2, ensure_ascii=False))
+        else:
+            print("Cấu hình Dashboard:")
+            for key, value in config_data.items():
+                print(f"  {key}: {value}")
+        
+        return 0
+    
+    elif args.dashboard_command == 'set-config':
+        # Chuyển đổi giá trị thành kiểu phù hợp
+        value = args.value
+        if value.lower() == "true":
+            value = True
+        elif value.lower() == "false":
+            value = False
+        elif value.isdigit():
+            value = int(value)
+        
+        success, message = manager.update_config_param(args.param, value)
+        
+        if success:
+            print(message)
+            return 0
+        else:
+            print(f"Lỗi: {message}")
+            return 1
+    
+    elif args.dashboard_command == 'create-public-url':
+        # Kiểm tra trạng thái dashboard
+        info = manager.get_dashboard_info()
+        
+        if not info["running"]:
+            print("❌ Dashboard không chạy")
+            return 1
+        
+        port = info["port"]
+        service = args.service
+        region = args.region
+        
+        # Thực hiện lệnh bên ngoài để tạo URL public
+        import subprocess
+        import time
+        
+        if service == "ngrok":
+            try:
+                # Kiểm tra ngrok đã cài đặt chưa
+                subprocess.run(["ngrok", "--version"], check=True, capture_output=True)
+                
+                print(f"Đang tạo URL public với ngrok cho port {port}...")
+                print("Nhấn Ctrl+C để dừng.")
+                
+                # Chạy ngrok
+                cmd = ["ngrok", "http", f"{port}"]
+                if region != "auto":
+                    cmd.extend(["--region", region])
+                
+                subprocess.Popen(cmd)
+                
+                # Đợi để ngrok khởi động
+                time.sleep(2)
+                
+                return 0
+            except Exception as e:
+                print(f"Lỗi khi tạo URL với ngrok: {str(e)}")
+                return 1
+        
+        elif service == "localtunnel":
+            try:
+                # Kiểm tra localtunnel đã cài đặt chưa
+                subprocess.run(["lt", "--version"], check=True, capture_output=True)
+                
+                print(f"Đang tạo URL public với localtunnel cho port {port}...")
+                print("Nhấn Ctrl+C để dừng.")
+                
+                # Chạy localtunnel
+                subprocess.Popen(["lt", "--port", str(port)])
+                
+                # Đợi để localtunnel khởi động
+                time.sleep(2)
+                
+                return 0
+            except Exception as e:
+                print(f"Lỗi khi tạo URL với localtunnel: {str(e)}")
+                return 1
+    
+    elif args.dashboard_command == 'open':
+        # Kiểm tra trạng thái dashboard
+        info = manager.get_dashboard_info()
+        
+        if not info["running"]:
+            print("❌ Dashboard không chạy")
+            return 1
+        
+        # Mở trong trình duyệt
+        url = info["url"]
+        print(f"Đang mở {url}...")
+        
+        import webbrowser
+        webbrowser.open(url)
+        
+        return 0
+    
+    else:
+        print(f"Lệnh không hỗ trợ: {args.dashboard_command}")
+        return 1
 
 if __name__ == "__main__":
     dashboard()

@@ -614,6 +614,109 @@ def _find_data_files(input_dir: Path,
     
     return data_paths
 
+def setup_process_parser(subparsers):
+    """
+    Thiết lập parser cho các lệnh xử lý dữ liệu.
+    
+    Args:
+        subparsers: Đối tượng subparsers từ argparse
+    """
+    # Tạo parser cho nhóm lệnh process
+    process_parser = subparsers.add_parser('process', help='Các lệnh xử lý dữ liệu thị trường')
+    process_subparsers = process_parser.add_subparsers(dest='process_command', help='Lệnh xử lý cụ thể')
+    
+    # Parser cho lệnh clean
+    clean_parser = process_subparsers.add_parser('clean', help='Làm sạch dữ liệu thị trường')
+    clean_parser.add_argument("--data-type", "-t", type=str, choices=['ohlcv', 'trades', 'orderbook', 'all'], default='ohlcv', help="Loại dữ liệu cần làm sạch")
+    clean_parser.add_argument("--input-dir", "-i", type=str, help="Thư mục chứa dữ liệu đầu vào")
+    clean_parser.add_argument("--symbols", "-s", nargs='+', help="Danh sách cặp giao dịch cần xử lý")
+    clean_parser.add_argument("--timeframes", "-tf", nargs='+', default=['1h'], help="Khung thời gian cần xử lý")
+    clean_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu dữ liệu đã làm sạch")
+    clean_parser.add_argument("--preserve-timestamp/--no-preserve-timestamp", dest="preserve_timestamp", action="store_true", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
+    clean_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    # Parser cho lệnh features
+    features_parser = process_subparsers.add_parser('features', help='Tạo đặc trưng từ dữ liệu thị trường')
+    features_parser.add_argument("--data-type", "-t", type=str, choices=['ohlcv', 'all'], default='ohlcv', help="Loại dữ liệu cần tạo đặc trưng")
+    features_parser.add_argument("--input-dir", "-i", type=str, help="Thư mục chứa dữ liệu đầu vào")
+    features_parser.add_argument("--symbols", "-s", nargs='+', help="Danh sách cặp giao dịch cần xử lý")
+    features_parser.add_argument("--indicators", nargs='+', help="Danh sách chỉ báo kỹ thuật cần tạo")
+    features_parser.add_argument("--all-indicators/--selected-indicators", dest="all_indicators", action="store_true", default=False, help="Tạo tất cả các chỉ báo kỹ thuật có sẵn")
+    features_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu dữ liệu đã tạo đặc trưng")
+    features_parser.add_argument("--remove-redundant/--keep-all", dest="remove_redundant", action="store_true", default=True, help="Loại bỏ các chỉ báo dư thừa")
+    features_parser.add_argument("--generate-labels/--no-labels", dest="generate_labels", action="store_true", default=True, help="Tạo nhãn cho huấn luyện có giám sát")
+    features_parser.add_argument("--preserve-timestamp/--no-preserve-timestamp", dest="preserve_timestamp", action="store_true", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
+    features_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    # Parser cho lệnh pipeline
+    pipeline_parser = process_subparsers.add_parser('pipeline', help='Chạy toàn bộ pipeline xử lý dữ liệu')
+    pipeline_parser.add_argument("--input-dir", "-i", type=str, help="Thư mục chứa dữ liệu đầu vào")
+    pipeline_parser.add_argument("--symbols", "-s", nargs='+', help="Danh sách cặp giao dịch cần xử lý")
+    pipeline_parser.add_argument("--timeframes", "-tf", nargs='+', default=['1h'], help="Khung thời gian cần xử lý")
+    pipeline_parser.add_argument("--start-date", type=str, help="Ngày bắt đầu (YYYY-MM-DD)")
+    pipeline_parser.add_argument("--end-date", type=str, help="Ngày kết thúc (YYYY-MM-DD)")
+    pipeline_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu dữ liệu đã xử lý")
+    pipeline_parser.add_argument("--pipeline-name", type=str, help="Tên của pipeline xử lý (nếu sử dụng pipeline đã đăng ký)")
+    pipeline_parser.add_argument("--no-clean/--clean", dest="no_clean", action="store_true", default=False, help="Bỏ qua bước làm sạch dữ liệu")
+    pipeline_parser.add_argument("--no-features/--features", dest="no_features", action="store_true", default=False, help="Bỏ qua bước tạo đặc trưng")
+    pipeline_parser.add_argument("--all-indicators/--selected-indicators", dest="all_indicators", action="store_true", default=True, help="Sử dụng tất cả các chỉ báo kỹ thuật có sẵn")
+    pipeline_parser.add_argument("--preserve-timestamp/--no-preserve-timestamp", dest="preserve_timestamp", action="store_true", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
+    pipeline_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    return process_parser
+
+def handle_process_command(args):
+    """
+    Xử lý các lệnh liên quan đến xử lý dữ liệu.
+    
+    Args:
+        args: Đối tượng chứa các tham số dòng lệnh
+        
+    Returns:
+        int: Mã trạng thái (0 nếu thành công, khác 0 nếu lỗi)
+    """
+    if args.process_command == 'clean':
+        return clean_data(
+            data_type=args.data_type,
+            input_dir=args.input_dir,
+            symbols=args.symbols,
+            timeframes=args.timeframes,
+            output_dir=args.output_dir,
+            preserve_timestamp=args.preserve_timestamp,
+            verbose=args.verbose
+        )
+    elif args.process_command == 'features':
+        return create_features(
+            data_type=args.data_type,
+            input_dir=args.input_dir,
+            symbols=args.symbols,
+            indicators=args.indicators,
+            all_indicators=args.all_indicators,
+            output_dir=args.output_dir,
+            remove_redundant=args.remove_redundant,
+            generate_labels=args.generate_labels,
+            preserve_timestamp=args.preserve_timestamp,
+            verbose=args.verbose
+        )
+    elif args.process_command == 'pipeline':
+        return run_pipeline(
+            input_dir=args.input_dir,
+            symbols=args.symbols,
+            timeframes=args.timeframes,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            output_dir=args.output_dir,
+            pipeline_name=args.pipeline_name,
+            no_clean=args.no_clean,
+            no_features=args.no_features,
+            all_indicators=args.all_indicators,
+            preserve_timestamp=args.preserve_timestamp,
+            verbose=args.verbose
+        )
+    else:
+        print(f"Lệnh process không hợp lệ: {args.process_command}")
+        return 1
+
 if __name__ == "__main__":
     # Nếu chạy trực tiếp file này
     process_commands()

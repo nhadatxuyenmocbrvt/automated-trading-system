@@ -328,7 +328,7 @@ pip install -r requirements.txt
 python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --days 730
 
 # Thu thập dữ liệu thị trường futures
-python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures
+python main.py collect --exchange binance --symbols XRP/USDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30 --futures
 
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60

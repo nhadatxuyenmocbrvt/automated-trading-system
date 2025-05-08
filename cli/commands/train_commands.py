@@ -1507,6 +1507,206 @@ def compare_models(
         logger.error(f"Lỗi khi so sánh mô hình: {str(e)}", exc_info=True)
         sys.exit(1)
 
+def setup_train_parser(subparsers):
+    """
+    Thiết lập parser cho các lệnh huấn luyện.
+    
+    Args:
+        subparsers: Đối tượng subparsers từ argparse
+    """
+    # Tạo parser cho nhóm lệnh train
+    train_parser = subparsers.add_parser('train', help='Các lệnh huấn luyện agent')
+    train_subparsers = train_parser.add_subparsers(dest='train_command', help='Lệnh huấn luyện cụ thể')
+    
+    # Parser cho lệnh agent (huấn luyện một agent)
+    agent_parser = train_subparsers.add_parser('agent', help='Huấn luyện agent')
+    agent_parser.add_argument("--agent-type", "-a", type=str, required=True, 
+                              choices=["dqn", "ppo", "a2c", "ddpg", "sac", "td3"], 
+                              help="Loại agent cần huấn luyện")
+    agent_parser.add_argument("--data-file", "-f", type=str, required=True, help="Đường dẫn file dữ liệu")
+    agent_parser.add_argument("--symbol", "-s", type=str, required=True, help="Cặp giao dịch")
+    agent_parser.add_argument("--timeframe", "-tf", type=str, default="1h", help="Khung thời gian")
+    agent_parser.add_argument("--episodes", "-e", type=int, default=1000, help="Số lượng episode huấn luyện")
+    agent_parser.add_argument("--hyperparams", "-hp", type=str, help="Đường dẫn file JSON chứa siêu tham số")
+    agent_parser.add_argument("--reward-function", "-r", type=str, default="profit", 
+                              choices=["profit", "risk_adjusted", "sharpe", "sortino", "calmar"],
+                              help="Hàm phần thưởng")
+    agent_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu mô hình")
+    agent_parser.add_argument("--log-dir", "-l", type=str, help="Thư mục lưu logs")
+    agent_parser.add_argument("--tensorboard/--no-tensorboard", dest="tensorboard", 
+                              action="store_true", default=True, help="Sử dụng TensorBoard")
+    agent_parser.add_argument("--checkpoint-freq", "-cf", type=int, default=100, 
+                              help="Tần suất lưu checkpoint (episodes)")
+    agent_parser.add_argument("--eval-freq", "-ef", type=int, default=50, 
+                              help="Tần suất đánh giá (episodes)")
+    agent_parser.add_argument("--save-best-only/--save-all", dest="save_best_only", 
+                              action="store_true", default=True, help="Chỉ lưu mô hình tốt nhất")
+    agent_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    # Parser cho lệnh hyperparameter (tối ưu siêu tham số)
+    hyper_parser = train_subparsers.add_parser('hyperparameter', help='Tối ưu siêu tham số')
+    hyper_parser.add_argument("--agent-type", "-a", type=str, required=True, 
+                             choices=["dqn", "ppo", "a2c", "ddpg", "sac", "td3"], 
+                             help="Loại agent cần tối ưu")
+    hyper_parser.add_argument("--data-file", "-f", type=str, required=True, help="Đường dẫn file dữ liệu")
+    hyper_parser.add_argument("--symbol", "-s", type=str, required=True, help="Cặp giao dịch")
+    hyper_parser.add_argument("--timeframe", "-tf", type=str, default="1h", help="Khung thời gian")
+    hyper_parser.add_argument("--params-range", "-p", type=str, required=True, 
+                             help="Đường dẫn file JSON chứa phạm vi siêu tham số")
+    hyper_parser.add_argument("--method", "-m", type=str, default="random", 
+                             choices=["grid", "random", "bayesian"], help="Phương pháp tối ưu hóa")
+    hyper_parser.add_argument("--iterations", "-i", type=int, default=50, help="Số lần lặp tối ưu hóa")
+    hyper_parser.add_argument("--reward-function", "-r", type=str, default="profit", 
+                             choices=["profit", "risk_adjusted", "sharpe", "sortino", "calmar"],
+                             help="Hàm phần thưởng")
+    hyper_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu kết quả")
+    hyper_parser.add_argument("--log-dir", "-l", type=str, help="Thư mục lưu logs")
+    hyper_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    # Parser cho lệnh cross_coin (huấn luyện đa cặp tiền)
+    cross_parser = train_subparsers.add_parser('cross_coin', help='Huấn luyện đa cặp tiền')
+    cross_parser.add_argument("--agent-type", "-a", type=str, required=True, 
+                             choices=["dqn", "ppo", "a2c", "ddpg", "sac", "td3"], 
+                             help="Loại agent cần huấn luyện")
+    cross_parser.add_argument("--data-dir", "-d", type=str, required=True, help="Thư mục chứa dữ liệu")
+    cross_parser.add_argument("--symbols", "-s", nargs='+', required=True, help="Danh sách cặp giao dịch")
+    cross_parser.add_argument("--timeframe", "-tf", type=str, default="1h", help="Khung thời gian")
+    cross_parser.add_argument("--episodes", "-e", type=int, default=1000, help="Số lượng episode huấn luyện")
+    cross_parser.add_argument("--hyperparams", "-hp", type=str, help="Đường dẫn file JSON chứa siêu tham số")
+    cross_parser.add_argument("--reward-function", "-r", type=str, default="profit", 
+                             choices=["profit", "risk_adjusted", "sharpe", "sortino", "calmar"],
+                             help="Hàm phần thưởng")
+    cross_parser.add_argument("--output-dir", "-o", type=str, help="Thư mục lưu mô hình")
+    cross_parser.add_argument("--log-dir", "-l", type=str, help="Thư mục lưu logs")
+    cross_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    
+    return train_parser
+
+def handle_train_command(args):
+    """
+    Xử lý các lệnh liên quan đến huấn luyện.
+    
+    Args:
+        args: Đối tượng chứa các tham số dòng lệnh
+        
+    Returns:
+        int: Mã trạng thái (0 nếu thành công, khác 0 nếu lỗi)
+    """
+    if args.train_command == 'agent':
+        from models.training_pipeline.trainer import AgentTrainer
+        
+        # Tạo đối tượng trainer
+        trainer = AgentTrainer()
+        
+        # Thiết lập tham số
+        trainer.set_agent_type(args.agent_type)
+        trainer.set_data(args.data_file, args.symbol, args.timeframe)
+        trainer.set_episodes(args.episodes)
+        
+        if args.hyperparams:
+            trainer.load_hyperparams(args.hyperparams)
+        
+        trainer.set_reward_function(args.reward_function)
+        
+        if args.output_dir:
+            trainer.set_output_dir(args.output_dir)
+        
+        if args.log_dir:
+            trainer.set_log_dir(args.log_dir)
+        
+        trainer.use_tensorboard(args.tensorboard)
+        trainer.set_checkpoint_freq(args.checkpoint_freq)
+        trainer.set_eval_freq(args.eval_freq)
+        trainer.save_best_only(args.save_best_only)
+        
+        # Cài đặt verbosity
+        trainer.set_verbose(args.verbose)
+        
+        # Chạy huấn luyện
+        success, model_path = trainer.train()
+        
+        if success:
+            print(f"Huấn luyện thành công, mô hình được lưu tại: {model_path}")
+            return 0
+        else:
+            print("Huấn luyện thất bại")
+            return 1
+    
+    elif args.train_command == 'hyperparameter':
+        from models.training_pipeline.hyperparameter_tuner import HyperparameterTuner
+        
+        # Tạo đối tượng tuner
+        tuner = HyperparameterTuner()
+        
+        # Thiết lập tham số
+        tuner.set_agent_type(args.agent_type)
+        tuner.set_data(args.data_file, args.symbol, args.timeframe)
+        tuner.load_params_range(args.params_range)
+        tuner.set_method(args.method)
+        tuner.set_iterations(args.iterations)
+        tuner.set_reward_function(args.reward_function)
+        
+        if args.output_dir:
+            tuner.set_output_dir(args.output_dir)
+        
+        if args.log_dir:
+            tuner.set_log_dir(args.log_dir)
+        
+        # Cài đặt verbosity
+        tuner.set_verbose(args.verbose)
+        
+        # Chạy tối ưu hóa
+        best_params, best_score = tuner.optimize()
+        
+        if best_params:
+            print(f"Tối ưu hóa thành công, tham số tốt nhất: {best_params}")
+            print(f"Điểm số: {best_score}")
+            return 0
+        else:
+            print("Tối ưu hóa thất bại")
+            return 1
+    
+    elif args.train_command == 'cross_coin':
+        from models.cross_coin_trainer import CrossCoinTrainer
+        
+        # Tạo đối tượng cross coin trainer
+        trainer = CrossCoinTrainer()
+        
+        # Thiết lập tham số
+        trainer.set_agent_type(args.agent_type)
+        trainer.set_data_dir(args.data_dir)
+        trainer.set_symbols(args.symbols)
+        trainer.set_timeframe(args.timeframe)
+        trainer.set_episodes(args.episodes)
+        
+        if args.hyperparams:
+            trainer.load_hyperparams(args.hyperparams)
+        
+        trainer.set_reward_function(args.reward_function)
+        
+        if args.output_dir:
+            trainer.set_output_dir(args.output_dir)
+        
+        if args.log_dir:
+            trainer.set_log_dir(args.log_dir)
+        
+        # Cài đặt verbosity
+        trainer.set_verbose(args.verbose)
+        
+        # Chạy huấn luyện
+        success, model_path = trainer.train()
+        
+        if success:
+            print(f"Huấn luyện đa cặp tiền thành công, mô hình được lưu tại: {model_path}")
+            return 0
+        else:
+            print("Huấn luyện đa cặp tiền thất bại")
+            return 1
+    
+    else:
+        print(f"Lệnh train không hợp lệ: {args.train_command}")
+        return 1
+
 if __name__ == "__main__":
     # Nếu chạy trực tiếp file này
     train_commands()
