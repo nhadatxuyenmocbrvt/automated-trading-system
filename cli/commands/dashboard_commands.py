@@ -839,7 +839,7 @@ def setup_dashboard_parser(subparsers):
         help='Cổng để chạy dashboard'
     )
     start_parser.add_argument(
-        '--host', '-h', 
+        '--host', '-H', 
         default='localhost', 
         help='Địa chỉ host'
     )

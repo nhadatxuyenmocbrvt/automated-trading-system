@@ -1,0 +1,55 @@
+{
+    "symbol": "XRP/USDT",
+    "rows": 6000,
+    "columns": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume"
+    ],
+    "dtypes": {
+        "timestamp": "datetime64[ns]",
+        "open": "float64",
+        "high": "float64",
+        "low": "float64",
+        "close": "float64",
+        "volume": "float64"
+    },
+    "saved_at": "2025-05-08T10:26:50.505737",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\futures\\1h\\xrp_usdt_20250508_102650.parquet",
+    "data_stats": {
+        "open": {
+            "min": 0.3978,
+            "max": 3.3788,
+            "mean": 1.132901,
+            "null_count": 0
+        },
+        "high": {
+            "min": 0.404,
+            "max": 3.4043,
+            "mean": 1.14255155,
+            "null_count": 0
+        },
+        "low": {
+            "min": 0.3812,
+            "max": 3.3213,
+            "mean": 1.1230081166666666,
+            "null_count": 0
+        },
+        "close": {
+            "min": 0.3978,
+            "max": 3.3788,
+            "mean": 1.1332226333333333,
+            "null_count": 0
+        },
+        "volume": {
+            "min": 2998326.1,
+            "max": 1706219902.6,
+            "mean": 58992141.83366667,
+            "null_count": 0
+        }
+    }
+}

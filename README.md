@@ -329,6 +329,7 @@ python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timefram
 
 # Thu thập dữ liệu thị trường futures
 python main.py collect --exchange binance --symbols XRP/USDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30 --futures
+python main.py collect historical --exchange binance --symbols XRP/USDT --timeframe 1h --start-date 2024-06-01 --end-date 2024-12-30 --futures
 
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60

@@ -539,14 +539,83 @@ def setup_collect_parser(subparsers):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
-    # Tạo subparsers cho các lệnh thu thập
-    collect_subparsers = collect_parser.add_subparsers(
-        title='collect_commands',
-        description='Các lệnh thu thập dữ liệu',
-        dest='collect_command'
+    # Thêm các tham số chung cho cú pháp trực tiếp
+    collect_parser.add_argument(
+        '--exchange',
+        type=str,
+        help='Tên sàn giao dịch (binance, bybit, ...)'
     )
     
-    # Parser cho thu thập dữ liệu lịch sử
+    collect_parser.add_argument(
+        '--symbols',
+        type=str,
+        help='Danh sách cặp giao dịch, ngăn cách bởi dấu phẩy'
+    )
+    
+    collect_parser.add_argument(
+        '--timeframes',
+        type=str,
+        help='Khung thời gian (1m, 5m, 15m, 1h, 4h, 1d...), phân cách bằng dấu phẩy'
+    )
+    
+    collect_parser.add_argument(
+        '--start-date',
+        type=str,
+        help='Ngày bắt đầu (định dạng YYYY-MM-DD)'
+    )
+    
+    collect_parser.add_argument(
+        '--end-date',
+        type=str,
+        help='Ngày kết thúc (định dạng YYYY-MM-DD)'
+    )
+    
+    collect_parser.add_argument(
+        '--futures',
+        action='store_true',
+        help='Thu thập dữ liệu futures thay vì spot'
+    )
+    
+    collect_parser.add_argument(
+        '--output-dir',
+        type=str,
+        help='Thư mục lưu dữ liệu'
+    )
+    
+    collect_parser.add_argument(
+        '--save-format',
+        type=str,
+        choices=['parquet', 'csv', 'json'],
+        default='parquet',
+        help='Định dạng lưu trữ'
+    )
+    
+    collect_parser.add_argument(
+        '--force-update',
+        action='store_true',
+        help='Cập nhật dữ liệu kể cả khi đã có'
+    )
+    
+    collect_parser.add_argument(
+        '--max-workers',
+        type=int,
+        default=4,
+        help='Số luồng tối đa'
+    )
+    
+    # Tạo subparsers cho các lệnh thu thập
+    # Sử dụng required=False để cho phép lệnh collect hoạt động mà không cần subcommand
+    collect_subparsers = collect_parser.add_subparsers(
+        title='collect_command',
+        description='Các lệnh thu thập dữ liệu',
+        dest='collect_command',
+        required=False  # Chỉ hoạt động trên Python 3.7+
+    )
+    
+    # Nếu bạn sử dụng Python 3.6 hoặc cũ hơn, thay dòng required=False ở trên bằng:
+    # collect_parser.set_defaults(collect_command=None)
+    
+    # ===== THIẾT LẬP PARSER CHO HISTORICAL =====
     historical_parser = collect_subparsers.add_parser(
         'historical',
         help='Thu thập dữ liệu lịch sử',
@@ -623,7 +692,7 @@ def setup_collect_parser(subparsers):
     # Thiết lập hàm xử lý
     historical_parser.set_defaults(func=handle_historical_command)
     
-    # Parser cho thu thập dữ liệu thời gian thực
+    # ===== THIẾT LẬP PARSER CHO REALTIME =====
     realtime_parser = collect_subparsers.add_parser(
         'realtime',
         help='Thu thập dữ liệu thời gian thực',
@@ -674,7 +743,7 @@ def setup_collect_parser(subparsers):
     # Thiết lập hàm xử lý
     realtime_parser.set_defaults(func=handle_realtime_command)
     
-    # Parser cho thu thập dữ liệu orderbook
+    # ===== THIẾT LẬP PARSER CHO ORDERBOOK =====
     orderbook_parser = collect_subparsers.add_parser(
         'orderbook',
         help='Thu thập dữ liệu orderbook',
@@ -732,7 +801,7 @@ def setup_collect_parser(subparsers):
     # Thiết lập hàm xử lý
     orderbook_parser.set_defaults(func=handle_orderbook_command)
     
-    # Parser cho thu thập dữ liệu tỷ lệ tài trợ
+    # ===== THIẾT LẬP PARSER CHO FUNDING =====
     funding_parser = collect_subparsers.add_parser(
         'funding',
         help='Thu thập tỷ lệ tài trợ',
@@ -771,7 +840,7 @@ def setup_collect_parser(subparsers):
     # Thiết lập hàm xử lý
     funding_parser.set_defaults(func=handle_funding_command)
     
-    # Parser cho lệnh info
+    # ===== THIẾT LẬP PARSER CHO INFO =====
     info_parser = collect_subparsers.add_parser(
         'info',
         help='Hiển thị thông tin về dữ liệu đã thu thập',
@@ -795,21 +864,102 @@ def handle_collect_command(args, system):
     Returns:
         int: Mã kết quả (0 = thành công)
     """
-    # Kiểm tra xem có lệnh con không
-    if not hasattr(args, 'collect_command') or args.collect_command is None:
-        # Hiển thị trợ giúp
-        print("Sử dụng: trading_system collect <lệnh> [các tùy chọn]")
-        print("\nCác lệnh:")
-        print("  historical   Thu thập dữ liệu lịch sử")
-        print("  realtime     Thu thập dữ liệu thời gian thực")
-        print("  orderbook    Thu thập dữ liệu orderbook")
-        print("  funding      Thu thập tỷ lệ tài trợ")
-        print("  info         Hiển thị thông tin về dữ liệu đã thu thập")
-        print("\nĐể xem thêm trợ giúp chi tiết về một lệnh, sử dụng:")
-        print("  trading_system collect <lệnh> --help")
+    # Kiểm tra xem có subcommand không
+    if hasattr(args, 'collect_command') and args.collect_command:
+        # Có subcommand, sử dụng handler tương ứng
+        if hasattr(args, 'func') and args.func != handle_collect_command:
+            # Gọi hàm xử lý tương ứng
+            return args.func(args, system)
         return 0
     
-    return 0
+    # Nếu không có subcommand, kiểm tra xem có đủ tham số cần thiết không
+    if not hasattr(args, 'exchange') or not args.exchange:
+        print("Lỗi: Thiếu tham số --exchange")
+        print("Sử dụng: main.py collect --exchange <tên_sàn> --symbols <cặp_giao_dịch> [các tùy chọn]")
+        return 1
+    
+    if not hasattr(args, 'symbols') or not args.symbols:
+        print("Lỗi: Thiếu tham số --symbols")
+        print("Sử dụng: main.py collect --exchange <tên_sàn> --symbols <cặp_giao_dịch> [các tùy chọn]")
+        return 1
+    
+    # Xử lý các tham số
+    exchange_id = args.exchange
+    symbols = args.symbols.split(',')
+    timeframes_str = args.timeframes if hasattr(args, 'timeframes') and args.timeframes else "1h"
+    timeframes = timeframes_str.split(',')
+    start_date = args.start_date if hasattr(args, 'start_date') else None
+    end_date = args.end_date if hasattr(args, 'end_date') else None
+    is_futures = args.futures if hasattr(args, 'futures') else False
+    output_dir = Path(args.output_dir) if hasattr(args, 'output_dir') and args.output_dir else None
+    save_format = args.save_format if hasattr(args, 'save_format') else 'parquet'
+    force_update = args.force_update if hasattr(args, 'force_update') else False
+    max_workers = args.max_workers if hasattr(args, 'max_workers') else 4
+    
+    # Tạo CollectCommands
+    cmd = CollectCommands(system)
+    
+    try:
+        # Chuẩn bị loop asyncio
+        loop = asyncio.get_event_loop()
+        
+        # Tập hợp kết quả cho tất cả timeframes
+        all_results = {}
+        
+        print(f"Thu thập dữ liệu lịch sử từ {exchange_id} cho {len(symbols)} cặp giao dịch...")
+        
+        for tf in timeframes:
+            print(f"Đang thu thập dữ liệu với khung thời gian {tf}...")
+            
+            # Sử dụng phương thức collect_data của system nếu có
+            if system and hasattr(system, 'collect_data'):
+                result = loop.run_until_complete(system.collect_data(
+                    exchange_id=exchange_id,
+                    symbols=symbols,
+                    timeframe=tf,
+                    start_date=start_date,
+                    end_date=end_date,
+                    futures=is_futures,
+                    output_dir=output_dir
+                ))
+            else:
+                # Nếu không, sử dụng phương thức collect_historical_data của CollectCommands
+                result = loop.run_until_complete(cmd.collect_historical_data(
+                    exchange_id=exchange_id,
+                    symbols=symbols,
+                    timeframe=tf,
+                    start_date=start_date,
+                    end_date=end_date,
+                    is_futures=is_futures,
+                    output_dir=output_dir,
+                    save_format=save_format,
+                    force_update=force_update,
+                    max_workers=max_workers
+                ))
+            
+            # Thêm vào kết quả tổng hợp
+            for symbol, path in result.items():
+                if symbol not in all_results:
+                    all_results[symbol] = {}
+                all_results[symbol][tf] = path
+        
+        # In kết quả
+        if all_results:
+            print(f"\nĐã thu thập dữ liệu cho {len(all_results)} cặp giao dịch:")
+            for symbol, timeframe_paths in all_results.items():
+                print(f"  {symbol}:")
+                for tf, path in timeframe_paths.items():
+                    print(f"    - {tf}: {path}")
+            return 0
+        else:
+            print("Không có dữ liệu nào được thu thập.")
+            return 1
+            
+    except Exception as e:
+        print(f"Lỗi khi thu thập dữ liệu: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return 1
 
 def handle_historical_command(args, system):
     """
