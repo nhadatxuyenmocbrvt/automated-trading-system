@@ -1563,6 +1563,7 @@ class DataPipeline:
                         }
                     }
                 }},
+                {"name": "calculate_fear_greed", "enabled": True},
                 {"name": "remove_redundant_indicators", "enabled": True, "params": {
                     "correlation_threshold": 0.95,
                     "redundant_groups": [
@@ -1753,6 +1754,100 @@ class DataPipeline:
         
         return current_data
 
+    def calculate_fear_greed_features(
+        self,
+        data: Dict[str, pd.DataFrame]
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Tính toán đặc trưng tâm lý thị trường dựa trên hành động giá (Fear & Greed).
+        
+        Args:
+            data: Dict với key là symbol và value là DataFrame
+                
+        Returns:
+            Dict với key là symbol và value là DataFrame đã tính toán đặc trưng tâm lý
+        """
+        try:
+            # Import module Fear & Greed
+            from data_processors.feature_engineering.sentiment_features.create_fear_greed import calculate_market_sentiment_features
+            
+            results = {}
+            for symbol, df in data.items():
+                # Bỏ qua dữ liệu tâm lý
+                if symbol.lower() == "sentiment":
+                    results[symbol] = df
+                    continue
+                
+                # Tính toán đặc trưng tâm lý
+                self.logger.info(f"Đang tính toán đặc trưng tâm lý thị trường cho {symbol}...")
+                
+                # Xử lý trước dữ liệu để tính các chỉ báo cần thiết nếu chưa có
+                enhanced_df = df.copy()
+                
+                # 1. Tính Bollinger Bands Width nếu chưa có
+                if 'bbw_20' not in enhanced_df.columns:
+                    if all(col in enhanced_df.columns for col in ['bb_upper_20', 'bb_lower_20', 'bb_middle_20']):
+                        enhanced_df['bbw_20'] = (enhanced_df['bb_upper_20'] - enhanced_df['bb_lower_20']) / enhanced_df['bb_middle_20']
+                    else:
+                        try:
+                            from data_processors.feature_engineering.technical_indicator.trend_indicators import calculate_bollinger_bands
+                            bbands_df = calculate_bollinger_bands(enhanced_df, timeperiod=20)
+                            if bbands_df is not None:
+                                enhanced_df['bbw_20'] = (bbands_df['bb_upper_20'] - bbands_df['bb_lower_20']) / bbands_df['bb_middle_20']
+                        except Exception as e:
+                            self.logger.warning(f"Không thể tính Bollinger Bands Width: {str(e)}")
+                
+                # 2. Tính Rate of Change (ROC) nếu chưa có
+                roc_periods = [1, 5, 10, 20]
+                for period in roc_periods:
+                    roc_col = f'roc_{period}'
+                    if roc_col not in enhanced_df.columns and 'close' in enhanced_df.columns:
+                        try:
+                            from data_processors.feature_engineering.technical_indicator.momentum_indicators import calculate_rate_of_change
+                            roc_df = calculate_rate_of_change(enhanced_df, timeperiod=period)
+                            if roc_df is not None and roc_col in roc_df.columns:
+                                enhanced_df[roc_col] = roc_df[roc_col]
+                            else:
+                                # Tính thủ công nếu hàm không hoạt động
+                                enhanced_df[roc_col] = enhanced_df['close'].pct_change(period) * 100
+                        except Exception as e:
+                            self.logger.warning(f"Không thể tính ROC-{period}: {str(e)}")
+                            # Tính thủ công
+                            enhanced_df[roc_col] = enhanced_df['close'].pct_change(period) * 100
+                
+                # Phát hiện timeframe từ khoảng cách thời gian nếu có timestamp
+                lookback_period = 90  # Mặc định
+                if 'timestamp' in enhanced_df.columns and len(enhanced_df) > 1:
+                    time_diff = pd.to_datetime(enhanced_df['timestamp'].iloc[1]) - pd.to_datetime(enhanced_df['timestamp'].iloc[0])
+                    time_diff_seconds = time_diff.total_seconds()
+                    if time_diff_seconds <= 3600:  # 1 giờ
+                        lookback_period = 90 * 24  # 90 ngày * 24 giờ
+                    elif time_diff_seconds <= 86400:  # 1 ngày
+                        lookback_period = 90
+                    else:
+                        lookback_period = 30
+                
+                # Tính toán đặc trưng
+                final_df = calculate_market_sentiment_features(
+                    df=enhanced_df,
+                    column='close',
+                    lookback_period=lookback_period,
+                    prefix='sentiment_'
+                )
+                
+                results[symbol] = final_df
+                
+                # Log số lượng đặc trưng được thêm vào
+                added_cols = set(final_df.columns) - set(df.columns)
+                if added_cols:
+                    self.logger.info(f"Đã thêm {len(added_cols)} đặc trưng tâm lý cho {symbol}: {', '.join(added_cols)}")
+                
+            return results
+                
+        except Exception as e:
+            self.logger.error(f"Lỗi khi tính toán đặc trưng tâm lý: {str(e)}")
+            # Trả về dữ liệu gốc nếu có lỗi
+            return data        
 
 async def run_test():
     """

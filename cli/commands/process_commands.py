@@ -439,6 +439,18 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
         
         # Tạo đặc trưng nếu cần
         if not no_features:
+            # Đăng ký các chỉ báo cần thiết cho Fear & Greed Index
+            required_indicators = ["trend_bbands", "momentum_roc", "volatility_atr", "volume_obv"]
+            feature_configs = {}
+            for symbol in processed_data.keys():
+                feature_configs[symbol] = {
+                    "feature_names": required_indicators,
+                    "params": {
+                        "trend_bbands": {"timeperiod": 20},
+                        "momentum_roc": {"timeperiods": [1, 5, 10, 20]}
+                    }
+                }
+            # Tính toán các chỉ báo bắt buộc
             processed_data = pipeline.generate_features(
                 processed_data,
                 all_indicators=all_indicators,
@@ -662,6 +674,7 @@ def setup_process_parser(subparsers):
     pipeline_parser.add_argument("--all-indicators/--selected-indicators", dest="all_indicators", action="store_true", default=True, help="Sử dụng tất cả các chỉ báo kỹ thuật có sẵn")
     pipeline_parser.add_argument("--preserve-timestamp/--no-preserve-timestamp", dest="preserve_timestamp", action="store_true", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
     pipeline_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
+    pipeline_parser.add_argument("--include-sentiment", action="store_true", help="Bao gồm đặc trưng tâm lý thị trường (Fear & Greed Index)")
     
     process_parser.set_defaults(func=handle_process_command)
 

@@ -327,12 +327,11 @@ pip install -r requirements.txt
 # Thu thập dữ liệu thị trường spot cho BTC/USDT và ETH/USDT
 python main.py collect --exchange binance --symbols BTCUSDT,ETHUSDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30
 
-# Tạo dữ liệu Fear and Greed Index và các đặc trưng khác
-python main.py process pipeline --input-dir data/collected --symbols BTC/USDT --timeframes 1h --output-dir data/processed --all-indicators
+
 
 # Thu thập dữ liệu thị trường futures
-python main.py collect --exchange binance --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --futures
-python main.py collect --exchange binance --symbols ETH/USDT --timeframes 1h --start-date 2024-01-30 --end-date 2024-12-30 --futures
+python main.py collect --exchange binance --symbols BTC/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --futures
+python main.py collect --exchange binance --symbols ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --futures
 
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
@@ -346,9 +345,16 @@ python main.py process clean --data-type ohlcv --symbols ETH/USDT --timeframes 1
 # Tạo đặc trưng kỹ thuật
 python main.py process features --data-type ohlcv --symbols BTC/USDT ETH/USDT --all-indicators
 
+# Tạo dữ liệu Fear and Greed Index thủ công
+python -m data_processors.feature_engineering.sentiment_features.create_fear_greed
+
 # Chạy toàn bộ pipeline xử lý dữ liệu
-python main.py process pipeline --symbols BTC/USDT ETH/USDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30
-python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2024-10-01 --end-date 2024-12-30
+python main.py process pipeline --symbols ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30
+python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2024-01-01 --end-date 2024-12-30
+python main.py process pipeline --symbols BTC/USDT, ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30
+python main.py process pipeline --symbols BTC/USDT, ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --include-sentiment
+# Chạy toàn bộ pipeline xử lý dữ liệu & 
+python main.py process pipeline --input-dir data/collected --symbols BTC/USDT --timeframes 1h --output-dir data/processed --all-indicators
 ```
 
 ## 3. Chạy backtest (chưa triển khai đầy đủ)

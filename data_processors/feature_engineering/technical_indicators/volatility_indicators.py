@@ -6,6 +6,7 @@ như ATR, Bollinger Bandwidth, Keltner Channel, v.v.
 
 import pandas as pd
 import numpy as np
+import logging
 from typing import Union, List, Dict, Tuple, Optional, Any
 
 # Import các hàm tiện ích
@@ -35,57 +36,178 @@ def average_true_range(
     Returns:
         DataFrame với cột mới chứa ATR
     """
-    required_columns = ['high', 'low', 'close']
-    if not validate_price_data(df, required_columns):
-        raise ValueError(f"Dữ liệu không hợp lệ: thiếu các cột {required_columns}")
+    # Sử dụng logger thay vì print
+    logger = logging.getLogger(__name__)
     
-    result_df = df.copy()
-    
-    # Tính True Range
-    tr = true_range(result_df['high'], result_df['low'], result_df['close'])
-    
-    # Tính ATR dựa trên phương pháp chỉ định
-    if method.lower() == 'ema':
-        # Sử dụng EMA với alpha = 2/(window+1)
-        atr = tr.ewm(span=window, min_periods=window, adjust=False).mean()
-    elif method.lower() in ['rma', 'wilder']:
-        # Sử dụng Wilder's Running Moving Average
-        # RMA(current, length) = (RMA(prev, length) * (length - 1) + current) / length
-        atr = pd.Series(index=tr.index, dtype=float)
+    try:
+        # Kiểm tra dữ liệu đầu vào
+        required_columns = ['high', 'low', 'close']
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Dữ liệu không hợp lệ: thiếu các cột {missing_cols}")
         
-        # Tính giá trị đầu tiên (SMA)
-        first_valid_idx = tr.first_valid_index()
-        if first_valid_idx:
-            start_idx = tr.index.get_loc(first_valid_idx)
-            if start_idx + window <= len(tr):
-                first_value = tr.iloc[start_idx:start_idx+window].mean()
-                atr.iloc[start_idx+window-1] = first_value
-                
-                # Tính các giá trị tiếp theo sử dụng công thức Wilder
-                for i in range(start_idx+window, len(tr)):
-                    atr.iloc[i] = (atr.iloc[i-1] * (window - 1) + tr.iloc[i]) / window
-    else:
-        # Mặc định sử dụng SMA
-        atr = tr.rolling(window=window, min_periods=window).mean()
-    
-    # Đặt tên cột kết quả
-    result_df[f"{prefix}atr_{window}"] = atr
-    
-    # Tính ATR chia cho giá (chuẩn hóa)
-    if normalize_by_price:
-        # Tránh chia cho 0 hoặc NaN
-        close_prices = result_df['close'].replace(0, np.nan)
-        atr_normalized = atr / close_prices
+        # Tạo bản sao để tránh thay đổi DataFrame gốc
+        result_df = df.copy()
         
-        # ATR dưới dạng phần trăm của giá
-        atr_pct = atr_normalized * 100
-        result_df[f"{prefix}atr_pct_{window}"] = atr_pct
+        # Tính True Range
+        tr = true_range(result_df['high'], result_df['low'], result_df['close'])
         
-        # ATR chuẩn hóa (dạng thập phân, hữu ích cho neural networks)
-        result_df[f"{prefix}atr_norm_{window}"] = atr_normalized
+        # Tính ATR dựa trên phương pháp chỉ định
+        if method.lower() == 'ema':
+            # Sử dụng EMA với alpha = 2/(window+1)
+            atr = tr.ewm(span=window, min_periods=window, adjust=False).mean()
+        elif method.lower() in ['rma', 'wilder']:
+            # Sử dụng Wilder's Running Moving Average
+            # RMA(current, length) = (RMA(prev, length) * (length - 1) + current) / length
+            atr = pd.Series(index=tr.index, dtype=float)
+            
+            # Tính giá trị đầu tiên (SMA)
+            first_valid_idx = tr.first_valid_index()
+            if first_valid_idx:
+                start_idx = tr.index.get_loc(first_valid_idx)
+                if start_idx + window <= len(tr):
+                    first_value = tr.iloc[start_idx:start_idx+window].mean()
+                    atr.iloc[start_idx+window-1] = first_value
+                    
+                    # Tính các giá trị tiếp theo sử dụng công thức Wilder
+                    for i in range(start_idx+window, len(tr)):
+                        atr.iloc[i] = (atr.iloc[i-1] * (window - 1) + tr.iloc[i]) / window
+        else:
+            # Mặc định sử dụng SMA
+            atr = tr.rolling(window=window, min_periods=window).mean()
+        
+        # Đặt tên cột kết quả - đảm bảo có tên cột rõ ràng
+        atr_col_name = f"{prefix}atr_{window}"
+        result_df[atr_col_name] = atr
+        
+        # Tính ATR chia cho giá (chuẩn hóa)
+        if normalize_by_price:
+            # Tránh chia cho 0 hoặc NaN
+            close_prices = result_df['close'].replace(0, np.nan)
+            atr_normalized = atr / close_prices
+            
+            # ATR dưới dạng phần trăm của giá
+            atr_pct = atr_normalized * 100
+            result_df[f"{prefix}atr_pct_{window}"] = atr_pct
+            
+            # ATR chuẩn hóa (dạng thập phân, hữu ích cho neural networks)
+            atr_norm_col = f"{prefix}atr_norm_{window}"
+            result_df[atr_norm_col] = atr_normalized
+        
+        # Ghi log các cột mới đã tạo
+        new_cols = [col for col in result_df.columns if col not in df.columns]
+        logger.info(f"ATR: Đã tạo {len(new_cols)} cột mới: {new_cols}")
+        
+        return result_df
     
-    return result_df
+    except Exception as e:
+        # Ghi log lỗi
+        logger.error(f"Lỗi khi tính ATR: {e}")
+        
+        # Trả về DataFrame ban đầu với ít nhất một cột mới để quá trình không bị gián đoạn
+        result_df = df.copy()
+        result_df[f"{prefix}atr_{window}"] = np.nan
+        
+        if normalize_by_price:
+            result_df[f"{prefix}atr_pct_{window}"] = np.nan
+            result_df[f"{prefix}atr_norm_{window}"] = np.nan
+            
+        return result_df
 
+def bollinger_bands(
+    df: pd.DataFrame,
+    column: str = 'close',
+    window: int = 20,
+    std_dev: float = 2.0,
+    prefix: str = ''
+) -> pd.DataFrame:
+    """
+    Tính Bollinger Bands.
+    
+    Args:
+        df: DataFrame chứa dữ liệu giá
+        column: Tên cột giá sử dụng để tính toán
+        window: Kích thước cửa sổ
+        std_dev: Số độ lệch chuẩn cho các băng trên và dưới
+        prefix: Tiền tố cho tên cột kết quả
+        
+    Returns:
+        DataFrame với các cột mới chứa Middle Band, Upper Band, Lower Band, 
+        Bandwidth và %B
+    """
+    # Sử dụng logger của module
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Kiểm tra dữ liệu đầu vào
+        if column not in df.columns:
+            raise ValueError(f"Dữ liệu không hợp lệ: thiếu cột {column}")
+        
+        # Kiểm tra thêm giá trị NaN
+        if df[column].isna().all():
+            raise ValueError(f"Cột {column} chỉ chứa giá trị NaN")
+        
+        # Tạo bản sao để tránh thay đổi DataFrame gốc
+        result_df = df.copy()
+        
+        # Tính các thành phần của Bollinger Bands
+        rolling = result_df[column].rolling(window=window, min_periods=1)
+        
+        # Middle band là SMA
+        middle_band = rolling.mean()
+        
+        # Tính độ lệch chuẩn
+        std = rolling.std(ddof=0)  # ddof=0 cho population standard deviation
+        
+        # Upper và lower bands
+        upper_band = middle_band + (std_dev * std)
+        lower_band = middle_band - (std_dev * std)
+        
+        # Gán các giá trị vào DataFrame với tên cột rõ ràng
+        result_df[f"{prefix}bb_middle_{window}"] = middle_band
+        result_df[f"{prefix}bb_upper_{window}"] = upper_band
+        result_df[f"{prefix}bb_lower_{window}"] = lower_band
+        
+        # Tính Bollinger Bandwidth = (Upper Band - Lower Band) / Middle Band
+        # Tránh chia cho 0 bằng cách thêm giá trị rất nhỏ
+        bandwidth = (upper_band - lower_band) / (middle_band + 1e-10)
+        result_df[f"{prefix}bb_bandwidth_{window}"] = bandwidth
+        
+        # Tính %B = (Price - Lower Band) / (Upper Band - Lower Band)
+        # Tránh chia cho 0 bằng cách thêm giá trị rất nhỏ
+        band_diff = upper_band - lower_band + 1e-10
+        percent_b = (result_df[column] - lower_band) / band_diff
+        result_df[f"{prefix}bb_percent_b_{window}"] = percent_b
+        
+        # Ghi log các cột mới đã tạo
+        new_cols = [col for col in result_df.columns if col not in df.columns]
+        logger.info(f"Bollinger Bands: Đã tạo {len(new_cols)} cột mới: {new_cols}")
+        
+        # Đảm bảo luôn có cột mới được tạo
+        if not new_cols:
+            result_df[f"{prefix}bb_bandwidth_{window}"] = np.nan
+            logger.warning(f"Không có cột mới nào được tạo, đã thêm cột mặc định {prefix}bb_bandwidth_{window}")
+        
+        return result_df
+    
+    except Exception as e:
+        # Ghi log lỗi bằng logger
+        logger.error(f"Lỗi khi tính Bollinger Bands: {str(e)}")
+        
+        # Trả về DataFrame với các cột mặc định để tránh gián đoạn quy trình
+        result_df = df.copy()
+        result_df[f"{prefix}bb_middle_{window}"] = np.nan
+        result_df[f"{prefix}bb_upper_{window}"] = np.nan
+        result_df[f"{prefix}bb_lower_{window}"] = np.nan
+        result_df[f"{prefix}bb_bandwidth_{window}"] = np.nan
+        result_df[f"{prefix}bb_percent_b_{window}"] = np.nan
+        
+        # Đảm bảo trả về ít nhất một cột cần thiết
+        logger.info(f"Đã tạo các cột mặc định cho Bollinger Bands")
+        
+        return result_df
+
+# Thêm hàm bollinger_bandwidth riêng biệt
 def bollinger_bandwidth(
     df: pd.DataFrame,
     column: str = 'close',
@@ -94,7 +216,7 @@ def bollinger_bandwidth(
     prefix: str = ''
 ) -> pd.DataFrame:
     """
-    Tính Bollinger Bandwidth.
+    Tính Bollinger Bandwidth - đo lường độ rộng của dải Bollinger Bands.
     
     Args:
         df: DataFrame chứa dữ liệu giá
@@ -106,36 +228,62 @@ def bollinger_bandwidth(
     Returns:
         DataFrame với cột mới chứa Bollinger Bandwidth
     """
-    if not validate_price_data(df, [column]):
-        raise ValueError(f"Dữ liệu không hợp lệ: thiếu cột {column}")
+    logger = logging.getLogger(__name__)
     
-    result_df = df.copy()
+    try:
+        # Kiểm tra dữ liệu đầu vào
+        if column not in df.columns:
+            raise ValueError(f"Dữ liệu không hợp lệ: thiếu cột {column}")
+        
+        # Tạo bản sao để tránh thay đổi DataFrame gốc
+        result_df = df.copy()
+        
+        # Tính các thành phần của Bollinger Bands
+        rolling = result_df[column].rolling(window=window, min_periods=1)
+        
+        # Middle band là SMA
+        middle_band = rolling.mean()
+        
+        # Tính độ lệch chuẩn
+        std = rolling.std(ddof=0)
+        
+        # Upper và lower bands
+        upper_band = middle_band + (std_dev * std)
+        lower_band = middle_band - (std_dev * std)
+        
+        # Tính Bollinger Bandwidth = (Upper Band - Lower Band) / Middle Band
+        # Tránh chia cho 0 bằng cách thêm giá trị rất nhỏ
+        bandwidth = (upper_band - lower_band) / (middle_band + 1e-10)
+        
+        # Gán giá trị vào DataFrame với tên cột rõ ràng
+        bandwidth_col = f"{prefix}bb_bandwidth_{window}"
+        result_df[bandwidth_col] = bandwidth
+        
+        # Thêm cột chỉ báo biến động tăng/giảm
+        bandwidth_delta = bandwidth - bandwidth.shift(1)
+        result_df[f"{prefix}bb_bandwidth_delta_{window}"] = bandwidth_delta
+        
+        # Thêm cột chỉ báo biến động tương đối
+        bandwidth_pct = (bandwidth - bandwidth.rolling(window=window).mean()) / bandwidth.rolling(window=window).std()
+        result_df[f"{prefix}bb_bandwidth_pct_{window}"] = bandwidth_pct
+        
+        # Ghi log các cột mới đã tạo
+        new_cols = [col for col in result_df.columns if col not in df.columns]
+        logger.info(f"Bollinger Bandwidth: Đã tạo {len(new_cols)} cột mới: {new_cols}")
+        
+        return result_df
     
-    # Tính các thành phần của Bollinger Bands
-    rolling = result_df[column].rolling(window=window)
-    
-    # Middle band là SMA
-    middle_band = rolling.mean()
-    
-    # Tính độ lệch chuẩn
-    std = rolling.std(ddof=0)  # ddof=0 cho population standard deviation
-    
-    # Upper và lower bands
-    upper_band = middle_band + std_dev * std
-    lower_band = middle_band - std_dev * std
-    
-    # Tính Bollinger Bandwidth = (Upper Band - Lower Band) / Middle Band
-    bandwidth = (upper_band - lower_band) / middle_band
-    
-    # Tính Bandwidth Percent Rank để đánh giá biến động tương đối
-    # %B = (Price - Lower Band) / (Upper Band - Lower Band)
-    percent_b = (result_df[column] - lower_band) / (upper_band - lower_band)
-    
-    # Đặt tên các cột kết quả
-    result_df[f"{prefix}bbw_{window}"] = bandwidth
-    result_df[f"{prefix}bbw_percentb_{window}"] = percent_b
-    
-    return result_df
+    except Exception as e:
+        # Ghi log lỗi bằng logger
+        logger.error(f"Lỗi khi tính Bollinger Bandwidth: {str(e)}")
+        
+        # Trả về DataFrame với cột mặc định
+        result_df = df.copy()
+        result_df[f"{prefix}bb_bandwidth_{window}"] = np.nan
+        result_df[f"{prefix}bb_bandwidth_delta_{window}"] = np.nan
+        result_df[f"{prefix}bb_bandwidth_pct_{window}"] = np.nan
+        
+        return result_df
 
 def keltner_channel(
     df: pd.DataFrame,

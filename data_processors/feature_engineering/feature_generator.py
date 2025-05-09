@@ -1,17 +1,19 @@
 """
-Lớp chính để tạo đặc trưng từ dữ liệu thị trường.
-File này cung cấp lớp FeatureGenerator để quản lý, tạo, và xuất các đặc trưng
-từ các module con khác nhau, tạo thành một pipeline xử lý đặc trưng đầy đủ.
+Tạo đặc trưng cho mô hình.
+File này cung cấp lớp FeatureGenerator để tạo, quản lý và áp dụng các đặc trưng
+từ các module con, hỗ trợ tiền xử lý, tạo pipeline và biến đổi dữ liệu.
 """
 
 import pandas as pd
 import numpy as np
-import logging
-from typing import Dict, List, Optional, Union, Any, Callable, Set, Tuple
-from pathlib import Path
+import os
 import joblib
-import json
+from pathlib import Path
+import logging
+import time
 from datetime import datetime
+from typing import Dict, List, Optional, Union, Any, Tuple, Set, Callable
+import warnings
 import concurrent.futures
 from functools import partial
 
@@ -20,80 +22,140 @@ import sys
 import os
 
 # Thêm thư mục gốc vào sys.path để import module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.logging_config import setup_logger
-from config.system_config import BASE_DIR, MODEL_DIR
-from data_processors.utils.validation import validate_features, check_feature_integrity
-from data_processors.utils.preprocessing import normalize_features, standardize_features, min_max_scale, handle_extreme_values, log_transform
-from data_processors.feature_engineering.feature_selector.statistical_methods import correlation_selector
+from config.constants import Indicator, DEFAULT_INDICATOR_PARAMS
+
+# Import các module feature engineering
+from data_processors.feature_engineering.technical_indicators.trend_indicators import (
+    simple_moving_average, exponential_moving_average, bollinger_bands,
+    moving_average_convergence_divergence, average_directional_index,
+    parabolic_sar, ichimoku_cloud, supertrend
+)
+from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
+    relative_strength_index, stochastic_oscillator, williams_r,
+    commodity_channel_index, rate_of_change, money_flow_index,
+    true_strength_index
+)
+from data_processors.feature_engineering.technical_indicators.volume_indicators import (
+    on_balance_volume, accumulation_distribution_line, chaikin_money_flow,
+    volume_weighted_average_price, ease_of_movement, volume_oscillator,
+    price_volume_trend, log_transform_volume
+)
+from data_processors.feature_engineering.market_features.price_features import (
+    calculate_returns, calculate_log_returns, calculate_rsi_features,
+    calculate_price_momentum, calculate_price_ratios, calculate_price_channels,
+    calculate_price_crossovers, calculate_price_divergence
+)
+from data_processors.feature_engineering.market_features.volatility_features import (
+    calculate_volatility_features, calculate_relative_volatility,
+    calculate_volatility_ratio, calculate_volatility_patterns,
+    calculate_volatility_regime, calculate_garch_features
+)
+
+# Import các module tiện ích
+from data_processors.utils.preprocessing import (
+    normalize_features, standardize_features, min_max_scale,
+    handle_extreme_values, log_transform, winsorize,
+    clean_technical_features, normalize_technical_indicators,
+    standardize_technical_indicators, detect_and_fix_indicator_outliers
+)
 
 class FeatureGenerator:
     """
-    Lớp chính để tạo và quản lý đặc trưng cho dữ liệu thị trường.
+    Lớp chính để tạo, quản lý và áp dụng các đặc trưng từ các module con.
+    Hỗ trợ tiền xử lý dữ liệu, xây dựng pipeline và biến đổi dữ liệu.
     """
     
     def __init__(
         self,
         data_dir: Optional[Path] = None,
-        feature_config: Optional[Dict[str, Any]] = None,
         max_workers: int = 4,
         logger: Optional[logging.Logger] = None
     ):
-        # Thiết lập thư mục lưu trữ
-        if data_dir is None:
-            try:
-                # Thử sử dụng MODEL_DIR từ config
-                from config.system_config import MODEL_DIR
-                if MODEL_DIR is not None:
-                    self.data_dir = MODEL_DIR / 'feature_engineering'
-                else:
-                    raise AttributeError("MODEL_DIR is None")
-            except (ImportError, AttributeError) as e:
-                # Nếu có lỗi, sử dụng đường dẫn mặc định
-                default_dir = Path("./data/processed/feature_engineering") 
-                self.data_dir = default_dir
-                if logger:
-                    logger.warning(f"Không thể sử dụng MODEL_DIR: {e}. Sử dụng đường dẫn mặc định: {self.data_dir}")
-        else:
-            self.data_dir = data_dir
-    
-        # Tạo thư mục nếu chưa tồn tại
-        try:
-            self.data_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            if logger:
-                logger.error(f"Không thể tạo thư mục {self.data_dir}: {e}")
-            # Sử dụng thư mục hiện tại nếu không thể tạo thư mục
-            self.data_dir = Path(".")
-    
+        """
+        Khởi tạo FeatureGenerator.
+        
+        Args:
+            data_dir: Thư mục dữ liệu để lưu/tải các pipeline đặc trưng
+            max_workers: Số luồng tối đa cho việc xử lý song song
+            logger: Logger hiện có (nếu có)
+        """
         # Thiết lập logger
         if logger is None:
             self.logger = setup_logger("feature_generator")
         else:
             self.logger = logger
         
-        # Thiết lập cấu hình đặc trưng
-        self.feature_config = feature_config or {}
+        # Thiết lập thư mục dữ liệu
+        if data_dir is None:
+            # Sử dụng thư mục hiện tại
+            self.data_dir = Path(os.path.dirname(os.path.abspath(__file__))) / "feature_pipelines"
+        else:
+            self.data_dir = data_dir
         
-        # Số luồng tối đa cho xử lý song song
+        # Tạo thư mục nếu chưa tồn tại
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Thiết lập số luồng tối đa
         self.max_workers = max_workers
         
-        # Danh sách các đặc trưng đã đăng ký
+        # Khởi tạo các thuộc tính quản lý đặc trưng
         self.registered_features = {}
+        self.feature_pipelines = {}
+        self.fitted_params = {}
         
-        # Danh sách các bộ tiền xử lý
-        self.preprocessors = {}
+        # Danh sách đặc trưng mặc định
+        self.default_features = {
+            'trend': [
+                'sma', 'ema', 'bollinger_bands', 'macd', 'adx',
+                'parabolic_sar', 'supertrend'
+            ],
+            'momentum': [
+                'rsi', 'stochastic_oscillator', 'williams_r', 'cci',
+                'roc', 'mfi', 'tsi'
+            ],
+            'volume': [
+                'obv', 'ad_line', 'cmf', 'vwap', 'eom', 'volume_oscillator',
+                'pvt', 'volume_log'
+            ],
+            'volatility': [
+                'atr', 'volatility_features', 'volatility_ratio',
+                'volatility_patterns', 'volatility_regime'
+            ],
+            'price': [
+                'returns', 'log_returns', 'price_momentum', 'price_ratios',
+                'price_channels', 'price_crossovers'
+            ]
+        }
         
-        # Danh sách các biến đổi
-        self.transformers = {}
+        # Đăng ký các hàm xử lý đặc trưng
+        self.preprocessors = {
+            'normalize': normalize_features,
+            'standardize': standardize_features,
+            'minmax': min_max_scale,
+            'handle_extremes': handle_extreme_values,
+            'log_transform': log_transform,
+            'winsorize': winsorize,
+            'clean_technical': clean_technical_features,
+            'normalize_indicators': normalize_technical_indicators,
+            'standardize_indicators': standardize_technical_indicators,
+            'fix_outliers': detect_and_fix_indicator_outliers
+        }
         
-        # Các bộ chọn lọc đặc trưng
-        self.feature_selectors = {}
+        # Đăng ký các thành phần chuyển đổi
+        self.transformers = {
+            'normalize_technical': normalize_technical_indicators,
+            'standardize_technical': standardize_technical_indicators
+        }
         
-        # Trạng thái và cache
-        self.is_fitted = False
-        self.feature_info = {}
+        # Đăng ký các bộ chọn lọc đặc trưng
+        self.feature_selectors = {
+            'correlation': self._correlation_selector,
+            'variance': self._variance_selector,
+            'statistical_correlation': self._statistical_correlation_selector
+        }
         
         self.logger.info("Đã khởi tạo FeatureGenerator")
     
@@ -101,1054 +163,530 @@ class FeatureGenerator:
         self,
         feature_name: str,
         feature_func: Callable,
-        feature_params: Dict[str, Any] = None,
-        dependencies: List[str] = None,
-        feature_type: str = "technical",
-        description: str = "",
-        is_enabled: bool = True
+        feature_params: Optional[Dict[str, Any]] = None,
+        category: Optional[str] = None
     ) -> None:
         """
         Đăng ký một đặc trưng mới.
         
         Args:
             feature_name: Tên đặc trưng
-            feature_func: Hàm để tính toán đặc trưng
-            feature_params: Tham số cho hàm
-            dependencies: Các cột dữ liệu cần thiết
-            feature_type: Loại đặc trưng (technical, market, sentiment)
-            description: Mô tả đặc trưng
-            is_enabled: Bật/tắt đặc trưng
+            feature_func: Hàm tính toán đặc trưng
+            feature_params: Tham số cho hàm đặc trưng
+            category: Danh mục đặc trưng (trend, momentum, volume, volatility, price)
         """
-        self.registered_features[feature_name] = {
-            "name": feature_name,
-            "function": feature_func,
-            "params": feature_params or {},
-            "dependencies": dependencies or [],
-            "type": feature_type,
-            "description": description,
-            "is_enabled": is_enabled
-        }
+        if feature_params is None:
+            feature_params = {}
         
-        self.logger.debug(f"Đã đăng ký đặc trưng: {feature_name}")
-    
-    def register_preprocessor(
-        self,
-        name: str,
-        preprocessor_func: Callable,
-        params: Dict[str, Any] = None,
-        target_columns: List[str] = None,
-        apply_by_default: bool = False
-    ) -> None:
-        """
-        Đăng ký bộ tiền xử lý.
-        
-        Args:
-            name: Tên bộ tiền xử lý
-            preprocessor_func: Hàm tiền xử lý
-            params: Tham số cho hàm
-            target_columns: Các cột cần áp dụng
-            apply_by_default: Áp dụng mặc định
-        """
-        self.preprocessors[name] = {
-            "name": name,
-            "function": preprocessor_func,
-            "params": params or {},
-            "target_columns": target_columns or [],
-            "apply_by_default": apply_by_default,
-            "fitted_params": None
-        }
-        
-        self.logger.debug(f"Đã đăng ký bộ tiền xử lý: {name}")
-    
-    def register_transformer(
-        self,
-        name: str,
-        transformer_func: Callable,
-        params: Dict[str, Any] = None,
-        target_columns: List[str] = None,
-        is_stateful: bool = True
-    ) -> None:
-        """
-        Đăng ký biến đổi.
-        
-        Args:
-            name: Tên biến đổi
-            transformer_func: Hàm biến đổi
-            params: Tham số cho hàm
-            target_columns: Các cột cần áp dụng
-            is_stateful: Biến đổi có trạng thái
-        """
-        self.transformers[name] = {
-            "name": name,
-            "function": transformer_func,
-            "params": params or {},
-            "target_columns": target_columns or [],
-            "is_stateful": is_stateful,
-            "fitted_state": None
-        }
-        
-        self.logger.debug(f"Đã đăng ký biến đổi: {name}")
-    
-    def register_feature_selector(
-        self,
-        name: str,
-        selector_func: Callable,
-        params: Dict[str, Any] = None,
-        feature_types: List[str] = None,
-        max_features: Optional[int] = None
-    ) -> None:
-        """
-        Đăng ký bộ chọn lọc đặc trưng.
-        
-        Args:
-            name: Tên bộ chọn lọc
-            selector_func: Hàm chọn lọc
-            params: Tham số cho hàm
-            feature_types: Loại đặc trưng cần chọn lọc
-            max_features: Số đặc trưng tối đa
-        """
-        self.feature_selectors[name] = {
-            "name": name,
-            "function": selector_func,
-            "params": params or {},
-            "feature_types": feature_types or ["technical", "market", "sentiment"],
-            "max_features": max_features,
-            "selected_features": None
-        }
-        
-        self.logger.debug(f"Đã đăng ký bộ chọn lọc đặc trưng: {name}")
-    
-    def load_feature_config(self, config_path: Optional[Union[str, Path]] = None) -> None:
-        """
-        Tải cấu hình đặc trưng từ file.
-        
-        Args:
-            config_path: Đường dẫn file cấu hình
-        """
-        if config_path is None:
-            config_path = self.data_dir / "feature_config.json"
-        else:
-            config_path = Path(config_path)
-        
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                self.feature_config = json.load(f)
-            
-            # Cập nhật trạng thái enabled của các đặc trưng
-            for feature_name, config in self.feature_config.get("features", {}).items():
-                if feature_name in self.registered_features:
-                    self.registered_features[feature_name]["is_enabled"] = config.get("is_enabled", True)
-                    self.registered_features[feature_name]["params"].update(config.get("params", {}))
-            
-            self.logger.info(f"Đã tải cấu hình đặc trưng từ {config_path}")
-            
-        except Exception as e:
-            self.logger.error(f"Lỗi khi tải cấu hình đặc trưng: {e}")
-    
-    def save_feature_config(self, config_path: Optional[Union[str, Path]] = None) -> None:
-        """
-        Lưu cấu hình đặc trưng vào file.
-        
-        Args:
-            config_path: Đường dẫn file cấu hình
-        """
-        try:
-            if config_path is None:
-                if self.data_dir is None:
-                    # Tạo thư mục mặc định trong thư mục hiện tại
-                    default_dir = Path("./data/processed/feature_engineering")
-                    default_dir.mkdir(parents=True, exist_ok=True)
-                    config_path = default_dir / "feature_config.json"
-                    self.logger.warning(f"data_dir là None, sử dụng đường dẫn mặc định: {config_path}")
-                else:
-                    config_path = self.data_dir / "feature_config.json"
+        if category is None:
+            # Tự động phân loại đặc trưng
+            if any(keyword in feature_name for keyword in ["sma", "ema", "macd", "bollinger", "supertrend"]):
+                category = "trend"
+            elif any(keyword in feature_name for keyword in ["rsi", "stoch", "cci", "roc", "mfi"]):
+                category = "momentum"
+            elif any(keyword in feature_name for keyword in ["obv", "volume", "vwap", "ad_line"]):
+                category = "volume"
+            elif any(keyword in feature_name for keyword in ["atr", "volatility"]):
+                category = "volatility"
+            elif any(keyword in feature_name for keyword in ["returns", "price"]):
+                category = "price"
             else:
-                config_path = Path(config_path)
-            # Đảm bảo thư mục cha tồn tại
-            config_path.parent.mkdir(parents=True, exist_ok=True)
+                category = "other"
         
-            # Tạo cấu hình để lưu
-            config_to_save = {
-                "version": "1.0.0",
-                "last_updated": datetime.now().isoformat(),
-                "features": {},
-                "preprocessors": {},
-                "transformers": {},
-                "feature_selectors": {}
-            }
-            
-            # Lưu thông tin đặc trưng
-            for name, feature_info in self.registered_features.items():
-                config_to_save["features"][name] = {
-                    "type": feature_info["type"],
-                    "is_enabled": feature_info["is_enabled"],
-                    "params": feature_info["params"],
-                    "description": feature_info["description"]
-                }
-            
-            # Lưu thông tin bộ tiền xử lý
-            for name, preprocessor_info in self.preprocessors.items():
-                config_to_save["preprocessors"][name] = {
-                    "apply_by_default": preprocessor_info["apply_by_default"],
-                    "params": preprocessor_info["params"],
-                    "target_columns": preprocessor_info["target_columns"]
-                }
-            
-            # Lưu thông tin biến đổi
-            for name, transformer_info in self.transformers.items():
-                config_to_save["transformers"][name] = {
-                    "is_stateful": transformer_info["is_stateful"],
-                    "params": transformer_info["params"],
-                    "target_columns": transformer_info["target_columns"]
-                }
-            
-            # Lưu thông tin bộ chọn lọc đặc trưng
-            for name, selector_info in self.feature_selectors.items():
-                config_to_save["feature_selectors"][name] = {
-                    "params": selector_info["params"],
-                    "feature_types": selector_info["feature_types"],
-                    "max_features": selector_info["max_features"]
-                }
-            
-            # Ghi file
-            with open(config_path, "w", encoding="utf-8") as f:
-                json.dump(config_to_save, f, indent=4)
-            
-            self.logger.info(f"Đã lưu cấu hình đặc trưng vào {config_path}")
-            
-        except Exception as e:
-            self.logger.error(f"Lỗi khi lưu cấu hình đặc trưng: {e}")
+        self.registered_features[feature_name] = {
+            "func": feature_func,
+            "params": feature_params,
+            "category": category
+        }
+        
+        self.logger.debug(f"Đã đăng ký đặc trưng '{feature_name}' trong danh mục '{category}'")
     
+    def register_default_features(
+        self,
+        all_indicators: bool = False,
+        categories: Optional[List[str]] = None
+    ) -> None:
         """
-        Đăng ký các đặc trưng mặc định phổ biến.
+        Đăng ký các đặc trưng mặc định.
+        
+        Args:
+            all_indicators: Đăng ký tất cả các chỉ báo hay không
+            categories: Danh sách các danh mục đặc trưng cần đăng ký
         """
-    def register_default_features(self, all_indicators: bool = True) -> None:
-        self.logger.info("Đăng ký các đặc trưng mặc định")
-
-        if all_indicators:
-            self._register_all_technical_indicators()
+        if categories is None:
+            # Nếu không chỉ định danh mục, đăng ký tất cả hoặc nhóm mặc định
+            if all_indicators:
+                categories = list(self.default_features.keys())
+            else:
+                # Một tập con chính của các đặc trưng
+                categories = ["trend", "momentum", "volume"]
         
-        # Đăng ký các đặc trưng khi các module con đã được phát triển
-        try:
-            self._register_default_technical_indicators()
-        except (ImportError, AttributeError) as e:
-            self.logger.warning(f"Không thể đăng ký technical indicators: {e}")
-        
-        try:
-            self._register_default_market_features()
-        except (ImportError, AttributeError) as e:
-            self.logger.warning(f"Không thể đăng ký market features: {e}")
-        
-        try:
-            self._register_default_sentiment_features()
-        except (ImportError, AttributeError) as e:
-            self.logger.warning(f"Không thể đăng ký sentiment features: {e}")
-        
-        # Đăng ký các bộ tiền xử lý mặc định
-        self._register_default_preprocessors()
-        
-        # Đăng ký các biến đổi mặc định
-        self._register_default_transformers()
-        
-        # Đăng ký các bộ chọn lọc đặc trưng mặc định
-        self._register_default_feature_selectors()
-        
-        # Đăng ký tính năng tạo nhãn
-        try:
-            from functools import partial
+        # Đăng ký các đặc trưng xu hướng
+        if "trend" in categories:
+            # SMA
+            for window in [5, 10, 20, 50, 100, 200]:
+                self.register_feature(
+                    f"sma_{window}",
+                    simple_moving_average,
+                    {"window": window},
+                    "trend"
+                )
             
-            # Tạo một wrapper cho hàm generate_target_labels
-            def target_label_wrapper(df, **kwargs):
-                return self.generate_target_labels(df, **kwargs)
+            # EMA
+            for window in [5, 10, 20, 50, 100, 200]:
+                self.register_feature(
+                    f"ema_{window}",
+                    exponential_moving_average,
+                    {"window": window},
+                    "trend"
+                )
             
-            # Đăng ký chức năng tạo nhãn như một đặc trưng có thể gọi
+            # Bollinger Bands
+            for window in [20, 50]:
+                for std_dev in [2.0, 3.0]:
+                    self.register_feature(
+                        f"bollinger_bands_{window}_{int(std_dev)}",
+                        bollinger_bands,
+                        {"window": window, "std_dev": std_dev},
+                        "trend"
+                    )
+            
+            # MACD
             self.register_feature(
-                feature_name="target_labels",
-                feature_func=target_label_wrapper,
-                feature_params={
-                    "price_col": "close",
-                    "target_type": "price_movement",
-                    "lookforward_period": 10,
-                    "threshold": 0.01,
-                    "target_column": "label",
-                    "add_return_cols": True
-                },
-                dependencies=["close"],
-                feature_type="target",
-                description="Tạo nhãn target dựa trên biến động giá tương lai",
-                is_enabled=False  # Mặc định tắt
+                "macd",
+                moving_average_convergence_divergence,
+                {"fast_period": 12, "slow_period": 26, "signal_period": 9},
+                "trend"
             )
             
-            self.logger.info("Đã đăng ký tính năng tạo nhãn target")
+            # ADX
+            for window in [14, 21]:
+                self.register_feature(
+                    f"adx_{window}",
+                    average_directional_index,
+                    {"window": window},
+                    "trend"
+                )
             
-        except Exception as e:
-            self.logger.warning(f"Không thể đăng ký tính năng tạo nhãn target: {e}")
-
-        # Ghi log danh sách đặc trưng đã đăng ký
-        self.logger.info(f"Đã đăng ký {len(self.registered_features)} đặc trưng: {list(self.registered_features.keys())}")
-
-    def _register_default_technical_indicators(self) -> None:
-        """
-        Đăng ký các chỉ báo kỹ thuật mặc định.
-        """
-        # Các đặc trưng này sẽ được triển khai khi module cụ thể đã phát triển
-        pass
-    
-    def _register_default_market_features(self) -> None:
-        """
-        Đăng ký các đặc trưng thị trường mặc định.
-        """
-        # Các đặc trưng này sẽ được triển khai khi module cụ thể đã phát triển
-        pass
-    
-    def _register_default_sentiment_features(self) -> None:
-        """
-        Đăng ký các đặc trưng tâm lý mặc định.
-        """
-        # Các đặc trưng này sẽ được triển khai khi module cụ thể đã phát triển
-        pass
-    
-    def _register_default_preprocessors(self) -> None:
-        """
-        Đăng ký các bộ tiền xử lý mặc định.
-        """
-        # Đăng ký các bộ tiền xử lý như chuẩn hóa, xóa giá trị ngoại lai, etc.
-        self.register_preprocessor(
-            name="normalize",
-            preprocessor_func=normalize_features,
-            params={"method": "zscore"},
-            apply_by_default=False
-        )
-        
-        self.register_preprocessor(
-            name="standardize",
-            preprocessor_func=standardize_features,
-            params={},
-            apply_by_default=False
-        )
-        
-        self.register_preprocessor(
-            name="min_max_scale",
-            preprocessor_func=min_max_scale,
-            params={"min_val": 0, "max_val": 1},
-            apply_by_default=False
-        )
-
-        # Thêm bộ tiền xử lý mới cho giá trị cực đoan
-        self.register_preprocessor(
-            name="handle_extreme_values",
-            preprocessor_func=handle_extreme_values,
-            params={
-                "method": "winsorize", 
-                "lower_quantile": 0.01, 
-                "upper_quantile": 0.99,
-                "log_transform_columns": ["volume"]
-            },
-            apply_by_default=True  # Áp dụng mặc định
-        )
-        
-        # Thêm bộ tiền xử lý log transform cho volume
-        self.register_preprocessor(
-            name="log_transform_volume",
-            preprocessor_func=log_transform,
-            params={"base": np.e, "offset": 1.0},
-            target_columns=["volume"],
-            apply_by_default=True  # Áp dụng mặc định cho volume
-        )
-    
-    def _register_default_transformers(self) -> None:
-        """
-        Đăng ký các biến đổi mặc định.
-        """
-        # Các biến đổi này sẽ được triển khai khi module cụ thể đã phát triển
-        pass
-    
-    def _register_default_feature_selectors(self) -> None:
-        """
-        Đăng ký các bộ chọn lọc đặc trưng mặc định.
-        """
-        self.register_feature_selector(
-            name="statistical_correlation",  
-            selector_func=correlation_selector,
-            params={
-                "threshold": 0.05,  # Ngưỡng tương quan thấp hơn để chọn nhiều đặc trưng hơn
-                "k": 30  # Chọn 30 đặc trưng tốt nhất nếu không có đủ đặc trưng vượt qua ngưỡng
-            }
-        )
-        # Các bộ chọn lọc này sẽ được triển khai khi module cụ thể đã phát triển
-        pass
-    
-    def _register_all_technical_indicators(self) -> None:
-        """
-        Đăng ký toàn bộ technical indicators nếu có sẵn.
-        """
-        # Biến theo dõi import thành công
-        import_success = False
-    
-        # Thử import từ package chính
-        try:
-            # Import từ package gốc để sử dụng các alias đã được định nghĩa trong __init__.py
-            from data_processors.feature_engineering.technical_indicators import (
-                sma, ema, macd, rsi, bbands, atr, obv,
-                adx, supertrend, volume_oscillator  # Thêm các chỉ báo mới
+            # Parabolic SAR
+            self.register_feature(
+                "parabolic_sar",
+                parabolic_sar,
+                {"af_start": 0.02, "af_step": 0.02, "af_max": 0.2},
+                "trend"
             )
-            import_success = True
+            
+            # Supertrend
+            for period in [10, 20]:
+                for multiplier in [2.0, 3.0]:
+                    self.register_feature(
+                        f"supertrend_{period}_{multiplier}",
+                        supertrend,
+                        {"period": period, "multiplier": multiplier},
+                        "trend"
+                    )
         
-            self.logger.debug("Import thành công từ technical_indicators package")
-        
-            # Đăng ký các chỉ báo với hàm đã import
-            self.register_feature("trend_ema", ema, {"window": 14}, ["close"], "technical", "EMA 14")
-            self.register_feature("trend_sma", sma, {"window": 20}, ["close"], "technical", "SMA 20")
-            self.register_feature("momentum_rsi", rsi, {"window": 14}, ["close"], "technical", "RSI 14")
-            self.register_feature("momentum_macd", macd, {}, ["close"], "technical", "MACD")
-            self.register_feature("volatility_atr", atr, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
-            self.register_feature("volatility_bbands", bbands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
-            self.register_feature("volume_obv", obv, {}, ["close", "volume"], "technical", "OBV")
-        
-            # Thêm các chỉ báo mới
-            self.register_feature("trend_adx", adx, {"window": 14}, ["high", "low", "close"], "technical", "ADX 14")
-            self.register_feature("trend_supertrend", supertrend, {"period": 10, "multiplier": 3.0}, 
-                                ["high", "low", "close"], "technical", "SuperTrend 10,3")
-            self.register_feature("volume_osc", volume_oscillator, {"short_window": 5, "long_window": 10}, 
-                                ["volume"], "technical", "Volume Oscillator 5,10")
-        
-            self.logger.info("Đã đăng ký tất cả technical indicators có sẵn")
-        
-        except ImportError as e:
-            self.logger.warning(f"Lỗi import từ package technical_indicators: {e}")
-        
-            # Nếu import từ package gốc thất bại, thử import trực tiếp từ các module
-            try:
-                # Import từng module riêng lẻ với các hàm đầy đủ
-                from data_processors.feature_engineering.technical_indicators.trend_indicators import (
-                    exponential_moving_average, simple_moving_average, 
-                    bollinger_bands, moving_average_convergence_divergence,
-                    average_directional_index, supertrend  # Thêm ADX và SuperTrend
-                )
-                from data_processors.feature_engineering.technical_indicators.momentum_indicators import (
-                    relative_strength_index
-                )
-                from data_processors.feature_engineering.technical_indicators.volatility_indicators import (
-                    average_true_range
-                )
-                from data_processors.feature_engineering.technical_indicators.volume_indicators import (
-                    on_balance_volume, volume_oscillator  # Thêm Volume Oscillator
+        # Đăng ký các đặc trưng động lượng
+        if "momentum" in categories:
+            # RSI
+            for window in [7, 14, 21]:
+                self.register_feature(
+                    f"rsi_{window}",
+                    relative_strength_index,
+                    {"window": window},
+                    "momentum"
                 )
             
-                import_success = True
-                self.logger.debug("Import thành công từ các module riêng lẻ")
+            # Stochastic Oscillator
+            for k_period in [14, 21]:
+                for d_period in [3, 5]:
+                    self.register_feature(
+                        f"stochastic_{k_period}_{d_period}",
+                        stochastic_oscillator,
+                        {"k_period": k_period, "d_period": d_period},
+                        "momentum"
+                    )
             
-                # Đăng ký với tên hàm đầy đủ
-                self.register_feature("trend_ema", exponential_moving_average, {"window": 14}, ["close"], "technical", "EMA 14")
-                self.register_feature("trend_sma", simple_moving_average, {"window": 20}, ["close"], "technical", "SMA 20")
-                self.register_feature("momentum_rsi", relative_strength_index, {"window": 14}, ["close"], "technical", "RSI 14")
-                self.register_feature("momentum_macd", moving_average_convergence_divergence, {}, ["close"], "technical", "MACD")
-                self.register_feature("volatility_atr", average_true_range, {"window": 14}, ["high", "low", "close"], "technical", "ATR 14")
-                self.register_feature("volatility_bbands", bollinger_bands, {"window": 20}, ["close"], "technical", "Bollinger Bands")
-                self.register_feature("volume_obv", on_balance_volume, {}, ["close", "volume"], "technical", "OBV")
+            # Williams %R
+            for window in [14, 21]:
+                self.register_feature(
+                    f"williams_r_{window}",
+                    williams_r,
+                    {"window": window},
+                    "momentum"
+                )
             
-                # Thêm các chỉ báo mới
-                self.register_feature("trend_adx", average_directional_index, {"window": 14}, 
-                                    ["high", "low", "close"], "technical", "ADX 14")
-                self.register_feature("trend_supertrend", supertrend, {"period": 10, "multiplier": 3.0}, 
-                                    ["high", "low", "close"], "technical", "SuperTrend 10,3")
-                self.register_feature("volume_osc", volume_oscillator, {"short_window": 5, "long_window": 10}, 
-                                    ["volume"], "technical", "Volume Oscillator 5,10")
+            # CCI
+            for window in [20, 40]:
+                self.register_feature(
+                    f"cci_{window}",
+                    commodity_channel_index,
+                    {"window": window},
+                    "momentum"
+                )
             
-                self.logger.info("Đã đăng ký tất cả technical indicators từ các module riêng lẻ")
+            # Rate of Change
+            for window in [9, 14, 21]:
+                self.register_feature(
+                    f"roc_{window}",
+                    rate_of_change,
+                    {"window": window, "percentage": True},
+                    "momentum"
+                )
             
-            except ImportError as e_inner:
-                self.logger.error(f"Lỗi import từ các module riêng lẻ: {e_inner}")
+            # Money Flow Index
+            for window in [14, 21]:
+                self.register_feature(
+                    f"mfi_{window}",
+                    money_flow_index,
+                    {"window": window},
+                    "momentum"
+                )
+            
+            # True Strength Index
+            self.register_feature(
+                "tsi",
+                true_strength_index,
+                {"long_window": 25, "short_window": 13, "signal_window": 7},
+                "momentum"
+            )
+        
+        # Đăng ký các đặc trưng khối lượng
+        if "volume" in categories:
+            # On-Balance Volume
+            self.register_feature(
+                "obv",
+                on_balance_volume,
+                {},
+                "volume"
+            )
+            
+            # Accumulation/Distribution Line
+            self.register_feature(
+                "ad_line",
+                accumulation_distribution_line,
+                {},
+                "volume"
+            )
+            
+            # Chaikin Money Flow
+            for window in [20, 50]:
+                self.register_feature(
+                    f"cmf_{window}",
+                    chaikin_money_flow,
+                    {"window": window},
+                    "volume"
+                )
+            
+            # Volume-Weighted Average Price
+            for window in [14, 30]:
+                self.register_feature(
+                    f"vwap_{window}",
+                    volume_weighted_average_price,
+                    {"window": window},
+                    "volume"
+                )
+            
+            # Ease of Movement
+            for window in [14, 21]:
+                self.register_feature(
+                    f"eom_{window}",
+                    ease_of_movement,
+                    {"window": window},
+                    "volume"
+                )
+            
+            # Volume Oscillator
+            for short_window, long_window in [(5, 10), (10, 20)]:
+                self.register_feature(
+                    f"volume_oscillator_{short_window}_{long_window}",
+                    volume_oscillator,
+                    {"short_window": short_window, "long_window": long_window},
+                    "volume"
+                )
+            
+            # Price Volume Trend
+            self.register_feature(
+                "pvt",
+                price_volume_trend,
+                {},
+                "volume"
+            )
+            
+            # Log Transform Volume
+            self.register_feature(
+                "volume_log",
+                log_transform_volume,
+                {},
+                "volume"
+            )
+        
+        # Đăng ký các đặc trưng biến động
+        if "volatility" in categories:
+            # Biến động cơ bản
+            for window in [5, 10, 20, 50, 100]:
+                self.register_feature(
+                    f"volatility_{window}",
+                    calculate_volatility_features,
+                    {"windows": [window]},
+                    "volatility"
+                )
+            
+            # Biến động tương đối
+            for window in [5, 10, 14, 20]:
+                self.register_feature(
+                    f"relative_volatility_{window}",
+                    calculate_relative_volatility,
+                    {"atr_windows": [window]},
+                    "volatility"
+                )
+            
+            # Tỷ lệ biến động
+            self.register_feature(
+                "volatility_ratio",
+                calculate_volatility_ratio,
+                {"short_windows": [5, 10], "long_windows": [20, 50]},
+                "volatility"
+            )
+            
+            # Mẫu hình biến động
+            self.register_feature(
+                "volatility_patterns",
+                calculate_volatility_patterns,
+                {"vol_windows": [10, 20, 50], "lookback_periods": [5, 10, 20]},
+                "volatility"
+            )
+            
+            # Chế độ biến động
+            for window in [20, 50]:
+                self.register_feature(
+                    f"volatility_regime_{window}",
+                    calculate_volatility_regime,
+                    {"window": window, "long_window": 100},
+                    "volatility"
+                )
+        
+        # Đăng ký các đặc trưng giá
+        if "price" in categories:
+            # Returns
+            self.register_feature(
+                "returns",
+                calculate_returns,
+                {"periods": [1, 2, 3, 5, 10, 20], "percentage": True},
+                "price"
+            )
+            
+            # Log Returns
+            self.register_feature(
+                "log_returns",
+                calculate_log_returns,
+                {"periods": [1, 2, 3, 5, 10, 20]},
+                "price"
+            )
+            
+            # Price Momentum
+            self.register_feature(
+                "price_momentum",
+                calculate_price_momentum,
+                {"windows": [5, 10, 20, 50, 100], "normalize": True},
+                "price"
+            )
+            
+            # Price Ratios
+            self.register_feature(
+                "price_ratios",
+                calculate_price_ratios,
+                {"windows": [5, 10, 20, 50]},
+                "price"
+            )
+            
+            # Price Channels
+            self.register_feature(
+                "price_channels",
+                calculate_price_channels,
+                {"windows": [10, 20, 50]},
+                "price"
+            )
+            
+            # Price Crossovers
+            self.register_feature(
+                "price_crossovers",
+                calculate_price_crossovers,
+                {"ma_windows": [5, 10, 20, 50, 100, 200]},
+                "price"
+            )
+        
+        self.logger.info(f"Đã đăng ký tổng cộng {len(self.registered_features)} đặc trưng mặc định")
     
-        if not import_success:
-            self.logger.warning("Không thể đăng ký bất kỳ technical indicator nào, vui lòng kiểm tra cấu trúc module")
-    
-    def _check_dependencies(self, df: pd.DataFrame, feature_info: Dict) -> bool:
+    def register_custom_feature(
+        self,
+        feature_name: str,
+        feature_func: Callable,
+        feature_params: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
-        Kiểm tra xem dataframe có chứa các cột phụ thuộc không.
+        Đăng ký một đặc trưng tùy chỉnh.
         
         Args:
-            df: DataFrame cần kiểm tra
-            feature_info: Thông tin đặc trưng
-            
-        Returns:
-            True nếu tất cả các phụ thuộc đều có mặt
+            feature_name: Tên đặc trưng
+            feature_func: Hàm tính toán đặc trưng
+            feature_params: Tham số cho hàm đặc trưng
         """
-        dependencies = feature_info.get("dependencies", [])
-        
-        if not dependencies:
-            return True
-        
-        missing_cols = [col for col in dependencies if col not in df.columns]
-        
-        if missing_cols:
-            self.logger.warning(f"Thiếu các cột phụ thuộc cho {feature_info['name']}: {missing_cols}")
-            return False
-        
-        return True
+        self.register_feature(feature_name, feature_func, feature_params, "custom")
     
-    def _calculate_feature(self, df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
+    def compute_feature(
+        self,
+        df: pd.DataFrame,
+        feature_name: str,
+        feature_func: Callable,
+        feature_params: Optional[Dict[str, Any]] = None
+    ) -> pd.DataFrame:
         """
-        Tính toán một đặc trưng cụ thể.
+        Tính toán một đặc trưng cho DataFrame.
         
         Args:
-            df: DataFrame chứa dữ liệu
-            feature_name: Tên đặc trưng cần tính
+            df: DataFrame đầu vào
+            feature_name: Tên đặc trưng
+            feature_func: Hàm tính toán đặc trưng
+            feature_params: Tham số cho hàm đặc trưng
             
         Returns:
-            DataFrame với đặc trưng mới
+            DataFrame với đặc trưng đã tính toán
         """
-        if feature_name not in self.registered_features:
-            self.logger.warning(f"Đặc trưng {feature_name} chưa được đăng ký")
-            return df
-        
-        feature_info = self.registered_features[feature_name]
-        
-        if not feature_info["is_enabled"]:
-            self.logger.debug(f"Bỏ qua tính toán đặc trưng {feature_name} (đã bị tắt)")
-            return df
-        
-        if not self._check_dependencies(df, feature_info):
-            self.logger.warning(f"Bỏ qua tính toán đặc trưng {feature_name} do thiếu phụ thuộc")
-            return df
+        if feature_params is None:
+            feature_params = {}
         
         try:
-            self.logger.debug(f"Bắt đầu tính toán đặc trưng {feature_name}")
+            start_time = time.time()
             
-            # Tạo bản sao để tránh thay đổi trực tiếp
-            result_df = df.copy()
+            # Kiểm tra đầu vào
+            if df.empty:
+                self.logger.warning(f"DataFrame rỗng, không thể tính toán đặc trưng '{feature_name}'")
+                return df
             
             # Tính toán đặc trưng
-            feature_func = feature_info["function"]
-            feature_params = feature_info["params"]
+            result_df = feature_func(df, **feature_params)
             
-            # Ghi log thông tin về hàm và tham số
-            self.logger.debug(f"Gọi hàm {feature_func.__name__} với tham số {feature_params}")
+            # Tính toán thời gian xử lý
+            process_time = time.time() - start_time
             
-            # Gọi hàm tính toán đặc trưng
-            result = feature_func(result_df, **feature_params)
-            
-            # Ghi log thông tin về kết quả
-            if isinstance(result, pd.DataFrame):
-                new_cols = [col for col in result.columns if col not in df.columns]
-                self.logger.debug(f"Hàm trả về DataFrame với {len(new_cols)} cột mới: {new_cols}")
-            elif isinstance(result, pd.Series):
-                self.logger.debug(f"Hàm trả về Series với tên {result.name}")
+            if process_time > 1.0:  # Nếu xử lý mất hơn 1 giây
+                self.logger.info(f"Tính toán đặc trưng '{feature_name}' hoàn thành trong {process_time:.2f}s")
             else:
-                self.logger.debug(f"Hàm trả về kiểu dữ liệu {type(result)}")
-            
-            # Cập nhật DataFrame với kết quả mới
-            if isinstance(result, pd.DataFrame):
-                # Kết quả là DataFrame
-                for col in result.columns:
-                    if col not in df.columns:
-                        result_df[col] = result[col]
-                        self.logger.debug(f"Đã thêm cột mới {col} từ đặc trưng {feature_name}")
-            elif isinstance(result, pd.Series):
-                # Kết quả là Series
-                if result.name and result.name not in df.columns:
-                    result_df[result.name] = result
-                    self.logger.debug(f"Đã thêm cột mới {result.name} từ đặc trưng {feature_name}")
-                else:
-                    result_df[feature_name] = result
-                    self.logger.debug(f"Đã thêm cột mới {feature_name} từ đặc trưng {feature_name}")
-            else:
-                # Kết quả là giá trị đơn lẻ hoặc mảng
-                result_df[feature_name] = result
-                self.logger.debug(f"Đã thêm cột mới {feature_name} từ đặc trưng {feature_name}")
-            
-            # Log số cột trước và sau
-            self.logger.debug(f"Số cột trước khi tính: {df.shape[1]}, sau khi tính: {result_df.shape[1]}")
-            
-            new_columns = set(result_df.columns) - set(df.columns)
-            if new_columns:
-                self.logger.info(f"Đã tạo {len(new_columns)} cột mới từ đặc trưng {feature_name}: {new_columns}")
-            else:
-                self.logger.warning(f"Không có cột mới nào được tạo từ đặc trưng {feature_name}")
+                self.logger.debug(f"Tính toán đặc trưng '{feature_name}' hoàn thành trong {process_time*1000:.2f}ms")
             
             return result_df
             
         except Exception as e:
-            self.logger.error(f"Lỗi khi tính toán đặc trưng {feature_name}: {str(e)}", exc_info=True)
+            self.logger.error(f"Lỗi khi tính toán đặc trưng '{feature_name}': {str(e)}")
+            # Trả về DataFrame gốc nếu có lỗi
             return df
     
-    def calculate_features(
+    def compute_features(
         self,
         df: pd.DataFrame,
         feature_names: Optional[List[str]] = None,
-        parallel: bool = True,
-        generate_labels: bool = False,  # Thêm tham số này
-        label_config: Optional[Dict[str, Any]] = None,  # Thêm tham số này
-        preserve_timestamp: bool = True  # Thêm tham số này
+        parallel: bool = True
     ) -> pd.DataFrame:
         """
-        Tính toán nhiều đặc trưng.
+        Tính toán nhiều đặc trưng cho DataFrame.
         
         Args:
-            df: DataFrame chứa dữ liệu
-            feature_names: Danh sách tên đặc trưng cần tính (None để tính tất cả)
-            parallel: Tính toán song song
-            generate_labels: Tạo nhãn cho huấn luyện
-            label_config: Cấu hình tạo nhãn
-            preserve_timestamp: Giữ lại cột timestamp
+            df: DataFrame đầu vào
+            feature_names: Danh sách tên đặc trưng cần tính toán (None cho tất cả)
+            parallel: Xử lý song song hay không
             
         Returns:
-            DataFrame với các đặc trưng mới
+            DataFrame với các đặc trưng đã tính toán
         """
-        # Lưu cột timestamp nếu có
-        timestamp_col = None
-        if preserve_timestamp and 'timestamp' in df.columns:
-            timestamp_col = df['timestamp'].copy()
-
-        # Ghi log các cột ban đầu
-        self.logger.debug(f"Cột ban đầu trước khi tính toán đặc trưng: {df.columns.tolist()}")
+        if df.empty:
+            self.logger.warning("DataFrame rỗng, không thể tính toán đặc trưng")
+            return df
         
+        # Tạo bản sao của DataFrame đầu vào
+        result_df = df.copy()
+        
+        # Nếu không chỉ định feature_names, sử dụng tất cả đặc trưng đã đăng ký
         if feature_names is None:
-            # Tính tất cả các đặc trưng đã bật
-            feature_names = [name for name, info in self.registered_features.items() if info["is_enabled"]]
+            feature_names = list(self.registered_features.keys())
         
-        # Ghi log danh sách đặc trưng sẽ tính
-        self.logger.info(f"Sẽ tính toán {len(feature_names)} đặc trưng: {feature_names}")
+        # Lọc các đặc trưng không tồn tại
+        valid_features = [name for name in feature_names if name in self.registered_features]
         
-        # Tạo bản sao để tránh thay đổi trực tiếp
-        result_df = df.copy()
-        
-        if not feature_names:
-            # Nếu không có đặc trưng nào cần tính, trả về ngay
-            # Khôi phục cột timestamp nếu cần
-            if timestamp_col is not None:
-                result_df['timestamp'] = timestamp_col
-                # Đảm bảo timestamp là cột đầu tiên
-                cols = ['timestamp'] + [col for col in result_df.columns if col != 'timestamp']
-                result_df = result_df[cols]
+        if not valid_features:
+            self.logger.warning("Không có đặc trưng hợp lệ để tính toán")
             return result_df
         
-        # Xây dựng đồ thị phụ thuộc và sắp xếp thứ tự tính toán
-        dependencies_graph = {}
-        for name in feature_names:
-            if name in self.registered_features:
-                dependencies = self.registered_features[name].get("dependencies", [])
-                dependencies_graph[name] = [dep for dep in dependencies if dep in feature_names]
+        self.logger.info(f"Bắt đầu tính toán {len(valid_features)} đặc trưng")
         
-        # Sắp xếp topo để đảm bảo các phụ thuộc được tính trước
-        sorted_features = self._topological_sort(dependencies_graph)
-        
-        self.logger.debug(f"Thứ tự tính toán các đặc trưng: {sorted_features}")
-        
-        if parallel and len(sorted_features) > 1:
-            # Chia nhỏ danh sách tính năng thành các nhóm không phụ thuộc
-            feature_groups = self._group_independent_features(dependencies_graph, sorted_features)
-            
-            # Tính toán từng nhóm, các tính năng trong một nhóm không phụ thuộc lẫn nhau
-            for group in feature_groups:
-                self.logger.debug(f"Xử lý nhóm đặc trưng: {group}")
-                if len(group) == 1:
-                    # Chỉ có một tính năng trong nhóm, không cần song song
-                    feature_name = group[0]
-                    result_df = self._calculate_feature(result_df, feature_name)
-                else:
-                    # Nhiều tính năng trong nhóm, tính toán song song
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.max_workers, len(group))) as executor:
-                        futures = []
-                        for feature_name in group:
-                            future = executor.submit(self._calculate_feature, result_df, feature_name)
-                            futures.append((feature_name, future))
-                        
-                        # Thu thập kết quả
-                        for feature_name, future in futures:
-                            try:
-                                feature_df = future.result()
-                                # Thêm cột mới vào kết quả
-                                for col in feature_df.columns:
-                                    if col not in df.columns and col not in result_df.columns:
-                                        result_df[col] = feature_df[col]
-                                        self.logger.debug(f"Đã thêm cột {col} từ đặc trưng {feature_name} (song song)")
-                            except Exception as e:
-                                self.logger.error(f"Lỗi khi tính toán đặc trưng {feature_name}: {e}")
+        # Xử lý tuần tự
+        if not parallel or len(valid_features) <= 1 or self.max_workers <= 1:
+            for feature_name in valid_features:
+                feature_info = self.registered_features[feature_name]
+                result_df = self.compute_feature(
+                    result_df,
+                    feature_name,
+                    feature_info["func"],
+                    feature_info["params"]
+                )
         else:
-            # Tính tuần tự
-            for feature_name in sorted_features:
-                result_df = self._calculate_feature(result_df, feature_name)
-        
-        # Kiểm tra và ghi log các đặc trưng đã tạo
-        created_features = [col for col in result_df.columns if col not in df.columns]
-        self.logger.info(f"Đã tạo {len(created_features)} đặc trưng mới: {', '.join(created_features)}")
-        self.logger.debug(f"Tất cả các cột sau khi tính toán: {result_df.columns.tolist()}")
-        
-        # Kiểm tra xem có chỉ báo kỹ thuật nào được tạo ra không
-        technical_prefixes = ['sma_', 'ema_', 'rsi_', 'macd_', 'bb_', 'atr_', 'obv']
-        technical_columns = [col for col in result_df.columns if any(prefix in col for prefix in technical_prefixes)]
-        self.logger.info(f"Sau khi tính toán đặc trưng, phát hiện {len(technical_columns)} chỉ báo kỹ thuật: {technical_columns}")
-        
-        if not technical_columns:
-            self.logger.warning("KHÔNG phát hiện chỉ báo kỹ thuật nào! Kiểm tra lại việc tính toán đặc trưng.")
-
-        # Chuyển đổi các cột string thành float nếu có thể
-        for col in result_df.columns:
-            if col not in df.columns:  # Chỉ kiểm tra các cột mới
-                if result_df[col].dtype == 'object' or result_df[col].dtype == 'string':
-                    try:
-                        # Thử chuyển đổi sang float
-                        result_df[col] = result_df[col].astype(float)
-                        self.logger.debug(f"Đã chuyển đổi cột {col} sang float")
-                    except (ValueError, TypeError):
-                        self.logger.debug(f"Không thể chuyển đổi cột {col} sang float, giữ nguyên kiểu {result_df[col].dtype}")
-        
-        # Tạo nhãn nếu được yêu cầu
-        if generate_labels:
-            if label_config is None:
-                label_config = {
-                    'price_col': 'close',
-                    'target_type': 'price_movement',
-                    'lookforward_period': 10,
-                    'threshold': 0.01,
-                    'target_column': 'label',
-                    'add_return_cols': True
-                }
-
-            result_df = self.generate_target_labels(result_df, **label_config)
-            self.logger.info(f"Đã tạo nhãn target với cấu hình: {label_config}")
-        
-        # Khôi phục cột timestamp cuối cùng, sau khi đã xử lý xong
-        if timestamp_col is not None:
-            result_df['timestamp'] = timestamp_col
-            # Đảm bảo timestamp là cột đầu tiên
-            cols = ['timestamp'] + [col for col in result_df.columns if col != 'timestamp']
-            result_df = result_df[cols]
-        
-        return result_df
-    
-    def _topological_sort(self, graph: Dict[str, List[str]]) -> List[str]:
-        """
-        Sắp xếp topo để đảm bảo các phụ thuộc được tính trước.
-        
-        Args:
-            graph: Đồ thị phụ thuộc
-            
-        Returns:
-            Danh sách đã sắp xếp
-        """
-        # Khởi tạo
-        visited = set()
-        temp_visited = set()
-        result = []
-        
-        def visit(node):
-            # Phát hiện chu trình
-            if node in temp_visited:
-                raise ValueError(f"Phát hiện phụ thuộc vòng lặp với {node}")
-            
-            # Đã thăm nút này rồi
-            if node in visited:
-                return
-            
-            # Đánh dấu đang thăm
-            temp_visited.add(node)
-            
-            # Thăm các nút liền kề
-            for neighbor in graph.get(node, []):
-                visit(neighbor)
-            
-            # Đã thăm xong
-            temp_visited.remove(node)
-            visited.add(node)
-            result.append(node)
-        
-        # Thăm từng nút
-        for node in graph:
-            if node not in visited:
-                visit(node)
-        
-        # Kết quả là thứ tự ngược lại
-        return list(reversed(result))
-    
-    def _group_independent_features(
-        self,
-        dependencies_graph: Dict[str, List[str]],
-        sorted_features: List[str]
-    ) -> List[List[str]]:
-        """
-        Nhóm các đặc trưng độc lập để tính toán song song.
-        
-        Args:
-            dependencies_graph: Đồ thị phụ thuộc
-            sorted_features: Danh sách đặc trưng đã sắp xếp
-            
-        Returns:
-            Danh sách các nhóm đặc trưng không phụ thuộc lẫn nhau
-        """
-        result = []
-        current_group = []
-        computed_features = set()
-        
-        for feature in sorted_features:
-            # Kiểm tra xem tính năng này có phụ thuộc vào các tính năng chưa tính không
-            dependencies = dependencies_graph.get(feature, [])
-            has_uncomputed_deps = any(dep not in computed_features for dep in dependencies)
-            
-            if has_uncomputed_deps:
-                # Nếu có phụ thuộc chưa tính, phải tính các nhóm trước đó trước
-                if current_group:
-                    result.append(current_group)
-                    for f in current_group:
-                        computed_features.add(f)
-                    current_group = []
-            
-            # Thêm vào nhóm hiện tại
-            current_group.append(feature)
-        
-        # Thêm nhóm cuối cùng
-        if current_group:
-            result.append(current_group)
-        
-        return result
-    
-    def apply_preprocessors(
-        self,
-        df: pd.DataFrame,
-        preprocessor_names: Optional[List[str]] = None,
-        target_columns: Optional[List[str]] = None,
-        fit: bool = True
-    ) -> pd.DataFrame:
-        """
-        Áp dụng các bộ tiền xử lý lên dữ liệu.
-        
-        Args:
-            df: DataFrame cần xử lý
-            preprocessor_names: Danh sách tên bộ tiền xử lý cần áp dụng
-            target_columns: Các cột cần áp dụng
-            fit: Học các tham số mới hay không
-            
-        Returns:
-            DataFrame đã tiền xử lý
-        """
-        if preprocessor_names is None:
-            # Áp dụng các bộ tiền xử lý mặc định
-            preprocessor_names = [name for name, info in self.preprocessors.items() if info["apply_by_default"]]
-        
-        # Tạo bản sao để tránh thay đổi trực tiếp
-        result_df = df.copy()
-        
-        for name in preprocessor_names:
-            if name in self.preprocessors:
-                preprocessor_info = self.preprocessors[name]
-                
-                # Xác định các cột cần áp dụng
-                columns_to_apply = target_columns if target_columns is not None else preprocessor_info["target_columns"]
-                
-                # Nếu không có cột được chỉ định, áp dụng cho tất cả các cột số
-                if not columns_to_apply:
-                    columns_to_apply = result_df.select_dtypes(include=[np.number]).columns.tolist()
-                
-                try:
-                    # Lấy hàm và tham số
-                    preprocessor_func = preprocessor_info["function"]
-                    params = preprocessor_info["params"].copy()
+            # Xử lý song song
+            try:
+                # Tạo các tác vụ cho các đặc trưng
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.max_workers, len(valid_features))) as executor:
+                    # Map từng đặc trưng vào một luồng riêng
+                    futures = {}
                     
-                    # Áp dụng bộ tiền xử lý
-                    if fit:
-                        # Học và áp dụng
-                        result_df, fitted_params = preprocessor_func(
-                            result_df, columns_to_apply, fit=True, **params
+                    for feature_name in valid_features:
+                        feature_info = self.registered_features[feature_name]
+                        futures[feature_name] = executor.submit(
+                            self.compute_feature,
+                            result_df.copy(),  # Truyền bản sao để tránh xung đột
+                            feature_name,
+                            feature_info["func"],
+                            feature_info["params"]
                         )
-                        self.preprocessors[name]["fitted_params"] = fitted_params
-                    else:
-                        # Áp dụng với các tham số đã học
-                        fitted_params = self.preprocessors[name]["fitted_params"]
-                        if fitted_params is not None:
-                            result_df = preprocessor_func(
-                                result_df, columns_to_apply, 
-                                fit=False, fitted_params=fitted_params, **params
-                            )
-                        else:
-                            self.logger.warning(f"Bộ tiền xử lý {name} chưa được fit")
                     
-                    self.logger.debug(f"Đã áp dụng bộ tiền xử lý {name} cho {len(columns_to_apply)} cột")
-                    
-                except Exception as e:
-                    self.logger.error(f"Lỗi khi áp dụng bộ tiền xử lý {name}: {e}")
+                    # Tổng hợp kết quả
+                    for feature_name, future in futures.items():
+                        try:
+                            # Lấy kết quả từ future
+                            feature_df = future.result(timeout=60)  # Timeout 60s
+                            
+                            # Tìm các cột mới được thêm vào
+                            original_cols = set(result_df.columns)
+                            feature_cols = set(feature_df.columns)
+                            new_cols = feature_cols - original_cols
+                            
+                            # Thêm các cột mới vào result_df
+                            for col in new_cols:
+                                result_df[col] = feature_df[col]
+                                
+                        except concurrent.futures.TimeoutError:
+                            self.logger.warning(f"Tính toán đặc trưng '{feature_name}' vượt quá thời gian chờ")
+                        except Exception as e:
+                            self.logger.error(f"Lỗi khi tính toán đặc trưng '{feature_name}' song song: {str(e)}")
+                
+            except Exception as e:
+                self.logger.error(f"Lỗi khi xử lý song song: {str(e)}")
+                # Fallback: xử lý tuần tự nếu có lỗi song song
+                for feature_name in valid_features:
+                    feature_info = self.registered_features[feature_name]
+                    result_df = self.compute_feature(
+                        result_df,
+                        feature_name,
+                        feature_info["func"],
+                        feature_info["params"]
+                    )
+        
+        # Tính toán số cột mới được thêm vào
+        original_col_count = len(df.columns)
+        final_col_count = len(result_df.columns)
+        added_col_count = final_col_count - original_col_count
+        
+        self.logger.info(f"Đã hoàn thành tính toán đặc trưng: {added_col_count} cột mới được thêm vào")
         
         return result_df
-    
-    def apply_transformers(
-        self,
-        df: pd.DataFrame,
-        transformer_names: Optional[List[str]] = None,
-        target_columns: Optional[List[str]] = None,
-        fit: bool = True
-    ) -> pd.DataFrame:
-        """
-        Áp dụng các biến đổi lên dữ liệu.
-        
-        Args:
-            df: DataFrame cần xử lý
-            transformer_names: Danh sách tên biến đổi cần áp dụng
-            target_columns: Các cột cần áp dụng
-            fit: Học các tham số mới hay không
-            
-        Returns:
-            DataFrame đã biến đổi
-        """
-        if transformer_names is None:
-            # Áp dụng tất cả các biến đổi
-            transformer_names = list(self.transformers.keys())
-        
-        # Tạo bản sao để tránh thay đổi trực tiếp
-        result_df = df.copy()
-        
-        for name in transformer_names:
-            if name in self.transformers:
-                transformer_info = self.transformers[name]
-                
-                # Xác định các cột cần áp dụng
-                columns_to_apply = target_columns if target_columns is not None else transformer_info["target_columns"]
-                
-                # Nếu không có cột được chỉ định, áp dụng cho tất cả các cột số
-                if not columns_to_apply:
-                    columns_to_apply = result_df.select_dtypes(include=[np.number]).columns.tolist()
-                
-                try:
-                    # Lấy hàm và tham số
-                    transformer_func = transformer_info["function"]
-                    params = transformer_info["params"].copy()
-                    
-                    # Áp dụng biến đổi
-                    if fit and transformer_info["is_stateful"]:
-                        # Học và áp dụng
-                        result_df, fitted_state = transformer_func(
-                            result_df, columns_to_apply, fit=True, **params
-                        )
-                        self.transformers[name]["fitted_state"] = fitted_state
-                    else:
-                        # Áp dụng với các tham số đã học
-                        if transformer_info["is_stateful"]:
-                            fitted_state = self.transformers[name]["fitted_state"]
-                            if fitted_state is not None:
-                                result_df = transformer_func(
-                                    result_df, columns_to_apply, 
-                                    fit=False, fitted_state=fitted_state, **params
-                                )
-                            else:
-                                self.logger.warning(f"Biến đổi {name} chưa được fit")
-                        else:
-                            # Biến đổi không có trạng thái, luôn áp dụng trực tiếp
-                            result_df = transformer_func(
-                                result_df, columns_to_apply, **params
-                            )
-                    
-                    self.logger.debug(f"Đã áp dụng biến đổi {name} cho {len(columns_to_apply)} cột")
-                    
-                except Exception as e:
-                    self.logger.error(f"Lỗi khi áp dụng biến đổi {name}: {e}")
-        
-        return result_df
-    
-    def apply_feature_selection(
-        self,
-        df: pd.DataFrame,
-        selector_name: str,
-        target_column: str = 'close',
-        fit: bool = True
-    ) -> pd.DataFrame:
-        """
-        Áp dụng chọn lọc đặc trưng.
-        
-        Args:
-            df: DataFrame cần xử lý
-            selector_name: Tên bộ chọn lọc
-            target_column: Cột mục tiêu (mặc định là 'close')
-            fit: Học các tham số mới hay không
-            
-        Returns:
-            DataFrame đã chọn lọc đặc trưng
-        """
-        if selector_name not in self.feature_selectors:
-            self.logger.warning(f"Bộ chọn lọc {selector_name} không tồn tại")
-            return df
-        
-        # Ghi log tất cả các cột trước khi chọn lọc
-        self.logger.debug(f"Các cột trước khi chọn lọc: {df.columns.tolist()}")
-        
-        # Tạo danh sách các cột technical indicators (thường có tiền tố cụ thể)
-        technical_prefixes = ['sma_', 'ema_', 'rsi_', 'macd_', 'bb_', 'atr_', 'obv']
-        technical_columns = [col for col in df.columns if any(prefix in col for prefix in technical_prefixes)]
-        
-        self.logger.debug(f"Các cột technical indicators đã phát hiện: {technical_columns}")
-        
-        selector_info = self.feature_selectors[selector_name]
-        
-        try:
-            # Lấy hàm và tham số
-            selector_func = selector_info["function"]
-            params = selector_info["params"].copy()
-            
-            # Thêm tham số target_column
-            params["target_column"] = target_column
-            
-            # Áp dụng chọn lọc đặc trưng
-            if fit:
-                # Học và áp dụng
-                selected_features, feature_scores = selector_func(df, **params)
-                
-                # Lưu danh sách tính năng đã chọn
-                self.feature_selectors[selector_name]["selected_features"] = selected_features
-                
-                # Thêm các technical indicators vào danh sách các cột cần giữ lại
-                columns_to_keep = list(selected_features)
-                for col in technical_columns:
-                    if col not in columns_to_keep:
-                        columns_to_keep.append(col)
-                        self.logger.debug(f"Đã thêm cột technical indicator {col} vào danh sách giữ lại")
-                
-                # Đảm bảo cột target_column được giữ lại
-                if target_column not in columns_to_keep and target_column in df.columns:
-                    columns_to_keep.append(target_column)
-                
-                # Tạo DataFrame kết quả với các tính năng đã chọn
-                if len(columns_to_keep) > 0:
-                    # Kiểm tra để đảm bảo tất cả các cột đều tồn tại
-                    valid_columns = [col for col in columns_to_keep if col in df.columns]
-                    result_df = df[valid_columns].copy()
-                    self.logger.debug(f"Các cột giữ lại: {valid_columns}")
-                else:
-                    # Nếu không có tính năng nào được chọn, trả về DataFrame ban đầu
-                    self.logger.warning("Không có cột nào được giữ lại, sử dụng DataFrame gốc")
-                    result_df = df.copy()
-            else:
-                # Áp dụng với các đặc trưng đã chọn
-                selected_features = self.feature_selectors[selector_name]["selected_features"]
-                
-                if selected_features is not None and len(selected_features) > 0:
-                    # Thêm các technical indicators vào danh sách các cột cần giữ lại
-                    columns_to_keep = list(selected_features)
-                    for col in technical_columns:
-                        if col not in columns_to_keep:
-                            columns_to_keep.append(col)
-                            self.logger.debug(f"Đã thêm cột technical indicator {col} vào danh sách giữ lại")
-                    
-                    # Đảm bảo cột target_column được giữ lại
-                    if target_column not in columns_to_keep and target_column in df.columns:
-                        columns_to_keep.append(target_column)
-                    
-                    # Tạo DataFrame kết quả
-                    if len(columns_to_keep) > 0:
-                        # Kiểm tra để đảm bảo tất cả các cột đều tồn tại
-                        valid_columns = [col for col in columns_to_keep if col in df.columns]
-                        result_df = df[valid_columns].copy()
-                        self.logger.debug(f"Các cột giữ lại: {valid_columns}")
-                    else:
-                        result_df = df.copy()
-                else:
-                    self.logger.warning(f"Bộ chọn lọc {selector_name} chưa được fit hoặc không chọn được tính năng nào")
-                    result_df = df.copy()
-            
-            self.logger.info(f"Đã áp dụng chọn lọc đặc trưng {selector_name}, còn lại {result_df.shape[1]} đặc trưng")
-            
-            return result_df
-            
-        except Exception as e:
-            self.logger.error(f"Lỗi khi áp dụng chọn lọc đặc trưng {selector_name}: {str(e)}", exc_info=True)
-            return df
     
     def create_feature_pipeline(
         self,
@@ -1158,418 +696,554 @@ class FeatureGenerator:
         feature_selector: Optional[str] = None,
         save_pipeline: bool = True,
         pipeline_name: Optional[str] = None
-    ) -> None:
+    ) -> str:
         """
-        Tạo pipeline xử lý đặc trưng đầy đủ.
+        Tạo một pipeline đặc trưng.
         
         Args:
-            feature_names: Danh sách đặc trưng cần tạo
-            preprocessor_names: Danh sách bộ tiền xử lý
-            transformer_names: Danh sách biến đổi
+            feature_names: Danh sách tên đặc trưng cần tính toán
+            preprocessor_names: Danh sách tên tiền xử lý
+            transformer_names: Danh sách tên biến đổi
             feature_selector: Tên bộ chọn lọc đặc trưng
             save_pipeline: Lưu pipeline hay không
-            pipeline_name: Tên pipeline
-        """
-        # Nếu không có danh sách đặc trưng được chỉ định, sử dụng tất cả đặc trưng đã bật
-        if feature_names is None:
-            feature_names = [name for name, info in self.registered_features.items() if info["is_enabled"]]
+            pipeline_name: Tên pipeline (tạo ngẫu nhiên nếu None)
             
-        # In log để kiểm tra
-        self.logger.info(f"Tạo pipeline với {len(feature_names)} đặc trưng: {feature_names}")
+        Returns:
+            Tên pipeline đã tạo
+        """
+        # Tạo tên pipeline nếu không được cung cấp
+        if pipeline_name is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            pipeline_name = f"pipeline_{timestamp}"
         
-        pipeline_config = {
+        # Tạo pipeline mới
+        pipeline = {
+            "name": pipeline_name,
+            "created_at": datetime.now().isoformat(),
             "feature_names": feature_names,
             "preprocessor_names": preprocessor_names,
             "transformer_names": transformer_names,
             "feature_selector": feature_selector,
-            "created_at": datetime.now().isoformat()
+            "fitted": False,
+            "fitted_params": {}
         }
         
-        # Tạo tên pipeline nếu chưa có
-        if pipeline_name is None:
-            pipeline_name = f"feature_pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
-        self.feature_config["pipelines"] = self.feature_config.get("pipelines", {})
-        self.feature_config["pipelines"][pipeline_name] = pipeline_config
-        
-        self.logger.info(f"Đã tạo pipeline đặc trưng: {pipeline_name}")
+        # Lưu pipeline
+        self.feature_pipelines[pipeline_name] = pipeline
         
         if save_pipeline:
-            self.save_feature_config()
+            self._save_pipeline(pipeline_name)
+        
+        self.logger.info(f"Đã tạo pipeline '{pipeline_name}'")
+        
+        return pipeline_name
     
-    def transform_data(
-        self,
-        df: pd.DataFrame,
-        pipeline_name: Optional[str] = None,
-        fit: bool = True,
-        generate_labels: bool = False,
-        label_config: Optional[Dict[str, Any]] = None,
-        preserve_timestamp: bool = True
-    ) -> pd.DataFrame:
+    def _save_pipeline(self, pipeline_name: str) -> bool:
         """
-        Áp dụng toàn bộ pipeline lên dữ liệu.
+        Lưu pipeline vào file.
         
         Args:
-            df: DataFrame cần xử lý
-            pipeline_name: Tên pipeline cần áp dụng
-            fit: Học các tham số mới hay không
-            generate_labels: Tạo nhãn cho huấn luyện
-            label_config: Cấu hình tạo nhãn
-            preserve_timestamp: Giữ lại cột timestamp
+            pipeline_name: Tên pipeline cần lưu
             
         Returns:
-            DataFrame đã xử lý
+            True nếu lưu thành công, False nếu không
         """
-        # Lưu cột timestamp nếu có
-        timestamp_col = None
-        if preserve_timestamp and 'timestamp' in df.columns:
-            timestamp_col = df['timestamp'].copy()
-
-        # Kiểm tra pipeline tồn tại
-        if pipeline_name is not None:
-            if "pipelines" not in self.feature_config or pipeline_name not in self.feature_config["pipelines"]:
-                self.logger.warning(f"Pipeline {pipeline_name} không tồn tại")
-                return df
-            
-            # Lấy cấu hình pipeline
-            pipeline_config = self.feature_config["pipelines"][pipeline_name]
-            feature_names = pipeline_config.get("feature_names")
-            preprocessor_names = pipeline_config.get("preprocessor_names")
-            transformer_names = pipeline_config.get("transformer_names")
-            feature_selector = pipeline_config.get("feature_selector")
-        else:
-            # Sử dụng tất cả các đặc trưng đã đăng ký và bật
-            feature_names = [name for name, info in self.registered_features.items() if info["is_enabled"]]
-            # Sử dụng các bộ tiền xử lý mặc định
-            preprocessor_names = [name for name, info in self.preprocessors.items() if info["apply_by_default"]]
-            # Không áp dụng biến đổi
-            transformer_names = None
-            # Không áp dụng chọn lọc đặc trưng
-            feature_selector = None
+        if pipeline_name not in self.feature_pipelines:
+            self.logger.warning(f"Pipeline '{pipeline_name}' không tồn tại")
+            return False
         
-        # Tạo bản sao để tránh thay đổi trực tiếp
-        result_df = df.copy()
-        
-        # Bước 1: Tính toán các đặc trưng
-        if feature_names:
-            self.logger.info(f"Bắt đầu tính toán {len(feature_names)} đặc trưng: {feature_names}")
-            result_df = self.calculate_features(
-                result_df, 
-                feature_names, 
-                parallel=True, 
-                preserve_timestamp=False  # Không cần bảo toàn timestamp trong calculate_features vì sẽ thêm lại sau
-            )
-        
-        # Bước 2: Áp dụng các bộ tiền xử lý
-        if preprocessor_names:
-            result_df = self.apply_preprocessors(result_df, preprocessor_names, fit=fit)
-        
-        # Bước 3: Áp dụng các biến đổi
-        if transformer_names:
-            result_df = self.apply_transformers(result_df, transformer_names, fit=fit)
-        
-        # Bước 4: Áp dụng chọn lọc đặc trưng
-        if feature_selector:
-            # Lưu lại số cột trước khi áp dụng feature selection
-            num_cols_before = result_df.shape[1]
-            self.logger.debug(f"Số cột trước khi áp dụng feature selection: {num_cols_before}")
-            self.logger.debug(f"Các cột: {result_df.columns.tolist()}")
-            
-            # Áp dụng feature selection
-            result_df = self.apply_feature_selection(result_df, feature_selector, fit=fit)
-            
-            # Ghi log số cột đã được giữ lại
-            num_cols_after = result_df.shape[1]
-            self.logger.debug(f"Số cột sau khi áp dụng feature selection: {num_cols_after}")
-            self.logger.debug(f"Các cột đã giữ lại: {result_df.columns.tolist()}")
-            
-            if num_cols_before > num_cols_after:
-                self.logger.warning(f"Feature selection đã loại bỏ {num_cols_before - num_cols_after} cột")
-
-        # Bước 5: Tạo nhãn nếu cần
-        if generate_labels:
-            if label_config is None:
-                label_config = {
-                    'price_col': 'close',
-                    'target_type': 'price_movement',
-                    'lookforward_period': 10,
-                    'threshold': 0.01,
-                    'target_column': 'label',
-                    'add_return_cols': True
-                }
-            
-            result_df = self.generate_target_labels(result_df, **label_config)
-            self.logger.info(f"Đã tạo nhãn target với cấu hình: {label_config}")
-
-        # Khôi phục cột timestamp cuối cùng, sau khi đã xử lý xong
-        if timestamp_col is not None:
-            result_df['timestamp'] = timestamp_col
-            # Đảm bảo timestamp là cột đầu tiên
-            cols = ['timestamp'] + [col for col in result_df.columns if col != 'timestamp']
-            result_df = result_df[cols]
-        
-        # Cập nhật trạng thái
-        if fit:
-            self.is_fitted = True
-            
-            # Lưu thông tin đặc trưng
-            self.feature_info = {
-                "num_features": result_df.shape[1],
-                "feature_names": result_df.columns.tolist(),
-                "numeric_features": result_df.select_dtypes(include=[np.number]).columns.tolist(),
-                "categorical_features": result_df.select_dtypes(exclude=[np.number]).columns.tolist(),
-                "last_fit_time": datetime.now().isoformat()
-            }
-        
-        return result_df
-    
-    def save_state(self, state_path: Optional[Union[str, Path]] = None) -> None:
-        """
-        Lưu trạng thái của FeatureGenerator.
-        
-        Args:
-            state_path: Đường dẫn file trạng thái
-        """
-        if state_path is None:
-            state_path = self.data_dir / "feature_generator_state.joblib"
-        else:
-            state_path = Path(state_path)
-        
-        # Tạo trạng thái để lưu
-        state = {
-            "preprocessors": {
-                name: {"fitted_params": info["fitted_params"]}
-                for name, info in self.preprocessors.items()
-                if info["fitted_params"] is not None
-            },
-            "transformers": {
-                name: {"fitted_state": info["fitted_state"]}
-                for name, info in self.transformers.items()
-                if info["is_stateful"] and info["fitted_state"] is not None
-            },
-            "feature_selectors": {
-                name: {"selected_features": info["selected_features"]}
-                for name, info in self.feature_selectors.items()
-                if info["selected_features"] is not None
-            },
-            "feature_info": self.feature_info,
-            "is_fitted": self.is_fitted,
-            "version": "1.0.0"
-        }
+        safe_pipeline_name = pipeline_name.replace('/', '_').replace('\\', '_')
+        pipeline_path = self.data_dir / f"{safe_pipeline_name}.joblib"
         
         try:
-            # Lưu trạng thái
-            joblib.dump(state, state_path)
-            self.logger.info(f"Đã lưu trạng thái FeatureGenerator vào {state_path}")
-            
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+
+            joblib.dump(self.feature_pipelines[pipeline_name], pipeline_path)
+            self.logger.debug(f"Đã lưu pipeline '{pipeline_name}' vào {pipeline_path}")
+            return True
         except Exception as e:
-            self.logger.error(f"Lỗi khi lưu trạng thái: {e}")
+            self.logger.error(f"Lỗi khi lưu pipeline '{pipeline_name}': {str(e)}")
+            return False
     
-    def load_state(self, state_path: Optional[Union[str, Path]] = None) -> bool:
+    def load_pipeline(self, pipeline_name: str) -> bool:
         """
-        Tải trạng thái của FeatureGenerator.
+        Tải pipeline từ file.
         
         Args:
-            state_path: Đường dẫn file trạng thái
+            pipeline_name: Tên pipeline cần tải
             
         Returns:
             True nếu tải thành công, False nếu không
         """
-        if state_path is None:
-            state_path = self.data_dir / "feature_generator_state.joblib"
-        else:
-            state_path = Path(state_path)
+        safe_pipeline_name = pipeline_name.replace('/', '_').replace('\\', '_')
+        pipeline_path = self.data_dir / f"{safe_pipeline_name}.joblib"
         
-        if not state_path.exists():
-            self.logger.warning(f"File trạng thái {state_path} không tồn tại")
+        if not pipeline_path.exists():
+            self.logger.warning(f"File pipeline '{pipeline_path}' không tồn tại")
             return False
         
         try:
-            # Tải trạng thái
-            state = joblib.load(state_path)
+            pipeline = joblib.load(pipeline_path)
+            self.feature_pipelines[pipeline_name] = pipeline
             
-            # Khôi phục trạng thái
-            for name, preprocessor_state in state.get("preprocessors", {}).items():
-                if name in self.preprocessors:
-                    self.preprocessors[name]["fitted_params"] = preprocessor_state["fitted_params"]
+            # Tải các tham số đã fit nếu có
+            if pipeline.get("fitted", False) and "fitted_params" in pipeline:
+                self.fitted_params[pipeline_name] = pipeline["fitted_params"]
             
-            for name, transformer_state in state.get("transformers", {}).items():
-                if name in self.transformers:
-                    self.transformers[name]["fitted_state"] = transformer_state["fitted_state"]
-            
-            for name, selector_state in state.get("feature_selectors", {}).items():
-                if name in self.feature_selectors:
-                    self.feature_selectors[name]["selected_features"] = selector_state["selected_features"]
-            
-            self.feature_info = state.get("feature_info", {})
-            self.is_fitted = state.get("is_fitted", False)
-            
-            self.logger.info(f"Đã tải trạng thái FeatureGenerator từ {state_path}")
+            self.logger.info(f"Đã tải pipeline '{pipeline_name}' từ {pipeline_path}")
             return True
-            
         except Exception as e:
-            self.logger.error(f"Lỗi khi tải trạng thái: {e}")
+            self.logger.error(f"Lỗi khi tải pipeline '{pipeline_name}': {str(e)}")
             return False
     
-    def get_feature_info(self) -> Dict[str, Any]:
+    def fit_transform_data(
+        self,
+        df: pd.DataFrame,
+        pipeline_name: str,
+        save_fitted_params: bool = True
+    ) -> pd.DataFrame:
         """
-        Lấy thông tin về các đặc trưng đã đăng ký.
+        Áp dụng pipeline trên dữ liệu, bao gồm học và biến đổi.
+        
+        Args:
+            df: DataFrame đầu vào
+            pipeline_name: Tên pipeline cần áp dụng
+            save_fitted_params: Lưu các tham số đã học hay không
+            
+        Returns:
+            DataFrame đã biến đổi
+        """
+        if pipeline_name not in self.feature_pipelines:
+            self.logger.warning(f"Pipeline '{pipeline_name}' không tồn tại")
+            return df
+        
+        pipeline = self.feature_pipelines[pipeline_name]
+        
+        # Tạo bản sao của DataFrame đầu vào
+        result_df = df.copy()
+        
+        # Bước 1: Tính toán các đặc trưng
+        if pipeline.get("feature_names"):
+            result_df = self.compute_features(
+                result_df,
+                feature_names=pipeline["feature_names"],
+                parallel=True
+            )
+        
+        # Bước 2: Áp dụng các bước tiền xử lý
+        fitted_params = {}
+        
+        if pipeline.get("preprocessor_names"):
+            for preprocessor_name in pipeline["preprocessor_names"]:
+                if preprocessor_name in self.preprocessors:
+                    preprocessor_func = self.preprocessors[preprocessor_name]
+                    try:
+                        # Áp dụng preprocessor với fit=True
+                        numeric_cols = result_df.select_dtypes(include=[np.number]).columns.tolist()
+                        processed_df, params = preprocessor_func(
+                            result_df,
+                            columns=numeric_cols,
+                            fit=True
+                        )
+                        
+                        # Cập nhật DataFrame và fitted_params
+                        result_df = processed_df
+                        fitted_params[preprocessor_name] = params
+                        
+                        self.logger.debug(f"Đã áp dụng tiền xử lý '{preprocessor_name}'")
+                        
+                    except Exception as e:
+                        self.logger.error(f"Lỗi khi áp dụng tiền xử lý '{preprocessor_name}': {str(e)}")
+        
+        # Bước 3: Áp dụng các bước biến đổi
+        if pipeline.get("transformer_names"):
+            for transformer_name in pipeline["transformer_names"]:
+                if transformer_name in self.transformers:
+                    transformer_func = self.transformers[transformer_name]
+                    try:
+                        # Áp dụng transformer
+                        result_df = transformer_func(result_df)
+                        
+                        self.logger.debug(f"Đã áp dụng biến đổi '{transformer_name}'")
+                        
+                    except Exception as e:
+                        self.logger.error(f"Lỗi khi áp dụng biến đổi '{transformer_name}': {str(e)}")
+        
+        # Bước 4: Áp dụng bộ chọn lọc đặc trưng
+        if pipeline.get("feature_selector") and pipeline["feature_selector"] in self.feature_selectors:
+            selector_func = self.feature_selectors[pipeline["feature_selector"]]
+            try:
+                # Áp dụng bộ chọn lọc
+                result_df, selected_features = selector_func(result_df)
+                
+                # Lưu danh sách đặc trưng đã chọn
+                fitted_params["selected_features"] = selected_features
+                
+                self.logger.debug(f"Đã áp dụng bộ chọn lọc '{pipeline['feature_selector']}', giữ lại {len(selected_features)} đặc trưng")
+                
+            except Exception as e:
+                self.logger.error(f"Lỗi khi áp dụng bộ chọn lọc '{pipeline['feature_selector']}': {str(e)}")
+        
+        # Cập nhật trạng thái của pipeline
+        pipeline["fitted"] = True
+        pipeline["fitted_params"] = fitted_params
+        pipeline["last_fitted"] = datetime.now().isoformat()
+        
+        # Lưu lại các tham số đã học
+        if save_fitted_params:
+            self.fitted_params[pipeline_name] = fitted_params
+            self._save_pipeline(pipeline_name)
+        
+        return result_df
+    
+    def transform_data(
+        self,
+        df: pd.DataFrame,
+        pipeline_name: str,
+        fit: bool = False,
+        preserve_timestamp: bool = True
+    ) -> pd.DataFrame:
+        """
+        Áp dụng pipeline đã học trên dữ liệu mới.
+        
+        Args:
+            df: DataFrame đầu vào
+            pipeline_name: Tên pipeline cần áp dụng
+            fit: Học lại pipeline hay không
+            preserve_timestamp: Giữ lại cột timestamp hay không
+            
+        Returns:
+            DataFrame đã biến đổi
+        """
+        if pipeline_name not in self.feature_pipelines:
+            self.logger.warning(f"Pipeline '{pipeline_name}' không tồn tại")
+            return df
+        
+        pipeline = self.feature_pipelines[pipeline_name]
+        
+        # Áp dụng fit_transform nếu được yêu cầu hoặc pipeline chưa được fit
+        if fit or not pipeline.get("fitted", False):
+            return self.fit_transform_data(df, pipeline_name, save_fitted_params=True)
+        
+        # Tạo bản sao của DataFrame đầu vào
+        result_df = df.copy()
+        
+        # Lưu cột timestamp nếu cần
+        timestamp_col = None
+        if preserve_timestamp and 'timestamp' in result_df.columns:
+            timestamp_col = result_df['timestamp'].copy()
+        
+        # Bước 1: Tính toán các đặc trưng
+        if pipeline.get("feature_names"):
+            result_df = self.compute_features(
+                result_df,
+                feature_names=pipeline["feature_names"],
+                parallel=True
+            )
+        
+        # Bước 2: Áp dụng các bước tiền xử lý với tham số đã học
+        if pipeline.get("preprocessor_names"):
+            for preprocessor_name in pipeline["preprocessor_names"]:
+                if preprocessor_name in self.preprocessors:
+                    preprocessor_func = self.preprocessors[preprocessor_name]
+                    try:
+                        # Kiểm tra xem có tham số đã học cho preprocessor này không
+                        if (pipeline_name in self.fitted_params and 
+                            preprocessor_name in self.fitted_params[pipeline_name]):
+                            
+                            fitted_params = self.fitted_params[pipeline_name][preprocessor_name]
+                            
+                            # Áp dụng preprocessor với fit=False
+                            numeric_cols = result_df.select_dtypes(include=[np.number]).columns.tolist()
+                            result_df = preprocessor_func(
+                                result_df,
+                                columns=numeric_cols,
+                                fit=False,
+                                fitted_params=fitted_params
+                            )
+                            
+                            self.logger.debug(f"Đã áp dụng tiền xử lý '{preprocessor_name}' với tham số đã học")
+                            
+                        else:
+                            # Nếu không có tham số đã học, áp dụng với fit=True
+                            self.logger.warning(f"Không tìm thấy tham số đã học cho '{preprocessor_name}', thực hiện fit_transform")
+                            numeric_cols = result_df.select_dtypes(include=[np.number]).columns.tolist()
+                            processed_df, _ = preprocessor_func(
+                                result_df,
+                                columns=numeric_cols,
+                                fit=True
+                            )
+                            result_df = processed_df
+                            
+                    except Exception as e:
+                        self.logger.error(f"Lỗi khi áp dụng tiền xử lý '{preprocessor_name}': {str(e)}")
+        
+        # Bước 3: Áp dụng các bước biến đổi
+        if pipeline.get("transformer_names"):
+            for transformer_name in pipeline["transformer_names"]:
+                if transformer_name in self.transformers:
+                    transformer_func = self.transformers[transformer_name]
+                    try:
+                        # Áp dụng transformer
+                        result_df = transformer_func(result_df)
+                        
+                        self.logger.debug(f"Đã áp dụng biến đổi '{transformer_name}'")
+                        
+                    except Exception as e:
+                        self.logger.error(f"Lỗi khi áp dụng biến đổi '{transformer_name}': {str(e)}")
+        
+        # Bước 4: Áp dụng bộ chọn lọc đặc trưng
+        if (pipeline.get("feature_selector") and 
+            pipeline["feature_selector"] in self.feature_selectors and
+            pipeline_name in self.fitted_params and 
+            "selected_features" in self.fitted_params[pipeline_name]):
+            
+            # Lấy danh sách đặc trưng đã chọn
+            selected_features = self.fitted_params[pipeline_name]["selected_features"]
+            
+            # Giữ lại các cột cần thiết
+            essential_cols = []
+            if 'timestamp' in result_df.columns:
+                essential_cols.append('timestamp')
+            if 'open' in result_df.columns:
+                essential_cols.append('open')
+            if 'high' in result_df.columns:
+                essential_cols.append('high')
+            if 'low' in result_df.columns:
+                essential_cols.append('low')
+            if 'close' in result_df.columns:
+                essential_cols.append('close')
+            if 'volume' in result_df.columns:
+                essential_cols.append('volume')
+            
+            # Lọc các đặc trưng đã chọn cùng với các cột cần thiết
+            all_cols = essential_cols + [col for col in selected_features if col in result_df.columns and col not in essential_cols]
+            
+            # Lọc DataFrame
+            result_df = result_df[all_cols]
+            
+            self.logger.debug(f"Đã áp dụng bộ chọn lọc, giữ lại {len(all_cols)} cột")
+        
+        # Khôi phục cột timestamp nếu cần
+        if timestamp_col is not None:
+            result_df['timestamp'] = timestamp_col
+        
+        return result_df
+    
+    def _correlation_selector(
+        self,
+        df: pd.DataFrame,
+        threshold: float = 0.95,
+        target_column: Optional[str] = None
+    ) -> Tuple[pd.DataFrame, List[str]]:
+        """
+        Chọn lọc đặc trưng dựa trên tương quan.
+        
+        Args:
+            df: DataFrame đầu vào
+            threshold: Ngưỡng tương quan để loại bỏ đặc trưng
+            target_column: Cột mục tiêu (nếu có)
+            
+        Returns:
+            Tuple (DataFrame đã lọc, danh sách đặc trưng đã chọn)
+        """
+        # Tạo bản sao của DataFrame đầu vào
+        result_df = df.copy()
+        
+        # Lấy các cột số
+        numeric_cols = result_df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        # Loại bỏ cột mục tiêu khỏi danh sách đặc trưng nếu có
+        if target_column and target_column in numeric_cols:
+            numeric_cols.remove(target_column)
+        
+        # Loại bỏ các cột OHLCV khỏi quá trình chọn lọc
+        essential_cols = ['open', 'high', 'low', 'close', 'volume', 'timestamp']
+        features = [col for col in numeric_cols if col not in essential_cols]
+        
+        # Nếu không có đặc trưng để chọn lọc
+        if not features:
+            return result_df, numeric_cols
+        
+        # Tính ma trận tương quan
+        corr_matrix = result_df[features].corr().abs()
+        
+        # Tạo ma trận tam giác trên
+        upper_tri = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+        
+        # Tìm các cột có tương quan cao
+        to_drop = [column for column in upper_tri.columns if any(upper_tri[column] > threshold)]
+        
+        # Giữ lại các cột không bị loại bỏ
+        selected_features = [col for col in numeric_cols if col not in to_drop]
+        
+        # Lọc DataFrame
+        all_cols = selected_features + [col for col in result_df.columns if col not in numeric_cols]
+        result_df = result_df[all_cols]
+        
+        self.logger.info(f"Đã loại bỏ {len(to_drop)} đặc trưng có tương quan > {threshold}")
+        
+        return result_df, selected_features
+    
+    def _variance_selector(
+        self,
+        df: pd.DataFrame,
+        threshold: float = 0.01
+    ) -> Tuple[pd.DataFrame, List[str]]:
+        """
+        Chọn lọc đặc trưng dựa trên phương sai.
+        
+        Args:
+            df: DataFrame đầu vào
+            threshold: Ngưỡng phương sai để giữ lại đặc trưng
+            
+        Returns:
+            Tuple (DataFrame đã lọc, danh sách đặc trưng đã chọn)
+        """
+        # Tạo bản sao của DataFrame đầu vào
+        result_df = df.copy()
+        
+        # Lấy các cột số
+        numeric_cols = result_df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        # Loại bỏ các cột OHLCV khỏi quá trình chọn lọc
+        essential_cols = ['open', 'high', 'low', 'close', 'volume', 'timestamp']
+        features = [col for col in numeric_cols if col not in essential_cols]
+        
+        # Nếu không có đặc trưng để chọn lọc
+        if not features:
+            return result_df, numeric_cols
+        
+        # Tính phương sai của mỗi đặc trưng
+        variances = result_df[features].var()
+        
+        # Chọn lọc các đặc trưng có phương sai lớn hơn ngưỡng
+        selected_features = [col for col in features if variances[col] > threshold]
+        selected_features += [col for col in numeric_cols if col not in features]
+        
+        # Lọc DataFrame
+        all_cols = selected_features + [col for col in result_df.columns if col not in numeric_cols]
+        result_df = result_df[all_cols]
+        
+        self.logger.info(f"Đã loại bỏ {len(features) - len(selected_features) + len(numeric_cols) - len(features)} đặc trưng có phương sai < {threshold}")
+        
+        return result_df, selected_features
+    
+    def _statistical_correlation_selector(
+        self,
+        df: pd.DataFrame,
+        correlation_threshold: float = 0.95,
+        variance_threshold: float = 0.001,
+        target_column: Optional[str] = None
+    ) -> Tuple[pd.DataFrame, List[str]]:
+        """
+        Chọn lọc đặc trưng dựa trên phân tích thống kê.
+        
+        Args:
+            df: DataFrame đầu vào
+            correlation_threshold: Ngưỡng tương quan để loại bỏ đặc trưng
+            variance_threshold: Ngưỡng phương sai để giữ lại đặc trưng
+            target_column: Cột mục tiêu (nếu có)
+            
+        Returns:
+            Tuple (DataFrame đã lọc, danh sách đặc trưng đã chọn)
+        """
+        # Bước 1: Loại bỏ các đặc trưng có phương sai thấp
+        variance_filtered_df, variance_features = self._variance_selector(df, variance_threshold)
+        
+        # Bước 2: Loại bỏ các đặc trưng có tương quan cao
+        final_df, selected_features = self._correlation_selector(
+            variance_filtered_df, 
+            correlation_threshold,
+            target_column
+        )
+        
+        return final_df, selected_features
+    
+    def save_state(self) -> bool:
+        """
+        Lưu trạng thái hiện tại của FeatureGenerator.
         
         Returns:
-            Dict với thông tin đặc trưng
+            True nếu lưu thành công, False nếu không
         """
-        return {
-            "registered_features": {
-                name: {
-                    "type": info["type"],
-                    "is_enabled": info["is_enabled"],
-                    "description": info["description"],
-                    "dependencies": info["dependencies"]
-                }
-                for name, info in self.registered_features.items()
-            },
-            "preprocessors": list(self.preprocessors.keys()),
-            "transformers": list(self.transformers.keys()),
-            "feature_selectors": list(self.feature_selectors.keys()),
-            "is_fitted": self.is_fitted,
-            "feature_info": self.feature_info
-        }
-    
-def generate_target_labels(
-    self,
-    df: pd.DataFrame,
-    price_col: str = 'close',
-    target_type: str = 'price_movement',
-    lookforward_period: int = 10,
-    threshold: float = 0.01,
-    target_column: str = 'label',
-    smooth_target: bool = False,
-    smooth_window: int = 5,
-    generate_labels: bool = False,
-    add_return_cols: bool = True,
-    **kwargs
-) -> pd.DataFrame:
-    """
-    Tạo nhãn target dựa trên sự thay đổi giá tương lai.
-    
-    Args:
-        df: DataFrame chứa dữ liệu giá
-        price_col: Tên cột giá sử dụng để tính toán
-        target_type: Loại target (price_movement, binary, multi_class, regression)
-        lookforward_period: Số nến nhìn trước
-        threshold: Ngưỡng % thay đổi giá để xác định nhãn
-        target_column: Tên cột target
-        smooth_target: Làm mịn target bằng MA
-        smooth_window: Kích thước cửa sổ làm mịn
-        add_return_cols: Thêm các cột return để dễ dàng phân tích
-        **kwargs: Tham số bổ sung
-    
-    Returns:
-        DataFrame với cột target mới
-    """
-    self.logger.info(f"Tạo nhãn target '{target_column}' với kiểu '{target_type}', lookforward={lookforward_period}, threshold={threshold}")
-    
-    result_df = df.copy()
-    
-    # Kiểm tra xem cột giá có tồn tại không
-    if price_col not in result_df.columns:
-        self.logger.warning(f"Cột giá '{price_col}' không tồn tại trong DataFrame")
-        return result_df
-    
-    # Tính % thay đổi giá trong tương lai
-    future_price = result_df[price_col].shift(-lookforward_period)
-    current_price = result_df[price_col]
-    future_return = future_price / current_price - 1
-    
-    # Thêm cột future_return nếu cần
-    if add_return_cols:
-        result_df[f'future_return_{lookforward_period}'] = future_return
-    
-    # Tạo nhãn dựa trên loại target
-    if target_type == 'price_movement':
-        # -1: Short, 0: Hold, 1: Long
-        result_df[target_column] = 0
-        result_df.loc[future_return > threshold, target_column] = 1  # Long signal
-        result_df.loc[future_return < -threshold, target_column] = -1  # Short signal
-        
-    elif target_type == 'binary':
-        # 0: Không mua, 1: Mua
-        result_df[target_column] = 0
-        result_df.loc[future_return > threshold, target_column] = 1
-        
-    elif target_type == 'multi_class':
-        # 0: Giảm mạnh, 1: Giảm nhẹ, 2: Đi ngang, 3: Tăng nhẹ, 4: Tăng mạnh
-        result_df[target_column] = 2  # Mặc định là đi ngang
-        result_df.loc[future_return < -threshold*2, target_column] = 0  # Giảm mạnh
-        result_df.loc[(future_return >= -threshold*2) & (future_return < -threshold), target_column] = 1  # Giảm nhẹ
-        result_df.loc[(future_return > threshold) & (future_return <= threshold*2), target_column] = 3  # Tăng nhẹ
-        result_df.loc[future_return > threshold*2, target_column] = 4  # Tăng mạnh
-        
-    elif target_type == 'regression':
-        # Sử dụng giá trị return thực tế làm target
-        result_df[target_column] = future_return
-        
-    else:
-        self.logger.warning(f"Kiểu target không hợp lệ: {target_type}")
-        return result_df
-    
-    # Làm mịn target bằng MA nếu cần
-    if smooth_target and target_type != 'regression':
-        if target_type == 'multi_class':
-            # Tạo cột target_smooth riêng cho target đa lớp
-            smooth_col = f"{target_column}_smooth"
-            result_df[smooth_col] = result_df[target_column].rolling(window=smooth_window, min_periods=1).mean()
-        else:
-            # Áp dụng MA cho target price_movement và binary
-            smooth_values = result_df[target_column].rolling(window=smooth_window, min_periods=1).mean()
-            result_df[target_column] = smooth_values
-    
-    # Thêm các feature phụ khác nếu cần
-    if add_return_cols:
-        # Thêm biến động giá trong tương lai
-        result_df[f'future_volatility_{lookforward_period}'] = result_df[price_col].rolling(window=lookforward_period).std().shift(-lookforward_period)
-        
-        # Thêm giá cao nhất/thấp nhất trong tương lai nếu có dữ liệu high/low
-        if 'high' in result_df.columns and 'low' in result_df.columns:
-            # Tính giá cao nhất trong tương lai
-            for i in range(1, lookforward_period + 1):
-                col_name = f'future_high_{i}'
-                result_df[col_name] = result_df['high'].shift(-i)
+        try:
+            state_file = self.data_dir / "feature_generator_state.joblib"
             
-            result_df[f'future_max_high_{lookforward_period}'] = result_df[[f'future_high_{i}' for i in range(1, lookforward_period + 1)]].max(axis=1)
-            
-            # Tính giá thấp nhất trong tương lai
-            for i in range(1, lookforward_period + 1):
-                col_name = f'future_low_{i}'
-                result_df[col_name] = result_df['low'].shift(-i)
-            
-            result_df[f'future_min_low_{lookforward_period}'] = result_df[[f'future_low_{i}' for i in range(1, lookforward_period + 1)]].min(axis=1)
-            
-            # Tính drawdown tiềm năng
-            result_df[f'future_max_drawdown_{lookforward_period}'] = (result_df[f'future_min_low_{lookforward_period}'] / result_df[price_col] - 1) * 100
-            
-            # Xóa các cột tạm thời
-            for i in range(1, lookforward_period + 1):
-                result_df.drop(columns=[f'future_high_{i}', f'future_low_{i}'], inplace=True)
-    
-    # Ghi log phân bố nhãn
-    if target_type != 'regression':
-        dist = result_df[target_column].value_counts(dropna=True)
-        self.logger.info(f"Phân bố nhãn '{target_column}': {dist}")
-
-    # Bước 5: Tạo nhãn nếu cần (thêm vào trước return cuối cùng)
-    if generate_labels:
-        if label_config is None:
-            label_config = {
-                'price_col': 'close',
-                'target_type': 'price_movement',
-                'lookforward_period': 10,
-                'threshold': 0.01,
-                'target_column': 'label',
-                'add_return_cols': True
+            state = {
+                "registered_features": self.registered_features,
+                "feature_pipelines": self.feature_pipelines,
+                "fitted_params": self.fitted_params,
+                "timestamp": datetime.now().isoformat()
             }
-        
-        result_df = self.generate_target_labels(result_df, **label_config)
-        self.logger.info(f"Đã tạo nhãn target với cấu hình: {label_config}")   
+            
+            joblib.dump(state, state_file)
+            self.logger.info(f"Đã lưu trạng thái FeatureGenerator vào {state_file}")
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"Lỗi khi lưu trạng thái: {str(e)}")
+            return False
     
-    return result_df
+    def load_state(self) -> bool:
+        """
+        Tải trạng thái của FeatureGenerator từ file.
+        
+        Returns:
+            True nếu tải thành công, False nếu không
+        """
+        try:
+            state_file = self.data_dir / "feature_generator_state.joblib"
+            
+            if not state_file.exists():
+                self.logger.warning(f"File trạng thái {state_file} không tồn tại")
+                return False
+            
+            state = joblib.load(state_file)
+            
+            self.registered_features = state.get("registered_features", {})
+            self.feature_pipelines = state.get("feature_pipelines", {})
+            self.fitted_params = state.get("fitted_params", {})
+            
+            self.logger.info(f"Đã tải trạng thái FeatureGenerator từ {state_file}")
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"Lỗi khi tải trạng thái: {str(e)}")
+            return False
+    
+    def list_pipelines(self) -> List[Dict[str, Any]]:
+        """
+        Liệt kê tất cả các pipeline đã đăng ký.
+        
+        Returns:
+            Danh sách các pipeline
+        """
+        return [
+            {
+                "name": name,
+                "created_at": pipeline.get("created_at", "Unknown"),
+                "feature_count": len(pipeline.get("feature_names", [])),
+                "fitted": pipeline.get("fitted", False),
+                "last_fitted": pipeline.get("last_fitted", "Never")
+            }
+            for name, pipeline in self.feature_pipelines.items()
+        ]
+    
+    def list_features(self, category: Optional[str] = None) -> List[str]:
+        """
+        Liệt kê tất cả các đặc trưng đã đăng ký.
+        
+        Args:
+            category: Danh mục đặc trưng (None để liệt kê tất cả)
+            
+        Returns:
+            Danh sách tên đặc trưng
+        """
+        if category:
+            return [
+                name for name, info in self.registered_features.items()
+                if info.get("category") == category
+            ]
+        else:
+            return list(self.registered_features.keys())
