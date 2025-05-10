@@ -474,6 +474,41 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
             
             logger.info(f"Đã tạo nhãn mục tiêu cho {len(processed_data)} cặp tiền")
         
+        # Kết hợp dữ liệu tâm lý nếu được yêu cầu
+        if hasattr(args, 'include_sentiment') and args.include_sentiment:
+            try:
+                # Tìm file tâm lý
+                sentiment_dir = DEFAULT_DATA_DIR / "sentiment" / "binance"
+                sentiment_files = list(sentiment_dir.glob("*_sentiment_*.csv"))
+                
+                if sentiment_files:
+                    # Lấy file mới nhất
+                    newest_sentiment_file = max(sentiment_files, key=lambda x: x.stat().st_mtime)
+                    logger.info(f"Tìm thấy file tâm lý: {newest_sentiment_file}")
+                    
+                    # Tải dữ liệu tâm lý
+                    sentiment_data = pd.read_csv(newest_sentiment_file)
+                    
+                    # Đảm bảo có cột timestamp
+                    if 'timestamp' in sentiment_data.columns:
+                        sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'])
+                        
+                        # Kết hợp dữ liệu tâm lý với dữ liệu thị trường
+                        processed_data = pipeline.merge_sentiment_data(
+                            processed_data,
+                            sentiment_data=sentiment_data,
+                            method='last_value',
+                            window='1D'
+                        )
+                        
+                        logger.info(f"Đã kết hợp dữ liệu tâm lý từ {newest_sentiment_file}")
+                    else:
+                        logger.warning("File tâm lý không có cột timestamp, không thể kết hợp")
+                else:
+                    logger.warning(f"Không tìm thấy file tâm lý trong {sentiment_dir}")
+            except Exception as e:
+                logger.error(f"Lỗi khi kết hợp dữ liệu tâm lý: {str(e)}")
+
         # Lưu kết quả
         saved_paths = pipeline.save_data(
             processed_data,
