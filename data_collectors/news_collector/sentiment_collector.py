@@ -2087,6 +2087,41 @@ class SentimentCollector:
             self.logger.error(f"Lỗi khi lưu dữ liệu tâm lý vào file CSV: {str(e)}")
             return ""
     
+    def save_to_file(self, data_list, filename_prefix, format='csv'):
+        """
+        Lưu danh sách dữ liệu tâm lý vào file với định dạng chỉ định.
+        
+        Args:
+            data_list: Danh sách các đối tượng SentimentData
+            filename_prefix: Tiền tố tên file
+            format: Định dạng file ('csv', 'json', 'parquet')
+            
+        Returns:
+            Path: Đường dẫn đến file đã lưu
+        """
+        if not data_list:
+            return None
+            
+        output_dir = self.data_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Chuyển đổi danh sách đối tượng thành danh sách dicts
+        data_dicts = [item.to_dict() for item in data_list]
+        
+        if format.lower() == 'json':
+            file_path = output_dir / f"{filename_prefix}.json"
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(data_dicts, f, ensure_ascii=False, indent=2)
+        elif format.lower() == 'parquet':
+            file_path = output_dir / f"{filename_prefix}.parquet"
+            df = pd.DataFrame(data_dicts)
+            df.to_parquet(file_path)
+        else:  # csv
+            file_path = output_dir / f"{filename_prefix}.csv"
+            self.save_to_csv(data_list, file_path)
+            
+        return file_path
+
     def load_from_json(self, file_path: Union[str, Path]) -> List[SentimentData]:
         """
         Tải dữ liệu tâm lý từ file JSON.

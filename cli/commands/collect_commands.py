@@ -9,6 +9,9 @@ import sys
 import argparse
 import asyncio
 import logging
+import pandas as pd
+import numpy as np
+import json
 from typing import Dict, List, Any, Optional, Union, Tuple
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -52,6 +55,8 @@ class CollectCommands:
         
         self.logger.debug("Đã khởi tạo CollectCommands")
     
+
+
     async def collect_historical_data(
         self,
         exchange_id: str,
@@ -439,6 +444,181 @@ class CollectCommands:
                 await self.historical_collector.exchange_connector.close()
                 self.historical_collector = None
     
+    async def collect_fear_greed_index(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        output_dir: Optional[Path] = None,
+        save_format: str = 'csv'
+    ) -> Optional[Path]:
+        """
+        Thu thập dữ liệu Chỉ số Sợ hãi và Tham lam (Fear and Greed Index).
+        
+        Args:
+            start_date: Ngày bắt đầu (định dạng YYYY-MM-DD)
+            end_date: Ngày kết thúc (định dạng YYYY-MM-DD)
+            output_dir: Thư mục lưu dữ liệu
+            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
+            
+        Returns:
+            Đường dẫn đến file dữ liệu đã lưu
+        """
+        self.logger.info("Thu thập dữ liệu Chỉ số Sợ hãi và Tham lam (Fear and Greed Index)")
+        
+        # Xác định thư mục đầu ra
+        if output_dir is None:
+            output_dir = self.data_dir / "sentiment"
+        
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            # Import các module cần thiết
+            from data_collectors.news_collector.sentiment_collector import SentimentCollector
+            
+            # Tạo collector
+            sentiment_collector = SentimentCollector(data_dir=output_dir)
+            
+            # Phân tích ngày
+            start_time = None
+            end_time = None
+            
+            if start_date:
+                start_time = datetime.strptime(start_date, "%Y-%m-%d")
+            
+            if end_date:
+                end_time = datetime.strptime(end_date, "%Y-%m-%d")
+            
+            # Thu thập dữ liệu Fear and Greed Index
+            self.logger.info("Đang thu thập dữ liệu từ Fear and Greed Index API...")
+            
+            # Gọi phương thức thu thập từ alternative.me API
+            fear_greed_data = await sentiment_collector.collect_fear_greed_index(
+                start_date=start_time, 
+                end_date=end_time
+            )
+            
+            if not fear_greed_data:
+                self.logger.warning("Không thu thập được dữ liệu từ Fear and Greed Index API")
+                return None
+            
+            # Lưu dữ liệu vào file
+            timestamp_str = datetime.now().strftime('%Y%m%d')
+            filename = f"fear_greed_index_{timestamp_str}"
+            
+            if save_format == 'parquet':
+                file_path = output_dir / f"{filename}.parquet"
+                df = pd.DataFrame([item.to_dict() for item in fear_greed_data])
+                df.to_parquet(file_path)
+            elif save_format == 'json':
+                file_path = output_dir / f"{filename}.json"
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump([item.to_dict() for item in fear_greed_data], f, ensure_ascii=False, indent=2)
+            else:  # csv
+                file_path = output_dir / f"{filename}.csv"
+                df = pd.DataFrame([item.to_dict() for item in fear_greed_data])
+                df.to_csv(file_path, index=False)
+            
+            self.logger.info(f"Đã lưu dữ liệu Fear and Greed Index vào {file_path}")
+            return file_path
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi thu thập dữ liệu Fear and Greed Index: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None    
+
+    async def collect_sentiment_data(
+        self,
+        sources: List[str] = ["fear_and_greed", "twitter", "reddit"],
+        asset: Optional[str] = "BTC",
+        output_dir: Optional[Path] = None,
+        save_format: str = 'csv'
+    ) -> Dict[str, Path]:
+        """
+        Thu thập dữ liệu tâm lý thị trường.
+        
+        Args:
+            sources: Danh sách nguồn dữ liệu tâm lý ("fear_and_greed", "twitter", "reddit", "santiment")
+            asset: Mã tài sản (ví dụ: "BTC", "ETH")
+            output_dir: Thư mục lưu dữ liệu
+            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
+            
+        Returns:
+            Dict với key là nguồn dữ liệu và value là đường dẫn file
+        """
+        self.logger.info(f"Thu thập dữ liệu tâm lý thị trường cho {asset} từ {sources}")
+        
+        # Xác định thư mục đầu ra
+        if output_dir is None:
+            output_dir = self.data_dir / "sentiment"
+        
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            # Import SentimentCollector
+            from data_collectors.news_collector.sentiment_collector import SentimentCollector
+            
+            # Tạo collector
+            sentiment_collector = SentimentCollector(data_dir=output_dir)
+            
+            # Thu thập dữ liệu từ tất cả các nguồn hoặc nguồn được chỉ định
+            results = {}
+            
+            # Thu thập từ Fear and Greed Index nếu được yêu cầu
+            if "fear_and_greed" in sources:
+                try:
+                    # Sử dụng phương thức mới collect_fear_greed_index
+                    file_path = await self.collect_fear_greed_index(
+                        output_dir=output_dir,
+                        save_format=save_format
+                    )
+                    
+                    if file_path:
+                        results["fear_and_greed"] = file_path
+                        self.logger.info(f"Đã thu thập dữ liệu Fear & Greed Index và lưu vào {file_path}")
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi thu thập Fear & Greed Index: {str(e)}")
+            
+            # Thu thập từ Twitter nếu được yêu cầu
+            if "twitter" in sources:
+                try:
+                    twitter_data = await sentiment_collector.collect_from_source("Twitter Sentiment", asset=asset)
+                    
+                    if twitter_data:
+                        # Lưu dữ liệu
+                        file_path = sentiment_collector.save_to_file(
+                            twitter_data, 
+                            f"twitter_sentiment_{asset}_{datetime.now().strftime('%Y%m%d')}", 
+                            format=save_format
+                        )
+                        results["twitter"] = file_path
+                        self.logger.info(f"Đã thu thập dữ liệu Twitter Sentiment cho {asset} và lưu vào {file_path}")
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi thu thập Twitter Sentiment: {str(e)}")
+            
+            # Thu thập từ Reddit nếu được yêu cầu
+            if "reddit" in sources:
+                try:
+                    reddit_data = await sentiment_collector.collect_from_source("Reddit Sentiment", asset=asset)
+                    
+                    if reddit_data:
+                        # Lưu dữ liệu
+                        file_path = sentiment_collector.save_to_file(
+                            reddit_data, 
+                            f"reddit_sentiment_{asset}_{datetime.now().strftime('%Y%m%d')}", 
+                            format=save_format
+                        )
+                        results["reddit"] = file_path
+                        self.logger.info(f"Đã thu thập dữ liệu Reddit Sentiment cho {asset} và lưu vào {file_path}")
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi thu thập Reddit Sentiment: {str(e)}")
+            
+            return results
+                
+        except Exception as e:
+            self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý thị trường: {str(e)}")
+            return {}
+
     def get_available_exchanges(self) -> List[str]:
         """
         Lấy danh sách sàn giao dịch có sẵn.
@@ -525,6 +705,314 @@ class CollectCommands:
         info["timeframes"] = list(info["timeframes"])
         
         return info
+    
+    async def collect_binance_sentiment(
+        self,
+        exchange_id: str = "binance",
+        symbols: List[str] = ["BTC/USDT"],
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        lookback_days: int = 14,
+        output_dir: Optional[Path] = None,
+        save_format: str = 'csv'
+    ) -> Dict[str, Path]:
+        """
+        Tạo chỉ số tâm lý thị trường dựa trên dữ liệu từ Binance.
+        
+        Args:
+            exchange_id: ID của sàn giao dịch (mặc định: "binance")
+            symbols: Danh sách cặp giao dịch
+            start_date: Ngày bắt đầu (định dạng YYYY-MM-DD)
+            end_date: Ngày kết thúc (định dạng YYYY-MM-DD)
+            lookback_days: Số ngày dữ liệu quá khứ để tính toán
+            output_dir: Thư mục lưu dữ liệu
+            save_format: Định dạng lưu trữ ('parquet', 'csv', 'json')
+            
+        Returns:
+            Dict với key là symbol và value là đường dẫn file dữ liệu
+        """
+        self.logger.info(f"Tạo chỉ số tâm lý thị trường dựa trên dữ liệu Binance cho {len(symbols)} cặp")
+        
+        # Xác định khoảng thời gian
+        current_time = datetime.now()
+        if start_date and end_date:
+            start_time = datetime.strptime(start_date, "%Y-%m-%d")
+            end_time = datetime.strptime(end_date, "%Y-%m-%d")
+            self.logger.info(f"Khoảng thời gian thu thập: từ {start_date} đến {end_date}")
+        else:
+            end_time = current_time
+            start_time = current_time - timedelta(days=lookback_days)
+            self.logger.info(f"Khoảng thời gian thu thập: {lookback_days} ngày gần đây")
+
+        # Xác định thư mục đầu ra
+        if output_dir is None:
+            output_dir = self.data_dir / "sentiment" / "binance"
+        
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            # Lấy API key và secret từ biến môi trường
+            api_key = get_env(f"{exchange_id.upper()}_API_KEY", "")
+            api_secret = get_env(f"{exchange_id.upper()}_API_SECRET", "")
+            
+            # Tạo collector
+            self.historical_collector = await create_data_collector(
+                exchange_id=exchange_id,
+                api_key=api_key,
+                api_secret=api_secret,
+                testnet=False,
+                is_futures=True,  # Sử dụng thị trường futures
+                max_workers=4
+            )
+            
+            # Kết quả lưu trữ
+            result_files = {}
+                
+            # Thu thập và tính toán chỉ số tâm lý cho mỗi symbol
+            for symbol in symbols:
+                self.logger.info(f"Đang tính toán chỉ số tâm lý cho {symbol}")
+                
+                # 1. Thu thập dữ liệu funding rate - sử dụng try/except để bắt tất cả các lỗi có thể
+                funding_data = {symbol: pd.DataFrame()}
+                try:
+                    # Thử các phương thức khác nhau để lấy funding rate
+                    connector = self.historical_collector.exchange_connector
+                    
+                    if hasattr(connector, 'fetch_funding_rate'):
+                        funding_rate = connector.fetch_funding_rate(symbol)
+                        if funding_rate:
+                            funding_data[symbol] = pd.DataFrame([funding_rate])
+                    elif hasattr(connector, 'fetch_funding_rates'):
+                        funding_rates = connector.fetch_funding_rates([symbol])
+                        if funding_rates:
+                            funding_data[symbol] = pd.DataFrame(funding_rates)
+                    else:
+                        self.logger.warning(f"Không tìm thấy phương thức lấy funding rate cho {symbol}")
+                except Exception as e:
+                    self.logger.warning(f"Lỗi khi thu thập funding rates cho {symbol}: {str(e)}")
+                
+                # 2. Thu thập dữ liệu OHLCV
+                try:
+                    # Thu thập OHLCV và kiểm tra kết quả - SỬA Ở ĐÂY: Dùng end_time thay vì current_time
+                    self.logger.info(f"Thu thập dữ liệu OHLCV cho {symbol} từ {start_time} đến {end_time}")
+                    ohlcv_data = await self.historical_collector.collect_ohlcv(
+                        symbol=symbol,
+                        timeframe="1h",
+                        start_time=start_time,
+                        end_time=end_time  # Đã sửa: dùng end_time thay vì current_time
+                    )
+                    
+                    if ohlcv_data is None or ohlcv_data.empty:
+                        self.logger.warning(f"Không thu thập được dữ liệu OHLCV cho {symbol}")
+                        continue
+                    
+                    # Kiểm tra cấu trúc dữ liệu OHLCV
+                    self.logger.info(f"Cấu trúc OHLCV: Cột = {ohlcv_data.columns.tolist()}, Dòng = {len(ohlcv_data)}")
+                    
+                except Exception as e:
+                    self.logger.warning(f"Lỗi khi thu thập OHLCV cho {symbol}: {str(e)}")
+                    continue
+                
+                # 3. Tính toán chỉ số tâm lý dựa trên dữ liệu đã thu thập
+                sentiment_data = self._calculate_binance_sentiment_simplified(
+                    symbol=symbol,
+                    funding_rates=funding_data.get(symbol, pd.DataFrame()),
+                    ohlcv_data=ohlcv_data
+                )
+                
+                if sentiment_data is not None and not sentiment_data.empty:
+                    # Lưu dữ liệu
+                    timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{symbol.replace('/', '_')}_sentiment_{timestamp_str}"
+                    
+                    if save_format == 'parquet':
+                        file_path = output_dir / f"{filename}.parquet"
+                        sentiment_data.to_parquet(file_path)
+                    elif save_format == 'csv':
+                        file_path = output_dir / f"{filename}.csv"
+                        sentiment_data.to_csv(file_path, index=False)
+                    elif save_format == 'json':
+                        file_path = output_dir / f"{filename}.json"
+                        sentiment_data.to_json(file_path, orient='records')
+                    else:
+                        file_path = output_dir / f"{filename}.csv"
+                        sentiment_data.to_csv(file_path, index=False)
+                    
+                    result_files[symbol] = file_path
+                    self.logger.info(f"Đã tạo chỉ số tâm lý cho {symbol} và lưu vào {file_path}")
+                else:
+                    self.logger.warning(f"Không thể tạo chỉ số tâm lý cho {symbol}")
+            
+            return result_files
+                
+        except Exception as e:
+            self.logger.error(f"Lỗi khi tạo chỉ số tâm lý từ Binance: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {}
+        finally:
+            # Đóng kết nối
+            if self.historical_collector:
+                await self.historical_collector.exchange_connector.close()
+                self.historical_collector = None
+
+    def _calculate_binance_sentiment_simplified(
+        self,
+        symbol: str,
+        funding_rates: pd.DataFrame,
+        ohlcv_data: pd.DataFrame
+    ) -> pd.DataFrame:
+        """
+        Tính toán chỉ số tâm lý dựa trên dữ liệu Binance (phiên bản đơn giản hóa).
+        Chỉ sử dụng các dữ liệu funding rates và OHLCV.
+        
+        Args:
+            symbol: Cặp giao dịch
+            funding_rates: Dữ liệu funding rate
+            ohlcv_data: Dữ liệu OHLCV
+            
+        Returns:
+            DataFrame chứa chỉ số tâm lý
+        """
+        try:
+            import pandas as pd
+            import numpy as np
+            
+            # Kiểm tra dữ liệu OHLCV
+            if ohlcv_data is None or ohlcv_data.empty:
+                self.logger.warning(f"Thiếu dữ liệu OHLCV để tính toán chỉ số tâm lý cho {symbol}")
+                return None
+            
+            # Log cấu trúc dữ liệu để debug
+            self.logger.info(f"Cấu trúc dữ liệu OHLCV: {ohlcv_data.columns.tolist()}")
+            
+            # Kiểm tra và chuẩn hóa tên cột (có thể khác nhau tùy theo nguồn dữ liệu)
+            column_mapping = {
+                'timestamp': 'timestamp',
+                'open': 'open', 
+                'high': 'high', 
+                'low': 'low', 
+                'close': 'close',
+                'volume': 'volume',
+                'date': 'timestamp',
+                'time': 'timestamp'
+            }
+            
+            # Áp dụng ánh xạ cột
+            ohlcv_columns = {}
+            for col in ohlcv_data.columns:
+                col_lower = col.lower()
+                if col_lower in column_mapping:
+                    ohlcv_columns[col] = column_mapping[col_lower]
+            
+            # Đổi tên cột nếu cần
+            if ohlcv_columns:
+                ohlcv_data = ohlcv_data.rename(columns=ohlcv_columns)
+            
+            # Đảm bảo các cột cần thiết tồn tại
+            required_columns = ['close', 'high', 'low']
+            for col in required_columns:
+                if col not in ohlcv_data.columns:
+                    self.logger.warning(f"Thiếu cột {col} trong dữ liệu OHLCV")
+                    return None
+            
+            # Chuẩn bị DataFrame kết quả
+            if 'timestamp' in ohlcv_data.columns:
+                result = pd.DataFrame({'timestamp': ohlcv_data['timestamp']})
+            else:
+                # Nếu không có cột timestamp, sử dụng index làm timestamp
+                result = pd.DataFrame({'timestamp': ohlcv_data.index})
+                
+            # 1. Tính toán điểm tâm lý từ funding rate nếu có
+            if not funding_rates.empty:
+                # Tìm các cột liên quan đến funding rate
+                funding_rate_col = None
+                for col in funding_rates.columns:
+                    if 'rate' in col.lower() and 'funding' in col.lower():
+                        funding_rate_col = col
+                        break
+                
+                if funding_rate_col:
+                    # Chuẩn hóa funding rate về thang điểm -1 đến 1
+                    funding_rates['funding_sentiment'] = funding_rates[funding_rate_col] / 0.001  # Chuẩn hóa
+                    funding_rates['funding_sentiment'] = funding_rates['funding_sentiment'].clip(-1, 1)
+                    
+                    # Lấy giá trị funding sentiment gần nhất
+                    result['funding_sentiment'] = funding_rates['funding_sentiment'].iloc[0] if len(funding_rates) > 0 else 0
+                else:
+                    result['funding_sentiment'] = 0
+            else:
+                result['funding_sentiment'] = 0
+            
+            # 2. Tính RSI (14 periods)
+            delta = ohlcv_data['close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+            
+            # Tránh chia cho 0
+            loss = loss.replace(0, 1e-10)
+            rs = gain / loss
+            ohlcv_data['rsi'] = 100 - (100 / (1 + rs))
+            
+            # Tạo điểm tâm lý từ RSI
+            ohlcv_data['rsi_sentiment'] = (ohlcv_data['rsi'] - 50) / 50  # Chuẩn hóa về -1 đến 1
+            
+            # 3. Tính Bollinger Bands
+            window_size = min(20, len(ohlcv_data) - 1)  # Đảm bảo window size không lớn hơn số dòng dữ liệu
+            ohlcv_data['sma20'] = ohlcv_data['close'].rolling(window=window_size, min_periods=1).mean()
+            ohlcv_data['stddev'] = ohlcv_data['close'].rolling(window=window_size, min_periods=1).std()
+            ohlcv_data['upper_band'] = ohlcv_data['sma20'] + (ohlcv_data['stddev'] * 2)
+            ohlcv_data['lower_band'] = ohlcv_data['sma20'] - (ohlcv_data['stddev'] * 2)
+            
+            # Tính % B (vị trí giá trong Bollinger Bands)
+            band_width = ohlcv_data['upper_band'] - ohlcv_data['lower_band']
+            band_width = band_width.replace(0, 1e-10)  # Tránh chia cho 0
+            ohlcv_data['percent_b'] = (ohlcv_data['close'] - ohlcv_data['lower_band']) / band_width
+            
+            # Tạo điểm tâm lý từ % B
+            ohlcv_data['bb_sentiment'] = (ohlcv_data['percent_b'] - 0.5) * 2  # Chuẩn hóa về -1 đến 1
+            
+            # Đưa các chỉ số tâm lý từ OHLCV vào kết quả
+            result['rsi_sentiment'] = ohlcv_data['rsi_sentiment']
+            result['bb_sentiment'] = ohlcv_data['bb_sentiment']
+            
+            # 4. Tính tổng điểm tâm lý (trung bình có trọng số)
+            weights = {
+                'funding_sentiment': 0.4,
+                'rsi_sentiment': 0.3,
+                'bb_sentiment': 0.3
+            }
+            
+            # Điền các giá trị NA bằng 0
+            sentiment_columns = ['funding_sentiment', 'rsi_sentiment', 'bb_sentiment']
+            result[sentiment_columns] = result[sentiment_columns].fillna(0)
+            
+            # Tính tâm lý tổng hợp
+            result['sentiment_score'] = 0
+            for col, weight in weights.items():
+                result['sentiment_score'] += result[col] * weight
+            
+            # Thêm nhãn tâm lý dựa trên điểm tâm lý
+            result['sentiment_label'] = pd.cut(
+                result['sentiment_score'],
+                bins=[-1, -0.6, -0.2, 0.2, 0.6, 1],
+                labels=['Extreme Fear', 'Fear', 'Neutral', 'Greed', 'Extreme Greed']
+            )
+            
+            # Chuyển đổi tâm lý về thang điểm 0-100 cho dễ hiểu
+            result['sentiment_value'] = (result['sentiment_score'] + 1) * 50
+            
+            # Thêm thông tin khác
+            result['symbol'] = symbol
+            result['source'] = 'Binance'
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi tính toán chỉ số tâm lý cho {symbol}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
 
 def setup_collect_parser(subparsers):
     """
@@ -614,7 +1102,95 @@ def setup_collect_parser(subparsers):
     
     # Nếu bạn sử dụng Python 3.6 hoặc cũ hơn, thay dòng required=False ở trên bằng:
     # collect_parser.set_defaults(collect_command=None)
+
+    # ===== THIẾT LẬP PARSER CHO FEAR GREED INDEX =====
+    fear_greed_parser = collect_subparsers.add_parser(
+        'fear_greed',
+        help='Thu thập chỉ số Fear and Greed Index',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    # Thêm các tham số cho lệnh thu thập Fear and Greed Index
+    fear_greed_parser.add_argument(
+        '--start-date',
+        type=str,
+        help='Ngày bắt đầu (định dạng YYYY-MM-DD)'
+    )
+
+    fear_greed_parser.add_argument(
+        '--end-date',
+        type=str,
+        help='Ngày kết thúc (định dạng YYYY-MM-DD)'
+    )
+
+    fear_greed_parser.add_argument(
+        '--output-dir',
+        type=str,
+        help='Thư mục lưu dữ liệu'
+    )
+
+    fear_greed_parser.add_argument(
+        '--save-format',
+        type=str,
+        choices=['parquet', 'csv', 'json'],
+        default='csv',
+        help='Định dạng lưu trữ'
+    )
+
+    # Thiết lập hàm xử lý
+    fear_greed_parser.set_defaults(func=handle_fear_greed_command)    
     
+    # ===== THIẾT LẬP PARSER CHO BINANCE SENTIMENT =====
+    binance_sentiment_parser = collect_subparsers.add_parser(
+        'binance_sentiment',
+        help='Tạo chỉ số tâm lý thị trường từ dữ liệu Binance',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    # Thêm các tham số cho lệnh tạo chỉ số tâm lý từ Binance
+    binance_sentiment_parser.add_argument(
+        '--start-date',
+        type=str,
+        help='Ngày bắt đầu (định dạng YYYY-MM-DD)'
+    )
+
+    binance_sentiment_parser.add_argument(
+        '--end-date',
+        type=str,
+        help='Ngày kết thúc (định dạng YYYY-MM-DD)'
+    )    
+
+    binance_sentiment_parser.add_argument(
+        '--symbols',
+        type=str,
+        default='BTC/USDT',
+        help='Danh sách cặp giao dịch (phân cách bằng dấu phẩy)'
+    )
+
+    binance_sentiment_parser.add_argument(
+        '--lookback',
+        type=int,
+        default=14,
+        help='Số ngày dữ liệu quá khứ để tính toán'
+    )
+
+    binance_sentiment_parser.add_argument(
+        '--output-dir',
+        type=str,
+        help='Thư mục lưu dữ liệu'
+    )
+
+    binance_sentiment_parser.add_argument(
+        '--save-format',
+        type=str,
+        choices=['parquet', 'csv', 'json'],
+        default='csv',
+        help='Định dạng lưu trữ'
+    )
+
+    # Thiết lập hàm xử lý
+    binance_sentiment_parser.set_defaults(func=handle_binance_sentiment_command)
+
     # ===== THIẾT LẬP PARSER CHO HISTORICAL =====
     historical_parser = collect_subparsers.add_parser(
         'historical',
@@ -849,6 +1425,45 @@ def setup_collect_parser(subparsers):
     
     # Thiết lập hàm xử lý
     info_parser.set_defaults(func=handle_info_command)
+
+    # ===== THIẾT LẬP PARSER CHO SENTIMENT =====
+    sentiment_parser = collect_subparsers.add_parser(
+        'sentiment',
+        help='Thu thập dữ liệu tâm lý thị trường',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    # Thêm các tham số cho lệnh thu thập dữ liệu tâm lý
+    sentiment_parser.add_argument(
+        '--sources',
+        type=str,
+        default='fear_and_greed',
+        help='Danh sách nguồn dữ liệu tâm lý (fear_and_greed,twitter,reddit,santiment), phân cách bằng dấu phẩy'
+    )
+
+    sentiment_parser.add_argument(
+        '--asset',
+        type=str,
+        default='BTC',
+        help='Mã tài sản (BTC, ETH, ...)'
+    )
+
+    sentiment_parser.add_argument(
+        '--output-dir',
+        type=str,
+        help='Thư mục lưu dữ liệu'
+    )
+
+    sentiment_parser.add_argument(
+        '--save-format',
+        type=str,
+        choices=['parquet', 'csv', 'json'],
+        default='csv',
+        help='Định dạng lưu trữ'
+    )
+
+    # Thiết lập hàm xử lý
+    sentiment_parser.set_defaults(func=handle_sentiment_command)    
     
     # Thiết lập hàm xử lý mặc định cho lệnh collect
     collect_parser.set_defaults(func=handle_collect_command)
@@ -1055,7 +1670,7 @@ def handle_historical_command(args, system):
             else:
                 print("Không có dữ liệu nào được thu thập.")
                 return 1
-                
+        
         except Exception as e:
             print(f"Lỗi: {str(e)}")
             return 1
@@ -1310,6 +1925,164 @@ def handle_info_command(args, system):
             
     except Exception as e:
         print(f"Lỗi: {str(e)}")
+        return 1
+
+def handle_binance_sentiment_command(args, system):
+    """
+    Xử lý lệnh 'collect binance_sentiment'.
+    
+    Args:
+        args: Các tham số dòng lệnh
+        system: Instance của AutomatedTradingSystem
+        
+    Returns:
+        int: Mã kết quả (0 = thành công)
+    """
+    # Tạo CollectCommands
+    cmd = CollectCommands(system)
+    
+    # Phân tích tham số
+    symbols = args.symbols.split(',')
+    lookback_days = args.lookback
+    output_dir = Path(args.output_dir) if args.output_dir else None
+    save_format = args.save_format
+    
+    # Lấy thông tin ngày bắt đầu và kết thúc nếu có
+    start_date = args.start_date if hasattr(args, 'start_date') else None
+    end_date = args.end_date if hasattr(args, 'end_date') else None
+    
+    # Thiết lập thông báo cho khoảng thời gian
+    time_range_msg = ""
+    if start_date and end_date:
+        time_range_msg = f" từ {start_date} đến {end_date}"
+    elif lookback_days:
+        time_range_msg = f" cho {lookback_days} ngày gần đây"
+    
+    try:
+        # Chuẩn bị loop asyncio
+        loop = asyncio.get_event_loop()
+        
+        print(f"Đang tạo chỉ số tâm lý thị trường từ dữ liệu Binance cho {len(symbols)} cặp giao dịch{time_range_msg}...")
+        
+        # Gọi phương thức collect_binance_sentiment với tham số mới
+        result = loop.run_until_complete(cmd.collect_binance_sentiment(
+            exchange_id="binance",
+            symbols=symbols,
+            lookback_days=lookback_days,
+            start_date=start_date,
+            end_date=end_date,
+            output_dir=output_dir,
+            save_format=save_format
+        ))
+        
+        # In kết quả
+        if result:
+            print(f"\nĐã tạo chỉ số tâm lý thị trường cho {len(result)} cặp giao dịch:")
+            for symbol, path in result.items():
+                print(f"  {symbol}: {path}")
+            return 0
+        else:
+            print("Không có dữ liệu nào được tạo.")
+            return 1
+            
+    except Exception as e:
+        print(f"Lỗi: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+def handle_sentiment_command(args, system):
+    """
+    Xử lý lệnh 'collect sentiment'.
+    
+    Args:
+        args: Các tham số dòng lệnh
+        system: Instance của AutomatedTradingSystem
+        
+    Returns:
+        int: Mã kết quả (0 = thành công)
+    """
+    # Tạo CollectCommands
+    cmd = CollectCommands(system)
+    
+    # Phân tích tham số
+    sources = args.sources.split(',')
+    asset = args.asset
+    output_dir = Path(args.output_dir) if args.output_dir else None
+    save_format = args.save_format
+    
+    try:
+        # Chuẩn bị loop asyncio
+        loop = asyncio.get_event_loop()
+        
+        # Gọi phương thức collect_sentiment_data
+        result = loop.run_until_complete(cmd.collect_sentiment_data(
+            sources=sources,
+            asset=asset,
+            output_dir=output_dir,
+            save_format=save_format
+        ))
+        
+        # In kết quả
+        if result:
+            print(f"\nĐã thu thập dữ liệu tâm lý thị trường cho {len(result)} nguồn:")
+            for source, path in result.items():
+                print(f"  {source}: {path}")
+            return 0
+        else:
+            print("Không có dữ liệu nào được thu thập.")
+            return 1
+            
+    except Exception as e:
+        print(f"Lỗi: {str(e)}")
+        return 1
+
+def handle_fear_greed_command(args, system):
+    """
+    Xử lý lệnh 'collect fear_greed'.
+    
+    Args:
+        args: Các tham số dòng lệnh
+        system: Instance của AutomatedTradingSystem
+        
+    Returns:
+        int: Mã kết quả (0 = thành công)
+    """
+    # Tạo CollectCommands
+    cmd = CollectCommands(system)
+    
+    # Phân tích tham số
+    start_date = args.start_date
+    end_date = args.end_date
+    output_dir = Path(args.output_dir) if args.output_dir else None
+    save_format = args.save_format
+    
+    try:
+        # Chuẩn bị loop asyncio
+        loop = asyncio.get_event_loop()
+        
+        print("Đang thu thập dữ liệu Fear and Greed Index...")
+        
+        # Gọi phương thức collect_fear_greed_index
+        result = loop.run_until_complete(cmd.collect_fear_greed_index(
+            start_date=start_date,
+            end_date=end_date,
+            output_dir=output_dir,
+            save_format=save_format
+        ))
+        
+        # In kết quả
+        if result:
+            print(f"\nĐã thu thập dữ liệu Fear and Greed Index và lưu vào: {result}")
+            return 0
+        else:
+            print("Không có dữ liệu nào được thu thập.")
+            return 1
+            
+    except Exception as e:
+        print(f"Lỗi: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return 1
 
 if __name__ == "__main__":

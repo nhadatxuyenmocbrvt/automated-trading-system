@@ -1,0 +1,66 @@
+2025-05-10 13:17:04,658 - trading_system.module_manager - DEBUG - [trading_system.py:60] - Các module agent khả dụng
+2025-05-10 13:17:04,658 - trading_system.module_manager - DEBUG - [trading_system.py:70] - Các module môi trường khả dụng
+2025-05-10 13:17:04,659 - trading_system.module_manager - DEBUG - [trading_system.py:80] - Các module thu thập dữ liệu khả dụng
+2025-05-10 13:17:04,692 - trading_system.cli_parser - INFO - [main.py:206] - Đã cập nhật mức độ log: INFO
+2025-05-10 13:17:04,693 - trading_system.module_manager - INFO - [trading_system.py:139] - ==== Trạng thái khả dụng của module ====
+2025-05-10 13:17:04,693 - trading_system.module_manager - INFO - [trading_system.py:140] - Agents: Khả dụng
+2025-05-10 13:17:04,694 - trading_system.module_manager - INFO - [trading_system.py:141] - Environments: Khả dụng
+2025-05-10 13:17:04,695 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
+2025-05-10 13:17:04,695 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-10 13:17:04,697 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-10 13:17:04,697 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-10 13:17:04,698 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-10 13:17:04,698 - trading_system.trading_system - INFO - [feature_generator.py:160] - Đã khởi tạo FeatureGenerator
+2025-05-10 13:17:04,700 - trading_system.trading_system - INFO - [feature_generator.py:519] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
+2025-05-10 13:17:04,700 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-05-10 13:17:04,700 - trading_system.trading_system - INFO - [data_pipeline.py:217] - Đã khởi tạo các collector dữ liệu cho binance
+2025-05-10 13:17:04,700 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-05-10 13:17:04,701 - trading_system.trading_system - INFO - [trading_system.py:304] - Bắt đầu thu thập dữ liệu từ binance cho 1 cặp tiền, khung thời gian 1h
+2025-05-10 13:17:04,702 - trading_system.trading_system - INFO - [data_pipeline.py:324] - Thu thập dữ liệu từ binance cho 1 cặp giao dịch, khung thời gian 1h
+2025-05-10 13:17:04,702 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binanceusdm
+2025-05-10 13:17:05,279 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 490 thị trường
+2025-05-10 13:17:05,281 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
+2025-05-10 13:17:05,281 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
+2025-05-10 13:17:05,282 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 490 thị trường từ cache
+2025-05-10 13:17:05,283 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
+2025-05-10 13:17:05,284 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:76] - Đã khởi tạo HistoricalDataCollector cho binanceusdm
+2025-05-10 13:17:05,285 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:324] - Thu thập dữ liệu OHLCV cho 1 cặp giao dịch
+2025-05-10 13:17:05,285 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:197] - Thu thập dữ liệu OHLCV cho 1 cặp giao dịch (1h)
+2025-05-10 13:17:05,286 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:230] - Thực hiện thu thập với 1 tác vụ đồng thời
+2025-05-10 13:17:05,287 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:105] - Thu thập dữ liệu OHLCV cho XRP/USDT (1h)
+2025-05-10 13:17:05,287 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:625] - Bắt đầu lấy dữ liệu lịch sử cho XRP/USDT từ 2022-01-01 00:00:00
+2025-05-10 13:17:05,421 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:05,765 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:06,123 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:06,451 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:06,793 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:07,135 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:07,472 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:07,837 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:08,183 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:08,532 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:08,890 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:09,233 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:09,579 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:09,931 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:10,292 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:10,652 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:11,011 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:11,378 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:11,737 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:12,099 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:12,457 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:12,809 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:13,169 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:13,516 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:13,869 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:14,223 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
+2025-05-10 13:17:14,557 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 257 klines 1h cho XRP/USDT
+2025-05-10 13:17:14,762 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:645] - Đã lấy tổng cộng 26257 klines cho XRP/USDT
+2025-05-10 13:17:14,875 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:902] - Đã lưu dữ liệu vào data\historical\binanceusdm\futures\1h\XRP_USDT_1h.parquet
+2025-05-10 13:17:14,875 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:161] - Đã thu thập 26250 candles cho XRP/USDT (1h)
+2025-05-10 13:17:15,892 - trading_system.trading_system - INFO - [data_pipeline.py:356] - Đã thu thập 26250 dòng dữ liệu cho XRP/USDT
+2025-05-10 13:17:16,794 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1910] - Đã thu thập 0 bản ghi tâm lý từ Fear and Greed Index
+2025-05-10 13:17:16,794 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
+2025-05-10 13:17:16,826 - trading_system.trading_system - INFO - [data_pipeline.py:1359] - Đã lưu 26250 dòng dữ liệu cho XRP/USDT vào E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\xrp_usdt_20250510_131716.parquet
+2025-05-10 13:17:16,834 - trading_system.trading_system - INFO - [trading_system.py:331] - Đã thu thập và lưu dữ liệu thành công cho 1 cặp tiền
