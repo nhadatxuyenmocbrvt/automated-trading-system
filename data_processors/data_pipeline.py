@@ -447,14 +447,31 @@ class DataPipeline:
                 
                 # Tải dữ liệu
                 if file_format == 'csv':
-                    df = pd.read_csv(file_path)
-                    # Chuyển cột timestamp sang datetime nếu có
+                    # Sử dụng parse_dates để chuyển đổi timestamp ngay khi đọc file
+                    df = pd.read_csv(file_path, parse_dates=['timestamp'])
+                    
+                    # Kiểm tra và xử lý thêm nếu timestamp vẫn là object
+                    if 'timestamp' in df.columns and df['timestamp'].dtype == 'object':
+                        self.logger.info(f"Cột timestamp vẫn là object sau khi parse_dates, thử chuyển đổi thủ công")
+                        try:
+                            df['timestamp'] = pd.to_datetime(df['timestamp'])
+                        except Exception as e:
+                            self.logger.warning(f"Không thể chuyển đổi cột timestamp: {str(e)}")
+                    
+                    # Log thông tin về kiểu dữ liệu của timestamp
                     if 'timestamp' in df.columns:
-                        df['timestamp'] = pd.to_datetime(df['timestamp'])
+                        self.logger.info(f"Kiểu dữ liệu của cột timestamp sau khi đọc: {df['timestamp'].dtype}")
+                    
                 elif file_format == 'parquet':
                     df = pd.read_parquet(file_path)
+                    # Parquet tự động lưu giữ kiểu dữ liệu, nhưng vẫn nên kiểm tra
+                    if 'timestamp' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                        df['timestamp'] = pd.to_datetime(df['timestamp'])
+                        
                 elif file_format == 'json':
                     df = pd.read_json(file_path)
+                    if 'timestamp' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                        df['timestamp'] = pd.to_datetime(df['timestamp'])
                 else:
                     self.logger.error(f"Định dạng file không được hỗ trợ: {file_format}")
                     continue
@@ -917,34 +934,69 @@ class DataPipeline:
         
         # Nếu vẫn không có dữ liệu tâm lý
         if sentiment_data is None or sentiment_data.empty:
+            self.logger.warning("Không có dữ liệu tâm lý để kết hợp")
             return market_data
         
+        self.logger.info(f"Bắt đầu kết hợp dữ liệu tâm lý với phương pháp {method}")
         results = {}
         
         # Chuyển timestamp sang datetime nếu cần
-        if 'timestamp' in sentiment_data.columns and not pd.api.types.is_datetime64_any_dtype(sentiment_data['timestamp']):
-            sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'])
+        if 'timestamp' in sentiment_data.columns:
+            if pd.api.types.is_numeric_dtype(sentiment_data['timestamp']):
+                # Chuyển UNIX timestamp sang datetime
+                sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'], unit='ms')
+                self.logger.info("Đã chuyển đổi UNIX timestamp sang datetime trong dữ liệu tâm lý")
+            elif not pd.api.types.is_datetime64_any_dtype(sentiment_data['timestamp']):
+                sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'])
+                self.logger.info("Đã chuyển đổi timestamp dạng chuỗi sang datetime trong dữ liệu tâm lý")
+        
+        # Xác định cột giá trị tâm lý
+        value_column = 'value'
+        if value_column not in sentiment_data.columns:
+            # Tìm cột thay thế
+            alternative_columns = ['sentiment_value', 'sentiment', 'score', 'fear_greed_value']
+            for col in alternative_columns:
+                if col in sentiment_data.columns:
+                    value_column = col
+                    self.logger.info(f"Sử dụng cột {value_column} thay cho 'value'")
+                    break
+            else:
+                self.logger.warning(f"Không tìm thấy cột giá trị tâm lý. Các cột hiện có: {sentiment_data.columns.tolist()}")
+                return market_data
         
         for symbol, df in market_data.items():
             try:
                 # Chuyển timestamp sang datetime nếu cần
-                if 'timestamp' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
-                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                if 'timestamp' in df.columns:
+                    if pd.api.types.is_numeric_dtype(df['timestamp']):
+                        # Chuyển UNIX timestamp sang datetime
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                        self.logger.info(f"Đã chuyển đổi UNIX timestamp sang datetime cho {symbol}")
+                    elif not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                        df['timestamp'] = pd.to_datetime(df['timestamp'])
                 
                 # Tạo bản sao để tránh thay đổi dữ liệu gốc
                 merged_df = df.copy()
                 
                 # Lọc dữ liệu tâm lý cho asset tương ứng
                 asset = symbol.split('/')[0] if '/' in symbol else symbol
-                filtered_sentiment = sentiment_data[
-                    (sentiment_data['asset'] == asset) | 
-                    (sentiment_data['asset'].isna())
-                ].copy() if 'asset' in sentiment_data.columns else sentiment_data.copy()
+                filtered_sentiment = sentiment_data
+                
+                if 'asset' in sentiment_data.columns:
+                    filtered_sentiment = sentiment_data[
+                        (sentiment_data['asset'] == asset) | 
+                        (sentiment_data['asset'].str.lower() == asset.lower() if isinstance(asset, str) else False) |
+                        (sentiment_data['asset'].isna())
+                    ].copy()
                 
                 if filtered_sentiment.empty:
                     self.logger.warning(f"Không có dữ liệu tâm lý cho {asset}")
                     results[symbol] = merged_df
                     continue
+                
+                # Ghi log thông tin dữ liệu tâm lý để debug
+                self.logger.info(f"Dữ liệu tâm lý cho {asset}: {len(filtered_sentiment)} dòng")
+                self.logger.info(f"Cột dữ liệu tâm lý: {filtered_sentiment.columns.tolist()}")
                 
                 # Đặt timestamp làm index
                 if 'timestamp' in merged_df.columns:
@@ -956,30 +1008,34 @@ class DataPipeline:
                 # Tính giá trị tâm lý theo phương pháp đã chọn
                 if method == 'last_value':
                     # Lấy giá trị cuối cùng trong cửa sổ
-                    resampled_sentiment = filtered_sentiment['value'].resample(window).last()
+                    resampled_sentiment = filtered_sentiment[value_column].resample(window).last()
                 elif method == 'mean':
                     # Lấy giá trị trung bình trong cửa sổ
-                    resampled_sentiment = filtered_sentiment['value'].resample(window).mean()
+                    resampled_sentiment = filtered_sentiment[value_column].resample(window).mean()
                 elif method == 'weighted_mean':
                     # Lấy giá trị trung bình có trọng số (mới hơn có trọng số cao hơn)
-                    # Giả sử có cột 'weight' hoặc tính toán trọng số dựa trên thời gian
                     if 'weight' in filtered_sentiment.columns:
                         weights = filtered_sentiment['weight']
                     else:
                         # Tính trọng số dựa trên thời gian (mới hơn có trọng số cao hơn)
                         max_time = filtered_sentiment.index.max()
-                        filtered_sentiment['weight'] = (filtered_sentiment.index - filtered_sentiment.index.min()).total_seconds() / (max_time - filtered_sentiment.index.min()).total_seconds()
+                        time_diff = (filtered_sentiment.index - filtered_sentiment.index.min()).total_seconds()
+                        max_diff = (max_time - filtered_sentiment.index.min()).total_seconds() or 1  # Tránh chia cho 0
+                        filtered_sentiment['weight'] = time_diff / max_diff
                         weights = filtered_sentiment['weight']
                     
                     # Tính trung bình có trọng số
-                    weighted_values = filtered_sentiment['value'] * weights
+                    weighted_values = filtered_sentiment[value_column] * weights
                     resampled_sentiment = (weighted_values.resample(window).sum() / weights.resample(window).sum()).fillna(method='ffill')
                 else:
                     self.logger.warning(f"Phương pháp không hợp lệ: {method}, sử dụng 'last_value'")
-                    resampled_sentiment = filtered_sentiment['value'].resample(window).last()
+                    resampled_sentiment = filtered_sentiment[value_column].resample(window).last()
                 
                 # Đổi tên để tránh xung đột
                 resampled_sentiment.name = 'sentiment_value'
+                
+                # Ghi log thông tin dữ liệu tâm lý đã resample để debug
+                self.logger.info(f"Dữ liệu tâm lý đã resample: {len(resampled_sentiment)} dòng")
                 
                 # Kết hợp vào dữ liệu thị trường
                 merged_df = merged_df.join(resampled_sentiment, how='left')
@@ -1287,7 +1343,7 @@ class DataPipeline:
         output_dir: Optional[Path] = None,
         file_format: str = 'parquet',
         include_metadata: bool = True,
-        preserve_timestamp: bool = True  # Thêm tham số này
+        preserve_timestamp: bool = True
     ) -> Dict[str, str]:
         """
         Lưu dữ liệu đã xử lý.
@@ -1323,9 +1379,16 @@ class DataPipeline:
             try:
                 # Chuyển đổi các cột string thành float nếu có thể
                 df_prepared = df.copy()
+                if 'timestamp' in df_prepared.columns and df_prepared['timestamp'].dtype == 'object':
+                    try:
+                        df_prepared['timestamp'] = pd.to_datetime(df_prepared['timestamp'])
+                        self.logger.info(f"Đã chuyển đổi timestamp từ object sang datetime cho {symbol}")
+                    except Exception as e:
+                        self.logger.warning(f"Không thể chuyển đổi cột timestamp: {str(e)}")
+
                 # Lưu cột timestamp trước khi xử lý
                 timestamp_col = None
-                if preserve_timestamp and 'timestamp' in df.columns:
+                if preserve_timestamp and 'timestamp' in df_prepared.columns:
                     timestamp_col = df_prepared['timestamp'].copy()
 
                 # Xử lý các cột còn lại    
@@ -1342,6 +1405,14 @@ class DataPipeline:
                 # Khôi phục cột timestamp sau khi xử lý
                 if timestamp_col is not None:
                     df_prepared['timestamp'] = timestamp_col
+                    if df_prepared['timestamp'].dtype == 'object':
+                        df_prepared['timestamp'] = pd.to_datetime(df_prepared['timestamp'])
+                if file_format == 'csv':
+                    df_prepared.to_csv(file_path, index=False, date_format='%Y-%m-%d %H:%M:%S')
+                elif file_format == 'parquet':
+                    df_prepared.to_parquet(file_path, index=False)
+                elif file_format == 'json':
+                    df_prepared.to_json(file_path, orient='records', date_format='iso')
 
                 # Tạo tên file
                 filename = f"{symbol.replace('/', '_').lower()}_{timestamp}"
@@ -1918,3 +1989,4 @@ def main():
 if __name__ == "__main__":
     # Chạy hàm main
     main()
+

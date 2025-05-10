@@ -309,7 +309,10 @@ def create_features(data_type, input_dir, symbols, indicators, all_indicators, o
 @click.option("--all-indicators/--selected-indicators", default=True, help="Sử dụng tất cả các chỉ báo kỹ thuật có sẵn")
 @click.option("--preserve-timestamp/--no-preserve-timestamp", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
 @click.option("--verbose", "-v", count=True, help="Mức độ chi tiết của log (0-2)")
-def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_dir, pipeline_name, no_clean, no_features, all_indicators, preserve_timestamp, verbose):
+@click.option("--include-sentiment", is_flag=True, default=True, help="Bao gồm đặc trưng tâm lý thị trường (Fear & Greed Index)")
+def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_dir, pipeline_name, 
+                no_clean, no_features, all_indicators, preserve_timestamp, verbose, include_sentiment):
+    logger.info(f"Tham số include_sentiment = {include_sentiment}")
     """
     Chạy toàn bộ pipeline xử lý dữ liệu.
     
@@ -474,40 +477,89 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
             
             logger.info(f"Đã tạo nhãn mục tiêu cho {len(processed_data)} cặp tiền")
         
-        # Kết hợp dữ liệu tâm lý nếu được yêu cầu
-        if hasattr(args, 'include_sentiment') and args.include_sentiment:
-            try:
-                # Tìm file tâm lý
-                sentiment_dir = DEFAULT_DATA_DIR / "sentiment" / "binance"
-                sentiment_files = list(sentiment_dir.glob("*_sentiment_*.csv"))
-                
-                if sentiment_files:
-                    # Lấy file mới nhất
-                    newest_sentiment_file = max(sentiment_files, key=lambda x: x.stat().st_mtime)
-                    logger.info(f"Tìm thấy file tâm lý: {newest_sentiment_file}")
+            # Thêm đoạn code kết hợp dữ liệu tâm lý ở đây
+            if include_sentiment:
+                try:
+                    # Tìm file tâm lý
+                    sentiment_dir = DEFAULT_DATA_DIR / "sentiment" / "binance"
+                    logger.info(f"Đang tìm kiếm file tâm lý trong thư mục: {sentiment_dir}")
                     
-                    # Tải dữ liệu tâm lý
-                    sentiment_data = pd.read_csv(newest_sentiment_file)
+                    # Kiểm tra thư mục tồn tại
+                    if not sentiment_dir.exists():
+                        logger.warning(f"Thư mục {sentiment_dir} không tồn tại, đang tạo...")
+                        sentiment_dir.mkdir(parents=True, exist_ok=True)
+                        
+                    # Liệt kê các file để debug
+                    all_files = list(sentiment_dir.glob("*.csv"))
+                    logger.info(f"Tất cả các file CSV trong thư mục: {[f.name for f in all_files]}")
                     
-                    # Đảm bảo có cột timestamp
-                    if 'timestamp' in sentiment_data.columns:
-                        sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'])
+                    # Tìm file sentiment cho từng symbol
+                    processed_symbols = list(processed_data.keys())
+                    symbol_sentiment_files = {}
+                    
+                    for symbol in processed_symbols:
+                        base_asset = symbol.split('/')[0] if '/' in symbol else symbol
                         
-                        # Kết hợp dữ liệu tâm lý với dữ liệu thị trường
-                        processed_data = pipeline.merge_sentiment_data(
-                            processed_data,
-                            sentiment_data=sentiment_data,
-                            method='last_value',
-                            window='1D'
-                        )
+                        # Pattern tìm kiếm cho từng symbol
+                        pattern = f"*{base_asset}*sentiment*.csv"
+                        specific_files = list(sentiment_dir.glob(pattern))
                         
-                        logger.info(f"Đã kết hợp dữ liệu tâm lý từ {newest_sentiment_file}")
-                    else:
-                        logger.warning("File tâm lý không có cột timestamp, không thể kết hợp")
-                else:
-                    logger.warning(f"Không tìm thấy file tâm lý trong {sentiment_dir}")
-            except Exception as e:
-                logger.error(f"Lỗi khi kết hợp dữ liệu tâm lý: {str(e)}")
+                        if specific_files:
+                            # Lấy file mới nhất cho symbol này
+                            newest_file = max(specific_files, key=lambda x: x.stat().st_mtime)
+                            symbol_sentiment_files[symbol] = newest_file
+                            logger.info(f"Tìm thấy file tâm lý cho {symbol}: {newest_file.name}")
+                    
+                    # Nếu không tìm thấy file cho bất kỳ symbol nào, thử tìm file chung
+                    if not symbol_sentiment_files:
+                        sentiment_files = list(sentiment_dir.glob("*sentiment*.csv"))
+                        if sentiment_files:
+                            # Lấy file mới nhất
+                            newest_sentiment_file = max(sentiment_files, key=lambda x: x.stat().st_mtime)
+                            logger.info(f"Tìm thấy file tâm lý chung: {newest_sentiment_file}")
+                            
+                            # Tải dữ liệu tâm lý
+                            sentiment_data = pd.read_csv(newest_sentiment_file)
+                            
+                            # Kiểm tra và chuyển đổi cột timestamp
+                            if 'timestamp' in sentiment_data.columns:
+                                # Chuyển đổi sang datetime (xử lý cả trường hợp UNIX timestamp)
+                                if pd.api.types.is_numeric_dtype(sentiment_data['timestamp']):
+                                    sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'], unit='ms')
+                                    logger.info("Đã chuyển đổi timestamp số sang datetime")
+                                else:
+                                    sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'])
+                                
+                                # Kết hợp dữ liệu tâm lý với dữ liệu thị trường
+                                logger.info(f"Bắt đầu kết hợp dữ liệu tâm lý từ {newest_sentiment_file}")
+                                processed_data = pipeline.merge_sentiment_data(
+                                    processed_data,
+                                    sentiment_data=sentiment_data,
+                                    method='last_value',
+                                    window='1D'
+                                )
+                                
+                                # Kiểm tra kết quả kết hợp
+                                for symbol in processed_data:
+                                    if 'sentiment_value' in processed_data[symbol].columns:
+                                        sentiment_stats = {
+                                            'min': processed_data[symbol]['sentiment_value'].min(),
+                                            'max': processed_data[symbol]['sentiment_value'].max(),
+                                            'mean': processed_data[symbol]['sentiment_value'].mean(),
+                                            'null_count': processed_data[symbol]['sentiment_value'].isna().sum()
+                                        }
+                                        logger.info(f"Thống kê sentiment cho {symbol}: {sentiment_stats}")
+                                    else:
+                                        logger.warning(f"Không có cột sentiment_value cho {symbol} sau khi kết hợp")
+                            else:
+                                logger.warning(f"File {newest_sentiment_file} không có cột timestamp, không thể kết hợp")
+                        else:
+                            logger.warning(f"Không tìm thấy file sentiment nào trong {sentiment_dir}")
+                            # Tạo đường dẫn đúng đến file sentiment
+                            expected_path = sentiment_dir / "BTC_USDT_sentiment_20250510_145051.csv"
+                            logger.warning(f"Đường dẫn đúng đến file tâm lý phải là: {expected_path}")
+                except Exception as e:
+                    logger.error(f"Lỗi khi kết hợp dữ liệu tâm lý: {str(e)}", exc_info=True)
 
         # Lưu kết quả
         saved_paths = pipeline.save_data(
@@ -712,6 +764,7 @@ def handle_process_command(args, system):
     Returns:
         int: Mã trạng thái (0 nếu thành công, khác 0 nếu lỗi)
     """
+        
     # Nếu đã có process_command, xử lý trực tiếp thay vì gọi các hàm Click
     if hasattr(args, 'process_command') and args.process_command:
         if args.process_command == 'clean':
@@ -1115,7 +1168,7 @@ def handle_process_command(args, system):
                     )
                     
                     logger.info(f"Đã tạo nhãn mục tiêu cho {len(processed_data)} cặp tiền")
-                
+
                 # Lưu kết quả
                 saved_paths = pipeline.save_data(
                     processed_data,

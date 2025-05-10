@@ -333,11 +333,11 @@ python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT
 python main.py collect --exchange binance --symbols BTC/USDT --timeframes 1h,4h,1d --start-date 2022-01-01 --end-date 2024-12-30 --futures
 
 # Thu thập dữ liệu Fear and Greed Index
-python main.py collect binance_sentiment --symbols BTC/USDT,ETH/USDT,BNB/USDT,XRP/USDT --start-date 2022-01-01 --end-date 2024-12-30
+python main.py collect binance_sentiment --symbols ETH/USDT,BNB/USDT,XRP/USDT --start-date 2022-01-01 --end-date 2024-12-30
 
 # Chạy toàn bộ pipeline xử lý dữ liệu
 python main.py process pipeline --symbols BTC/USDT ETH/USDT BNB/USDT XRP/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2024-12-30 --include-sentiment
-python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2024-01-01 --end-date 2024-12-30
+python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2024-12-30 --include-sentiment
 # ========================///////////==========================
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
