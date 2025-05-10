@@ -60,7 +60,7 @@ class HistoricalDataCollector:
         if data_dir is None:
             base_data_dir = Path(self.system_config.get("data_dir", "data"))
             market_type = "futures" if self.is_futures else "spot"
-            self.data_dir = base_data_dir / "historical" / self.exchange_id / market_type
+            self.data_dir = base_data_dir / "collected" / self.exchange_id / market_type
         else:
             self.data_dir = data_dir
         

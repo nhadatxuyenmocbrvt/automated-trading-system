@@ -1,66 +1,214 @@
-2025-05-10 13:17:04,658 - trading_system.module_manager - DEBUG - [trading_system.py:60] - Các module agent khả dụng
-2025-05-10 13:17:04,658 - trading_system.module_manager - DEBUG - [trading_system.py:70] - Các module môi trường khả dụng
-2025-05-10 13:17:04,659 - trading_system.module_manager - DEBUG - [trading_system.py:80] - Các module thu thập dữ liệu khả dụng
-2025-05-10 13:17:04,692 - trading_system.cli_parser - INFO - [main.py:206] - Đã cập nhật mức độ log: INFO
-2025-05-10 13:17:04,693 - trading_system.module_manager - INFO - [trading_system.py:139] - ==== Trạng thái khả dụng của module ====
-2025-05-10 13:17:04,693 - trading_system.module_manager - INFO - [trading_system.py:140] - Agents: Khả dụng
-2025-05-10 13:17:04,694 - trading_system.module_manager - INFO - [trading_system.py:141] - Environments: Khả dụng
-2025-05-10 13:17:04,695 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
-2025-05-10 13:17:04,695 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
-2025-05-10 13:17:04,697 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
-2025-05-10 13:17:04,697 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
-2025-05-10 13:17:04,698 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
-2025-05-10 13:17:04,698 - trading_system.trading_system - INFO - [feature_generator.py:160] - Đã khởi tạo FeatureGenerator
-2025-05-10 13:17:04,700 - trading_system.trading_system - INFO - [feature_generator.py:519] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
-2025-05-10 13:17:04,700 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
-2025-05-10 13:17:04,700 - trading_system.trading_system - INFO - [data_pipeline.py:217] - Đã khởi tạo các collector dữ liệu cho binance
-2025-05-10 13:17:04,700 - trading_system.trading_system - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
-2025-05-10 13:17:04,701 - trading_system.trading_system - INFO - [trading_system.py:304] - Bắt đầu thu thập dữ liệu từ binance cho 1 cặp tiền, khung thời gian 1h
-2025-05-10 13:17:04,702 - trading_system.trading_system - INFO - [data_pipeline.py:324] - Thu thập dữ liệu từ binance cho 1 cặp giao dịch, khung thời gian 1h
-2025-05-10 13:17:04,702 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:109] - Sử dụng API credentials từ biến môi trường cho binanceusdm
-2025-05-10 13:17:05,279 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:143] - Đã tải thành công 490 thị trường
-2025-05-10 13:17:05,281 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:90] - Đã khởi tạo kết nối binanceusdm mainnet
-2025-05-10 13:17:05,281 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:54] - Đã khởi tạo kết nối Binance Futures
-2025-05-10 13:17:05,282 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:241] - Đã sử dụng thông tin 490 thị trường từ cache
-2025-05-10 13:17:05,283 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:671] - Đã khởi tạo thành công connector binanceusdm
-2025-05-10 13:17:05,284 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:76] - Đã khởi tạo HistoricalDataCollector cho binanceusdm
-2025-05-10 13:17:05,285 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:324] - Thu thập dữ liệu OHLCV cho 1 cặp giao dịch
-2025-05-10 13:17:05,285 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:197] - Thu thập dữ liệu OHLCV cho 1 cặp giao dịch (1h)
-2025-05-10 13:17:05,286 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:230] - Thực hiện thu thập với 1 tác vụ đồng thời
-2025-05-10 13:17:05,287 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:105] - Thu thập dữ liệu OHLCV cho XRP/USDT (1h)
-2025-05-10 13:17:05,287 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:625] - Bắt đầu lấy dữ liệu lịch sử cho XRP/USDT từ 2022-01-01 00:00:00
-2025-05-10 13:17:05,421 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:05,765 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:06,123 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:06,451 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:06,793 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:07,135 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:07,472 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:07,837 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:08,183 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:08,532 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:08,890 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:09,233 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:09,579 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:09,931 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:10,292 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:10,652 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:11,011 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:11,378 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:11,737 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:12,099 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:12,457 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:12,809 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:13,169 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:13,516 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:13,869 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:14,223 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 1000 klines 1h cho XRP/USDT
-2025-05-10 13:17:14,557 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:594] - Đã lấy 257 klines 1h cho XRP/USDT
-2025-05-10 13:17:14,762 - trading_system.exchange.binanceusdm_connector - INFO - [binance_connector.py:645] - Đã lấy tổng cộng 26257 klines cho XRP/USDT
-2025-05-10 13:17:14,875 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:902] - Đã lưu dữ liệu vào data\historical\binanceusdm\futures\1h\XRP_USDT_1h.parquet
-2025-05-10 13:17:14,875 - trading_system.historical_collector_binance - INFO - [historical_data_collector.py:161] - Đã thu thập 26250 candles cho XRP/USDT (1h)
-2025-05-10 13:17:15,892 - trading_system.trading_system - INFO - [data_pipeline.py:356] - Đã thu thập 26250 dòng dữ liệu cho XRP/USDT
-2025-05-10 13:17:16,794 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1910] - Đã thu thập 0 bản ghi tâm lý từ Fear and Greed Index
-2025-05-10 13:17:16,794 - trading_system.exchange.binanceusdm_connector - INFO - [generic_connector.py:682] - Đóng kết nối với binanceusdm
-2025-05-10 13:17:16,826 - trading_system.trading_system - INFO - [data_pipeline.py:1359] - Đã lưu 26250 dòng dữ liệu cho XRP/USDT vào E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\xrp_usdt_20250510_131716.parquet
-2025-05-10 13:17:16,834 - trading_system.trading_system - INFO - [trading_system.py:331] - Đã thu thập và lưu dữ liệu thành công cho 1 cặp tiền
+2025-05-10 15:36:03,161 - trading_system.module_manager - DEBUG - [trading_system.py:60] - Các module agent khả dụng
+2025-05-10 15:36:03,161 - trading_system.module_manager - DEBUG - [trading_system.py:70] - Các module môi trường khả dụng
+2025-05-10 15:36:03,164 - trading_system.module_manager - DEBUG - [trading_system.py:80] - Các module thu thập dữ liệu khả dụng
+2025-05-10 15:36:03,197 - trading_system.cli_parser - INFO - [main.py:206] - Đã cập nhật mức độ log: INFO
+2025-05-10 15:36:03,198 - trading_system.module_manager - INFO - [trading_system.py:139] - ==== Trạng thái khả dụng của module ====
+2025-05-10 15:36:03,200 - trading_system.module_manager - INFO - [trading_system.py:140] - Agents: Khả dụng
+2025-05-10 15:36:03,202 - trading_system.module_manager - INFO - [trading_system.py:141] - Environments: Khả dụng
+2025-05-10 15:36:03,202 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
+2025-05-10 15:36:03,203 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-10 15:36:03,205 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-10 15:36:03,206 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:79] - Đã khởi tạo MissingDataHandler với phương pháp interpolate
+2025-05-10 15:36:03,207 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-10 15:36:03,208 - trading_system.process_commands - INFO - [feature_generator.py:160] - Đã khởi tạo FeatureGenerator
+2025-05-10 15:36:03,210 - trading_system.process_commands - INFO - [feature_generator.py:519] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
+2025-05-10 15:36:03,211 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-05-10 15:36:03,211 - trading_system.process_commands - INFO - [data_pipeline.py:217] - Đã khởi tạo các collector dữ liệu cho binance
+2025-05-10 15:36:03,213 - trading_system.process_commands - INFO - [data_pipeline.py:107] - Đã khởi tạo DataPipeline
+2025-05-10 15:36:03,214 - trading_system.process_commands - INFO - [process_commands.py:894] - Dữ liệu từ ngày: 2022-01-01
+2025-05-10 15:36:03,215 - trading_system.process_commands - INFO - [process_commands.py:902] - Dữ liệu đến ngày: 2024-12-30
+2025-05-10 15:36:03,216 - trading_system.process_commands - INFO - [process_commands.py:568] - Đang tìm kiếm dữ liệu trong thư mục: E:\AI_AGENT\automated-trading-system\data\collected
+2025-05-10 15:36:03,219 - trading_system.process_commands - INFO - [process_commands.py:575] - Tìm thấy tổng cộng 9 file dữ liệu
+2025-05-10 15:36:03,223 - trading_system.process_commands - INFO - [process_commands.py:589] - Tìm thấy file cho BTC/USDT: E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\btc_usdt_20250510_151624.parquet
+2025-05-10 15:36:03,224 - trading_system.process_commands - INFO - [process_commands.py:589] - Tìm thấy file cho ETH/USDT: E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\eth_usdt_20250510_151624.parquet
+2025-05-10 15:36:03,225 - trading_system.process_commands - INFO - [process_commands.py:589] - Tìm thấy file cho BNB/USDT: E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\bnb_usdt_20250510_151624.parquet
+2025-05-10 15:36:03,226 - trading_system.process_commands - INFO - [process_commands.py:589] - Tìm thấy file cho XRP/USDT: E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\xrp_usdt_20250510_151624.parquet
+2025-05-10 15:36:03,228 - trading_system.process_commands - INFO - [process_commands.py:1017] - Đang tải dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\btc_usdt_20250510_151624.parquet cho BTC/USDT...
+2025-05-10 15:36:03,326 - trading_system.process_commands - INFO - [data_pipeline.py:489] - Đã tải 26250 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\btc_usdt_20250510_151624.parquet cho BTC/USDT
+2025-05-10 15:36:03,327 - trading_system.process_commands - INFO - [process_commands.py:1017] - Đang tải dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\eth_usdt_20250510_151624.parquet cho ETH/USDT...
+2025-05-10 15:36:03,355 - trading_system.process_commands - INFO - [data_pipeline.py:489] - Đã tải 26250 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\eth_usdt_20250510_151624.parquet cho ETH/USDT
+2025-05-10 15:36:03,356 - trading_system.process_commands - INFO - [process_commands.py:1017] - Đang tải dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\bnb_usdt_20250510_151624.parquet cho BNB/USDT...
+2025-05-10 15:36:03,382 - trading_system.process_commands - INFO - [data_pipeline.py:489] - Đã tải 26250 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\bnb_usdt_20250510_151624.parquet cho BNB/USDT
+2025-05-10 15:36:03,383 - trading_system.process_commands - INFO - [process_commands.py:1017] - Đang tải dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\xrp_usdt_20250510_151624.parquet cho XRP/USDT...
+2025-05-10 15:36:03,410 - trading_system.process_commands - INFO - [data_pipeline.py:489] - Đã tải 26250 dòng dữ liệu từ E:\AI_AGENT\automated-trading-system\data\collected\binance\futures\1h\xrp_usdt_20250510_151624.parquet cho XRP
+2025-05-10 15:36:03,411 - trading_system.process_commands - WARNING - [process_commands.py:1030] - Không tìm thấy dữ liệu cho XRP/USDT, sử dụng XRP thay thế
+2025-05-10 15:36:03,418 - trading_system.process_commands - INFO - [data_pipeline.py:584] - Đã xử lý giá trị NaN ở đầu cho BTC/USDT bằng phương pháp backfill
+2025-05-10 15:36:03,420 - trading_system.data_cleaner - INFO - [data_cleaner.py:366] - Bắt đầu làm sạch dữ liệu OHLCV với 26250 dòng
+2025-05-10 15:36:03,449 - trading_system.data_cleaner - INFO - [data_cleaner.py:373] - Đã chuyển đổi cột timestamp từ int64 sang datetime64
+2025-05-10 15:36:03,462 - trading_system.data_cleaner - INFO - [data_cleaner.py:541] - Đã hoàn thành làm sạch dữ liệu OHLCV, kết quả có 26250 dòng
+2025-05-10 15:36:03,463 - trading_system.clean_technical_features - INFO - [preprocessing.py:1496] - Bắt đầu sửa chữa các giá trị ngoại lệ...
+2025-05-10 15:36:03,464 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
+2025-05-10 15:36:03,471 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 167 giá trị cực lớn trong cột volume
+2025-05-10 15:36:03,472 - trading_system.clean_technical_features - INFO - [preprocessing.py:1512] - Đã hoàn thành sửa chữa giá trị ngoại lệ
+2025-05-10 15:36:03,473 - trading_system.clean_technical_features - INFO - [preprocessing.py:1516] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
+2025-05-10 15:36:03,479 - trading_system.clean_technical_features - INFO - [preprocessing.py:1521] - Đã hoàn thành chuẩn hóa các chỉ báo
+2025-05-10 15:36:03,480 - trading_system.clean_technical_features - INFO - [preprocessing.py:1525] - Bắt đầu standardize các chỉ báo kỹ thuật...
+2025-05-10 15:36:03,484 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 5 cột của loại chỉ báo volume bằng phương pháp log
+2025-05-10 15:36:03,490 - trading_system.clean_technical_features - INFO - [preprocessing.py:1532] - Đã hoàn thành standardize các chỉ báo
+2025-05-10 15:36:03,491 - trading_system.clean_technical_features - INFO - [preprocessing.py:1536] - Thêm chỉ báo độ mạnh xu hướng...
+2025-05-10 15:36:03,503 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Đã thêm chỉ báo độ mạnh xu hướng
+2025-05-10 15:36:03,504 - trading_system.clean_technical_features - INFO - [preprocessing.py:1547] - Thêm chỉ báo Z-score của biến động...
+2025-05-10 15:36:07,504 - trading_system.clean_technical_features - INFO - [preprocessing.py:1556] - Đã thêm chỉ báo Z-score của biến động
+2025-05-10 15:36:07,505 - trading_system.clean_technical_features - INFO - [preprocessing.py:1569] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+2025-05-10 15:36:07,508 - trading_system.process_commands - INFO - [data_pipeline.py:663] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho BTC/USDT
+2025-05-10 15:36:07,509 - trading_system.process_commands - INFO - [data_pipeline.py:665] - Đã làm sạch 26250 -> 26250 dòng dữ liệu OHLCV cho BTC/USDT
+2025-05-10 15:36:07,514 - trading_system.process_commands - INFO - [data_pipeline.py:584] - Đã xử lý giá trị NaN ở đầu cho ETH/USDT bằng phương pháp backfill
+2025-05-10 15:36:07,516 - trading_system.data_cleaner - INFO - [data_cleaner.py:366] - Bắt đầu làm sạch dữ liệu OHLCV với 26250 dòng
+2025-05-10 15:36:07,536 - trading_system.data_cleaner - INFO - [data_cleaner.py:373] - Đã chuyển đổi cột timestamp từ int64 sang datetime64
+2025-05-10 15:36:07,549 - trading_system.data_cleaner - INFO - [data_cleaner.py:541] - Đã hoàn thành làm sạch dữ liệu OHLCV, kết quả có 26250 dòng
+2025-05-10 15:36:07,550 - trading_system.clean_technical_features - INFO - [preprocessing.py:1496] - Bắt đầu sửa chữa các giá trị ngoại lệ...
+2025-05-10 15:36:07,550 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
+2025-05-10 15:36:07,558 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 171 giá trị cực lớn trong cột volume
+2025-05-10 15:36:07,560 - trading_system.clean_technical_features - INFO - [preprocessing.py:1512] - Đã hoàn thành sửa chữa giá trị ngoại lệ
+2025-05-10 15:36:07,560 - trading_system.clean_technical_features - INFO - [preprocessing.py:1516] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
+2025-05-10 15:36:07,565 - trading_system.clean_technical_features - INFO - [preprocessing.py:1521] - Đã hoàn thành chuẩn hóa các chỉ báo
+2025-05-10 15:36:07,566 - trading_system.clean_technical_features - INFO - [preprocessing.py:1525] - Bắt đầu standardize các chỉ báo kỹ thuật...
+2025-05-10 15:36:07,570 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 5 cột của loại chỉ báo volume bằng phương pháp log
+2025-05-10 15:36:07,577 - trading_system.clean_technical_features - INFO - [preprocessing.py:1532] - Đã hoàn thành standardize các chỉ báo
+2025-05-10 15:36:07,577 - trading_system.clean_technical_features - INFO - [preprocessing.py:1536] - Thêm chỉ báo độ mạnh xu hướng...
+2025-05-10 15:36:07,591 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Đã thêm chỉ báo độ mạnh xu hướng
+2025-05-10 15:36:07,592 - trading_system.clean_technical_features - INFO - [preprocessing.py:1547] - Thêm chỉ báo Z-score của biến động...
+2025-05-10 15:36:11,480 - trading_system.clean_technical_features - INFO - [preprocessing.py:1556] - Đã thêm chỉ báo Z-score của biến động
+2025-05-10 15:36:11,480 - trading_system.clean_technical_features - INFO - [preprocessing.py:1569] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+2025-05-10 15:36:11,484 - trading_system.process_commands - INFO - [data_pipeline.py:663] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho ETH/USDT
+2025-05-10 15:36:11,485 - trading_system.process_commands - INFO - [data_pipeline.py:665] - Đã làm sạch 26250 -> 26250 dòng dữ liệu OHLCV cho ETH/USDT
+2025-05-10 15:36:11,488 - trading_system.process_commands - INFO - [data_pipeline.py:584] - Đã xử lý giá trị NaN ở đầu cho BNB/USDT bằng phương pháp backfill
+2025-05-10 15:36:11,489 - trading_system.data_cleaner - INFO - [data_cleaner.py:366] - Bắt đầu làm sạch dữ liệu OHLCV với 26250 dòng
+2025-05-10 15:36:11,500 - trading_system.data_cleaner - INFO - [data_cleaner.py:373] - Đã chuyển đổi cột timestamp từ int64 sang datetime64
+2025-05-10 15:36:11,510 - trading_system.data_cleaner - INFO - [data_cleaner.py:541] - Đã hoàn thành làm sạch dữ liệu OHLCV, kết quả có 26250 dòng
+2025-05-10 15:36:11,512 - trading_system.clean_technical_features - INFO - [preprocessing.py:1496] - Bắt đầu sửa chữa các giá trị ngoại lệ...
+2025-05-10 15:36:11,512 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
+2025-05-10 15:36:11,518 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 159 giá trị cực lớn trong cột volume
+2025-05-10 15:36:11,519 - trading_system.clean_technical_features - INFO - [preprocessing.py:1512] - Đã hoàn thành sửa chữa giá trị ngoại lệ
+2025-05-10 15:36:11,520 - trading_system.clean_technical_features - INFO - [preprocessing.py:1516] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
+2025-05-10 15:36:11,524 - trading_system.clean_technical_features - INFO - [preprocessing.py:1521] - Đã hoàn thành chuẩn hóa các chỉ báo
+2025-05-10 15:36:11,525 - trading_system.clean_technical_features - INFO - [preprocessing.py:1525] - Bắt đầu standardize các chỉ báo kỹ thuật...
+2025-05-10 15:36:11,528 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 5 cột của loại chỉ báo volume bằng phương pháp log
+2025-05-10 15:36:11,535 - trading_system.clean_technical_features - INFO - [preprocessing.py:1532] - Đã hoàn thành standardize các chỉ báo
+2025-05-10 15:36:11,535 - trading_system.clean_technical_features - INFO - [preprocessing.py:1536] - Thêm chỉ báo độ mạnh xu hướng...
+2025-05-10 15:36:11,547 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Đã thêm chỉ báo độ mạnh xu hướng
+2025-05-10 15:36:11,548 - trading_system.clean_technical_features - INFO - [preprocessing.py:1547] - Thêm chỉ báo Z-score của biến động...
+2025-05-10 15:36:15,480 - trading_system.clean_technical_features - INFO - [preprocessing.py:1556] - Đã thêm chỉ báo Z-score của biến động
+2025-05-10 15:36:15,480 - trading_system.clean_technical_features - INFO - [preprocessing.py:1569] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+2025-05-10 15:36:15,484 - trading_system.process_commands - INFO - [data_pipeline.py:663] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho BNB/USDT
+2025-05-10 15:36:15,484 - trading_system.process_commands - INFO - [data_pipeline.py:665] - Đã làm sạch 26250 -> 26250 dòng dữ liệu OHLCV cho BNB/USDT
+2025-05-10 15:36:15,488 - trading_system.process_commands - INFO - [data_pipeline.py:584] - Đã xử lý giá trị NaN ở đầu cho XRP/USDT bằng phương pháp backfill
+2025-05-10 15:36:15,489 - trading_system.data_cleaner - INFO - [data_cleaner.py:366] - Bắt đầu làm sạch dữ liệu OHLCV với 26250 dòng
+2025-05-10 15:36:15,500 - trading_system.data_cleaner - INFO - [data_cleaner.py:373] - Đã chuyển đổi cột timestamp từ int64 sang datetime64
+2025-05-10 15:36:15,511 - trading_system.data_cleaner - INFO - [data_cleaner.py:541] - Đã hoàn thành làm sạch dữ liệu OHLCV, kết quả có 26250 dòng
+2025-05-10 15:36:15,513 - trading_system.clean_technical_features - INFO - [preprocessing.py:1496] - Bắt đầu sửa chữa các giá trị ngoại lệ...
+2025-05-10 15:36:15,513 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
+2025-05-10 15:36:15,519 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 314 giá trị cực lớn trong cột volume
+2025-05-10 15:36:15,520 - trading_system.clean_technical_features - INFO - [preprocessing.py:1512] - Đã hoàn thành sửa chữa giá trị ngoại lệ
+2025-05-10 15:36:15,522 - trading_system.clean_technical_features - INFO - [preprocessing.py:1516] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
+2025-05-10 15:36:15,525 - trading_system.clean_technical_features - INFO - [preprocessing.py:1521] - Đã hoàn thành chuẩn hóa các chỉ báo
+2025-05-10 15:36:15,526 - trading_system.clean_technical_features - INFO - [preprocessing.py:1525] - Bắt đầu standardize các chỉ báo kỹ thuật...
+2025-05-10 15:36:15,529 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 5 cột của loại chỉ báo volume bằng phương pháp log
+2025-05-10 15:36:15,534 - trading_system.clean_technical_features - INFO - [preprocessing.py:1532] - Đã hoàn thành standardize các chỉ báo
+2025-05-10 15:36:15,535 - trading_system.clean_technical_features - INFO - [preprocessing.py:1536] - Thêm chỉ báo độ mạnh xu hướng...
+2025-05-10 15:36:15,546 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Đã thêm chỉ báo độ mạnh xu hướng
+2025-05-10 15:36:15,547 - trading_system.clean_technical_features - INFO - [preprocessing.py:1547] - Thêm chỉ báo Z-score của biến động...
+2025-05-10 15:36:19,477 - trading_system.clean_technical_features - INFO - [preprocessing.py:1556] - Đã thêm chỉ báo Z-score của biến động
+2025-05-10 15:36:19,478 - trading_system.clean_technical_features - INFO - [preprocessing.py:1569] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+2025-05-10 15:36:19,481 - trading_system.process_commands - INFO - [data_pipeline.py:663] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho XRP/USDT
+2025-05-10 15:36:19,482 - trading_system.process_commands - INFO - [data_pipeline.py:665] - Đã làm sạch 26250 -> 26250 dòng dữ liệu OHLCV cho XRP/USDT
+2025-05-10 15:36:19,484 - trading_system.process_commands - INFO - [process_commands.py:1056] - Đã làm sạch dữ liệu cho 4 cặp tiền
+2025-05-10 15:36:19,485 - trading_system.process_commands - INFO - [feature_generator.py:519] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
+2025-05-10 15:36:19,494 - trading_system.clean_technical_features - INFO - [preprocessing.py:1496] - Bắt đầu sửa chữa các giá trị ngoại lệ...
+2025-05-10 15:36:19,495 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
+2025-05-10 15:36:19,503 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 167 giá trị cực lớn trong cột volume
+2025-05-10 15:36:19,504 - trading_system.clean_technical_features - INFO - [preprocessing.py:1512] - Đã hoàn thành sửa chữa giá trị ngoại lệ
+2025-05-10 15:36:19,506 - trading_system.clean_technical_features - INFO - [preprocessing.py:1516] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
+2025-05-10 15:36:19,518 - trading_system.clean_technical_features - INFO - [preprocessing.py:1521] - Đã hoàn thành chuẩn hóa các chỉ báo
+2025-05-10 15:36:19,518 - trading_system.clean_technical_features - INFO - [preprocessing.py:1525] - Bắt đầu standardize các chỉ báo kỹ thuật...
+2025-05-10 15:36:19,525 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 9 cột của loại chỉ báo volume bằng phương pháp log
+2025-05-10 15:36:19,537 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 4 cột của loại chỉ báo atr bằng phương pháp rolling_zscore
+2025-05-10 15:36:19,551 - trading_system.clean_technical_features - INFO - [preprocessing.py:1532] - Đã hoàn thành standardize các chỉ báo
+2025-05-10 15:36:19,552 - trading_system.clean_technical_features - INFO - [preprocessing.py:1536] - Thêm chỉ báo độ mạnh xu hướng...
+2025-05-10 15:36:19,567 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Đã thêm chỉ báo độ mạnh xu hướng
+2025-05-10 15:36:19,568 - trading_system.clean_technical_features - INFO - [preprocessing.py:1547] - Thêm chỉ báo Z-score của biến động...
+2025-05-10 15:36:23,554 - trading_system.clean_technical_features - INFO - [preprocessing.py:1556] - Đã thêm chỉ báo Z-score của biến động
+2025-05-10 15:36:23,554 - trading_system.clean_technical_features - INFO - [preprocessing.py:1569] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+2025-05-10 15:36:23,557 - trading_system.process_commands - INFO - [data_pipeline.py:830] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho BTC/USDT trước khi tạo đặc trưng
+2025-05-10 15:36:23,559 - trading_system.process_commands - INFO - [feature_generator.py:737] - Đã tạo pipeline 'BTC/USDT_pipeline_20250510_153623'
+2025-05-10 15:36:23,636 - trading_system.process_commands - INFO - [feature_generator.py:1128] - Đã loại bỏ 0 đặc trưng có phương sai < 0.001
+2025-05-10 15:36:23,670 - trading_system.process_commands - INFO - [feature_generator.py:1084] - Đã loại bỏ 9 đặc trưng có tương quan > 0.95
+2025-05-10 15:36:23,674 - trading_system.process_commands - INFO - [data_pipeline.py:882] - Đã tạo đặc trưng cho BTC/USDT: 27 -> 18 cột
+2025-05-10 15:36:23,679 - trading_system.clean_technical_features - INFO - [preprocessing.py:1496] - Bắt đầu sửa chữa các giá trị ngoại lệ...
+2025-05-10 15:36:23,680 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
+2025-05-10 15:36:23,686 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 171 giá trị cực lớn trong cột volume
+2025-05-10 15:36:23,687 - trading_system.clean_technical_features - INFO - [preprocessing.py:1512] - Đã hoàn thành sửa chữa giá trị ngoại lệ
+2025-05-10 15:36:23,687 - trading_system.clean_technical_features - INFO - [preprocessing.py:1516] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
+2025-05-10 15:36:23,697 - trading_system.clean_technical_features - INFO - [preprocessing.py:1521] - Đã hoàn thành chuẩn hóa các chỉ báo
+2025-05-10 15:36:23,698 - trading_system.clean_technical_features - INFO - [preprocessing.py:1525] - Bắt đầu standardize các chỉ báo kỹ thuật...
+2025-05-10 15:36:23,704 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 9 cột của loại chỉ báo volume bằng phương pháp log
+2025-05-10 15:36:23,713 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 4 cột của loại chỉ báo atr bằng phương pháp rolling_zscore
+2025-05-10 15:36:23,723 - trading_system.clean_technical_features - INFO - [preprocessing.py:1532] - Đã hoàn thành standardize các chỉ báo
+2025-05-10 15:36:23,723 - trading_system.clean_technical_features - INFO - [preprocessing.py:1536] - Thêm chỉ báo độ mạnh xu hướng...
+2025-05-10 15:36:23,736 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Đã thêm chỉ báo độ mạnh xu hướng
+2025-05-10 15:36:23,737 - trading_system.clean_technical_features - INFO - [preprocessing.py:1547] - Thêm chỉ báo Z-score của biến động...
+2025-05-10 15:36:27,622 - trading_system.clean_technical_features - INFO - [preprocessing.py:1556] - Đã thêm chỉ báo Z-score của biến động
+2025-05-10 15:36:27,623 - trading_system.clean_technical_features - INFO - [preprocessing.py:1569] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+2025-05-10 15:36:27,625 - trading_system.process_commands - INFO - [data_pipeline.py:830] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho ETH/USDT trước khi tạo đặc trưng
+2025-05-10 15:36:27,627 - trading_system.process_commands - INFO - [feature_generator.py:737] - Đã tạo pipeline 'ETH/USDT_pipeline_20250510_153627'
+2025-05-10 15:36:27,702 - trading_system.process_commands - INFO - [feature_generator.py:1128] - Đã loại bỏ 0 đặc trưng có phương sai < 0.001
+2025-05-10 15:36:27,735 - trading_system.process_commands - INFO - [feature_generator.py:1084] - Đã loại bỏ 9 đặc trưng có tương quan > 0.95
+2025-05-10 15:36:27,739 - trading_system.process_commands - INFO - [data_pipeline.py:882] - Đã tạo đặc trưng cho ETH/USDT: 27 -> 18 cột
+2025-05-10 15:36:27,744 - trading_system.clean_technical_features - INFO - [preprocessing.py:1496] - Bắt đầu sửa chữa các giá trị ngoại lệ...
+2025-05-10 15:36:27,745 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
+2025-05-10 15:36:27,751 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 159 giá trị cực lớn trong cột volume
+2025-05-10 15:36:27,752 - trading_system.clean_technical_features - INFO - [preprocessing.py:1512] - Đã hoàn thành sửa chữa giá trị ngoại lệ
+2025-05-10 15:36:27,753 - trading_system.clean_technical_features - INFO - [preprocessing.py:1516] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
+2025-05-10 15:36:27,762 - trading_system.clean_technical_features - INFO - [preprocessing.py:1521] - Đã hoàn thành chuẩn hóa các chỉ báo
+2025-05-10 15:36:27,764 - trading_system.clean_technical_features - INFO - [preprocessing.py:1525] - Bắt đầu standardize các chỉ báo kỹ thuật...
+2025-05-10 15:36:27,770 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 9 cột của loại chỉ báo volume bằng phương pháp log
+2025-05-10 15:36:27,780 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 4 cột của loại chỉ báo atr bằng phương pháp rolling_zscore
+2025-05-10 15:36:27,789 - trading_system.clean_technical_features - INFO - [preprocessing.py:1532] - Đã hoàn thành standardize các chỉ báo
+2025-05-10 15:36:27,790 - trading_system.clean_technical_features - INFO - [preprocessing.py:1536] - Thêm chỉ báo độ mạnh xu hướng...
+2025-05-10 15:36:27,802 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Đã thêm chỉ báo độ mạnh xu hướng
+2025-05-10 15:36:27,803 - trading_system.clean_technical_features - INFO - [preprocessing.py:1547] - Thêm chỉ báo Z-score của biến động...
+2025-05-10 15:36:31,708 - trading_system.clean_technical_features - INFO - [preprocessing.py:1556] - Đã thêm chỉ báo Z-score của biến động
+2025-05-10 15:36:31,709 - trading_system.clean_technical_features - INFO - [preprocessing.py:1569] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+2025-05-10 15:36:31,712 - trading_system.process_commands - INFO - [data_pipeline.py:830] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho BNB/USDT trước khi tạo đặc trưng
+2025-05-10 15:36:31,713 - trading_system.process_commands - INFO - [feature_generator.py:737] - Đã tạo pipeline 'BNB/USDT_pipeline_20250510_153631'
+2025-05-10 15:36:31,788 - trading_system.process_commands - INFO - [feature_generator.py:1128] - Đã loại bỏ 0 đặc trưng có phương sai < 0.001
+2025-05-10 15:36:31,822 - trading_system.process_commands - INFO - [feature_generator.py:1084] - Đã loại bỏ 9 đặc trưng có tương quan > 0.95
+2025-05-10 15:36:31,826 - trading_system.process_commands - INFO - [data_pipeline.py:882] - Đã tạo đặc trưng cho BNB/USDT: 27 -> 18 cột
+2025-05-10 15:36:31,831 - trading_system.clean_technical_features - INFO - [preprocessing.py:1496] - Bắt đầu sửa chữa các giá trị ngoại lệ...
+2025-05-10 15:36:31,832 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
+2025-05-10 15:36:31,838 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 314 giá trị cực lớn trong cột volume
+2025-05-10 15:36:31,839 - trading_system.clean_technical_features - INFO - [preprocessing.py:1512] - Đã hoàn thành sửa chữa giá trị ngoại lệ
+2025-05-10 15:36:31,841 - trading_system.clean_technical_features - INFO - [preprocessing.py:1516] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
+2025-05-10 15:36:31,851 - trading_system.clean_technical_features - INFO - [preprocessing.py:1521] - Đã hoàn thành chuẩn hóa các chỉ báo
+2025-05-10 15:36:31,852 - trading_system.clean_technical_features - INFO - [preprocessing.py:1525] - Bắt đầu standardize các chỉ báo kỹ thuật...
+2025-05-10 15:36:31,858 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 9 cột của loại chỉ báo volume bằng phương pháp log
+2025-05-10 15:36:31,867 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1033] - Chuẩn hóa 4 cột của loại chỉ báo atr bằng phương pháp rolling_zscore
+2025-05-10 15:36:31,877 - trading_system.clean_technical_features - INFO - [preprocessing.py:1532] - Đã hoàn thành standardize các chỉ báo
+2025-05-10 15:36:31,878 - trading_system.clean_technical_features - INFO - [preprocessing.py:1536] - Thêm chỉ báo độ mạnh xu hướng...
+2025-05-10 15:36:31,891 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Đã thêm chỉ báo độ mạnh xu hướng
+2025-05-10 15:36:31,891 - trading_system.clean_technical_features - INFO - [preprocessing.py:1547] - Thêm chỉ báo Z-score của biến động...
+2025-05-10 15:36:35,875 - trading_system.clean_technical_features - INFO - [preprocessing.py:1556] - Đã thêm chỉ báo Z-score của biến động
+2025-05-10 15:36:35,876 - trading_system.clean_technical_features - INFO - [preprocessing.py:1569] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
+2025-05-10 15:36:35,879 - trading_system.process_commands - INFO - [data_pipeline.py:830] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho XRP/USDT trước khi tạo đặc trưng
+2025-05-10 15:36:35,882 - trading_system.process_commands - INFO - [feature_generator.py:737] - Đã tạo pipeline 'XRP/USDT_pipeline_20250510_153635'
+2025-05-10 15:36:35,987 - trading_system.process_commands - INFO - [feature_generator.py:1128] - Đã loại bỏ 0 đặc trưng có phương sai < 0.001
+2025-05-10 15:36:36,032 - trading_system.process_commands - INFO - [feature_generator.py:1084] - Đã loại bỏ 8 đặc trưng có tương quan > 0.95
+2025-05-10 15:36:36,036 - trading_system.process_commands - INFO - [data_pipeline.py:882] - Đã tạo đặc trưng cho XRP/USDT: 27 -> 19 cột
+2025-05-10 15:36:36,040 - trading_system.process_commands - INFO - [process_commands.py:1071] - Đã tạo đặc trưng cho 4 cặp tiền
+2025-05-10 15:36:36,040 - trading_system.process_commands - INFO - [data_pipeline.py:1163] - Tạo cột mục tiêu cho BTC/USDT
+2025-05-10 15:36:36,073 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:998] - Đã tạo 12 cột mục tiêu: target_direction_1, target_return_1, target_volatility_1, target_direction_3, target_return_3, target_volatility_3, target_direction_5, target_return_5, target_volatility_5, target_direction_10, target_return_10, target_volatility_10
+2025-05-10 15:36:36,073 - trading_system.process_commands - INFO - [data_pipeline.py:1189] - Đã tạo 12 cột mục tiêu cho BTC/USDT: target_return_3, target_direction_10, target_return_5, target_direction_5, target_direction_1, target_volatility_5, target_volatility_1, target_direction_3, target_return_10, target_volatility_3, target_volatility_10, target_return_1
+2025-05-10 15:36:36,076 - trading_system.process_commands - INFO - [data_pipeline.py:1163] - Tạo cột mục tiêu cho ETH/USDT
+2025-05-10 15:36:36,107 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:998] - Đã tạo 12 cột mục tiêu: target_direction_1, target_return_1, target_volatility_1, target_direction_3, target_return_3, target_volatility_3, target_direction_5, target_return_5, target_volatility_5, target_direction_10, target_return_10, target_volatility_10
+2025-05-10 15:36:36,108 - trading_system.process_commands - INFO - [data_pipeline.py:1189] - Đã tạo 12 cột mục tiêu cho ETH/USDT: target_return_3, target_direction_10, target_return_5, target_direction_5, target_direction_1, target_volatility_5, target_volatility_1, target_direction_3, target_return_10, target_volatility_3, target_volatility_10, target_return_1
+2025-05-10 15:36:36,109 - trading_system.process_commands - INFO - [data_pipeline.py:1163] - Tạo cột mục tiêu cho BNB/USDT
+2025-05-10 15:36:36,140 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:998] - Đã tạo 12 cột mục tiêu: target_direction_1, target_return_1, target_volatility_1, target_direction_3, target_return_3, target_volatility_3, target_direction_5, target_return_5, target_volatility_5, target_direction_10, target_return_10, target_volatility_10
+2025-05-10 15:36:36,140 - trading_system.process_commands - INFO - [data_pipeline.py:1189] - Đã tạo 12 cột mục tiêu cho BNB/USDT: target_return_3, target_direction_10, target_return_5, target_direction_5, target_direction_1, target_volatility_5, target_volatility_1, target_direction_3, target_return_10, target_volatility_3, target_volatility_10, target_return_1
+2025-05-10 15:36:36,143 - trading_system.process_commands - INFO - [data_pipeline.py:1163] - Tạo cột mục tiêu cho XRP/USDT
+2025-05-10 15:36:36,172 - trading_system.missing_data_handler - INFO - [missing_data_handler.py:998] - Đã tạo 12 cột mục tiêu: target_direction_1, target_return_1, target_volatility_1, target_direction_3, target_return_3, target_volatility_3, target_direction_5, target_return_5, target_volatility_5, target_direction_10, target_return_10, target_volatility_10
+2025-05-10 15:36:36,173 - trading_system.process_commands - INFO - [data_pipeline.py:1189] - Đã tạo 12 cột mục tiêu cho XRP/USDT: target_return_3, target_direction_10, target_return_5, target_direction_5, target_direction_1, target_volatility_5, target_volatility_1, target_direction_3, target_return_10, target_volatility_3, target_volatility_10, target_return_1
+2025-05-10 15:36:36,175 - trading_system.process_commands - INFO - [process_commands.py:1082] - Đã tạo nhãn mục tiêu cho 4 cặp tiền
+2025-05-10 15:36:36,257 - trading_system.process_commands - INFO - [data_pipeline.py:1359] - Đã lưu 26250 dòng dữ liệu cho BTC/USDT vào E:\AI_AGENT\automated-trading-system\data\processed\btc_usdt_20250510_153636.parquet
+2025-05-10 15:36:36,357 - trading_system.process_commands - INFO - [data_pipeline.py:1359] - Đã lưu 26250 dòng dữ liệu cho ETH/USDT vào E:\AI_AGENT\automated-trading-system\data\processed\eth_usdt_20250510_153636.parquet
+2025-05-10 15:36:36,455 - trading_system.process_commands - INFO - [data_pipeline.py:1359] - Đã lưu 26250 dòng dữ liệu cho BNB/USDT vào E:\AI_AGENT\automated-trading-system\data\processed\bnb_usdt_20250510_153636.parquet
+2025-05-10 15:36:36,557 - trading_system.process_commands - INFO - [data_pipeline.py:1359] - Đã lưu 26250 dòng dữ liệu cho XRP/USDT vào E:\AI_AGENT\automated-trading-system\data\processed\xrp_usdt_20250510_153636.parquet

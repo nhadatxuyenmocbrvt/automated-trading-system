@@ -327,12 +327,18 @@ pip install -r requirements.txt
 # Thu thập dữ liệu thị trường spot cho BTC/USDT và ETH/USDT
 python main.py collect --exchange binance --symbols BTCUSDT,ETHUSDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30
 
+# Thu thập dữ liệu cho một khung thời gian cụ thể (subcommand "historical")
+python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT,BNB/USDT,XRP/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures
+# Thu thập dữ liệu cho nhiều khung thời gian cùng lúc
+python main.py collect --exchange binance --symbols BTC/USDT --timeframes 1h,4h,1d --start-date 2022-01-01 --end-date 2024-12-30 --futures
 
+# Thu thập dữ liệu Fear and Greed Index
+python main.py collect binance_sentiment --symbols BTC/USDT,ETH/USDT,BNB/USDT,XRP/USDT --start-date 2022-01-01 --end-date 2024-12-30
 
-# Thu thập dữ liệu thị trường futures
-python main.py collect --exchange binance --symbols BTC/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --futures
-python main.py collect --exchange binance --symbols ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --futures
-
+# Chạy toàn bộ pipeline xử lý dữ liệu
+python main.py process pipeline --symbols BTC/USDT ETH/USDT BNB/USDT XRP/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2024-12-30 --include-sentiment
+python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2024-01-01 --end-date 2024-12-30
+# ========================///////////==========================
 # Thu thập dữ liệu từ sàn Bybit
 python main.py collect --exchange bybit --symbols BTC/USDT ETH/USDT --timeframes 1h 4h 1d --days 60
 
@@ -345,11 +351,10 @@ python main.py process clean --data-type ohlcv --symbols ETH/USDT --timeframes 1
 # Tạo đặc trưng kỹ thuật
 python main.py process features --data-type ohlcv --symbols BTC/USDT ETH/USDT --all-indicators
 
-# Thu thập dữ liệu Fear and Greed Index
-python main.py collect binance_sentiment --symbols BTC/USDT,ETH/USDT --start-date 2022-01-01 --end-date 2024-12-30
+
 
 # Thu thập dữ liệu thị trường futures & Thu thập dữ liệu Fear and Greed Index
-python main.py collect historical --exchange binance --symbols BTC/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures
+python main.py collect --exchange binance --symbols BTC/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures
 python main.py collect historical --exchange binance --symbols ETH/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures
 python main.py collect historical --exchange binance --symbols BNB/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures
 python main.py collect historical --exchange binance --symbols XRP/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures

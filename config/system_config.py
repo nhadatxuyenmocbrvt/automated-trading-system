@@ -40,7 +40,7 @@ SYSTEM_CONFIG = {
     "request_timeout": int(os.getenv("REQUEST_TIMEOUT", "60")),  # Tăng thời gian timeout lên 60 giây
     "max_retries": int(os.getenv("MAX_RETRIES", "5")),           # Tăng số lần thử lại lên 5
     "memory_limit": int(os.getenv("MEMORY_LIMIT", "8192")),  # MB
-    "data_storage_format": os.getenv("DATA_STORAGE_FORMAT", "csv"),
+    "data_storage_format": os.getenv("DATA_STORAGE_FORMAT", "parquet"),
     "default_exchange": os.getenv("DEFAULT_EXCHANGE", "binance"),
 }
 # Cấu hình môi trường

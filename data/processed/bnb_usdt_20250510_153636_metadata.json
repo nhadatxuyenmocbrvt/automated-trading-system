@@ -1,0 +1,235 @@
+{
+    "symbol": "BNB/USDT",
+    "rows": 26250,
+    "columns": [
+        "volume_log",
+        "volume_extreme_log",
+        "ema_89",
+        "trend_strength",
+        "trend_acceleration",
+        "atr_14",
+        "atr_pct_14",
+        "volatility_zscore",
+        "atr_14_std",
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "symbol",
+        "indicators_fixed",
+        "volume_extreme",
+        "target_direction_1",
+        "target_return_1",
+        "target_volatility_1",
+        "target_direction_3",
+        "target_return_3",
+        "target_volatility_3",
+        "target_direction_5",
+        "target_return_5",
+        "target_volatility_5",
+        "target_direction_10",
+        "target_return_10",
+        "target_volatility_10"
+    ],
+    "dtypes": {
+        "volume_log": "float64",
+        "volume_extreme_log": "float64",
+        "ema_89": "float64",
+        "trend_strength": "float64",
+        "trend_acceleration": "float64",
+        "atr_14": "float64",
+        "atr_pct_14": "float64",
+        "volatility_zscore": "float64",
+        "atr_14_std": "float64",
+        "timestamp": "float64",
+        "open": "float64",
+        "high": "float64",
+        "low": "float64",
+        "close": "float64",
+        "volume": "float64",
+        "symbol": "object",
+        "indicators_fixed": "bool",
+        "volume_extreme": "bool",
+        "target_direction_1": "int64",
+        "target_return_1": "float64",
+        "target_volatility_1": "float64",
+        "target_direction_3": "int64",
+        "target_return_3": "float64",
+        "target_volatility_3": "float64",
+        "target_direction_5": "int64",
+        "target_return_5": "float64",
+        "target_volatility_5": "float64",
+        "target_direction_10": "int64",
+        "target_return_10": "float64",
+        "target_volatility_10": "float64"
+    },
+    "saved_at": "2025-05-10T15:36:36.457566",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\bnb_usdt_20250510_153636.parquet",
+    "data_stats": {
+        "volume_log": {
+            "min": -3.625340690356496,
+            "max": 4.981200811035822,
+            "mean": 5.641032614567805e-16,
+            "null_count": 0
+        },
+        "volume_extreme_log": {
+            "min": -0.07806443121812699,
+            "max": 12.809931288755669,
+            "mean": 2.165463575649829e-18,
+            "null_count": 0
+        },
+        "ema_89": {
+            "min": -1.2021357661663505,
+            "max": 2.5239792267307775,
+            "mean": 4.157690065247672e-16,
+            "null_count": 0
+        },
+        "trend_strength": {
+            "min": -4.994959469866375,
+            "max": 4.6109697298505825,
+            "mean": 7.037756620861945e-18,
+            "null_count": 0
+        },
+        "trend_acceleration": {
+            "min": -8.03287131604302,
+            "max": 7.626877847354744,
+            "mean": -6.361049253471373e-18,
+            "null_count": 0
+        },
+        "atr_14": {
+            "min": -1.2940413157817212,
+            "max": 8.052923334735796,
+            "mean": -1.7323708605198632e-17,
+            "null_count": 0
+        },
+        "atr_pct_14": {
+            "min": -1.4645899668930218,
+            "max": 12.298247226084836,
+            "mean": 1.9705718538413444e-16,
+            "null_count": 0
+        },
+        "volatility_zscore": {
+            "min": -2.338864885357715,
+            "max": 5.243317688720973,
+            "mean": -8.661854302599316e-18,
+            "null_count": 0
+        },
+        "atr_14_std": {
+            "min": -2.12141101104282,
+            "max": 6.181787683931762,
+            "mean": -2.165463575649829e-18,
+            "null_count": 0
+        },
+        "timestamp": {
+            "min": -1.7319848259377388,
+            "max": 1.7319848259377388,
+            "mean": -6.929483442079453e-17,
+            "null_count": 0
+        },
+        "open": {
+            "min": -1.3282093071550773,
+            "max": 2.8489360749160415,
+            "mean": -1.3858966884158905e-16,
+            "null_count": 0
+        },
+        "high": {
+            "min": -1.3159449902953995,
+            "max": 2.8889925185501797,
+            "mean": -4.677401323403631e-16,
+            "null_count": 0
+        },
+        "low": {
+            "min": -1.3550343141690497,
+            "max": 2.8176745824221836,
+            "mean": -5.370349667611577e-16,
+            "null_count": 0
+        },
+        "close": {
+            "min": -1.3280813550327821,
+            "max": 2.848732901576035,
+            "mean": 2.4253192047278088e-16,
+            "null_count": 0
+        },
+        "volume": {
+            "min": -0.7890565964976948,
+            "max": 32.221030808235106,
+            "mean": -7.84980546173063e-17,
+            "null_count": 0
+        },
+        "target_direction_1": {
+            "min": -1.0,
+            "max": 1.0,
+            "mean": -0.001219047619047619,
+            "null_count": 0
+        },
+        "target_return_1": {
+            "min": -589.5040319062574,
+            "max": 135.20142252782486,
+            "mean": -0.021894511867813743,
+            "null_count": 1
+        },
+        "target_volatility_1": {
+            "min": NaN,
+            "max": NaN,
+            "mean": NaN,
+            "null_count": 26250
+        },
+        "target_direction_3": {
+            "min": -1.0,
+            "max": 1.0,
+            "mean": -0.0035047619047619046,
+            "null_count": 0
+        },
+        "target_return_3": {
+            "min": -158.30026714856015,
+            "max": 301.3698156994251,
+            "mean": -0.013069963577344508,
+            "null_count": 3
+        },
+        "target_volatility_3": {
+            "min": 0.0,
+            "max": 340.1312571542975,
+            "mean": 0.1211045591421562,
+            "null_count": 3
+        },
+        "target_direction_5": {
+            "min": -1.0,
+            "max": 1.0,
+            "mean": -0.002285714285714286,
+            "null_count": 0
+        },
+        "target_return_5": {
+            "min": -574.7095291750198,
+            "max": 195.47332209625714,
+            "mean": -0.020093143011436446,
+            "null_count": 5
+        },
+        "target_volatility_5": {
+            "min": 8.00329354693491e-05,
+            "max": 263.5009186342633,
+            "mean": 0.1441441050218097,
+            "null_count": 5
+        },
+        "target_direction_10": {
+            "min": -1.0,
+            "max": 1.0,
+            "mean": -0.0014476190476190476,
+            "null_count": 0
+        },
+        "target_return_10": {
+            "min": -1378.3824564901731,
+            "max": 212.88096488034012,
+            "mean": -0.10672514654098783,
+            "null_count": 10
+        },
+        "target_volatility_10": {
+            "min": 0.0007190758202320001,
+            "max": 186.39418361835197,
+            "mean": 0.18023777517428496,
+            "null_count": 10
+        }
+    }
+}

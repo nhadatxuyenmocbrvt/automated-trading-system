@@ -559,70 +559,56 @@ def _find_data_files(input_dir: Path,
                     logger: logging.Logger) -> Dict[str, Path]:
     """
     Tìm các file dữ liệu phù hợp với symbols và timeframes.
-    
-    Args:
-        input_dir: Thư mục đầu vào
-        symbols: Danh sách cặp giao dịch
-        timeframes: Danh sách khung thời gian
-        logger: Logger
-        
-    Returns:
-        Dict với key là symbol và value là đường dẫn file
     """
     data_paths = {}
     
     # Duyệt qua các thư mục con để tìm file
     if input_dir.exists():
-        for timeframe in timeframes:
-            # Tìm các file phù hợp với timeframe
-            if symbols:
-                for symbol in symbols:
-                    symbol_safe = symbol.replace('/', '_').lower()
-                    
-                    # Thử các pattern khác nhau, từ cụ thể đến linh hoạt
-                    patterns = [
-                        f"**/{symbol_safe}_{timeframe}*.parquet",  # Pattern cụ thể
-                        f"**/{symbol_safe}_*.parquet",             # Pattern chỉ theo symbol
-                        f"**/*{symbol_safe}*{timeframe}*.parquet", # Pattern hỗn hợp
-                        f"**/*{symbol_safe}*.parquet"              # Pattern linh hoạt
-                    ]
-                    
-                    # Thêm tìm kiếm theo CSV nếu có thể
-                    csv_patterns = [p.replace("parquet", "csv") for p in patterns]
-                    patterns.extend(csv_patterns)
-                    
-                    for pattern in patterns:
-                        logger.debug(f"Tìm kiếm với pattern: {pattern}")
-                        matching_files = list(input_dir.glob(pattern))
-                        
-                        if matching_files:
-                            logger.info(f"Tìm thấy {len(matching_files)} file với pattern {pattern}")
-                            # Sắp xếp theo thời gian tạo để lấy file mới nhất
-                            newest_file = max(matching_files, key=lambda f: f.stat().st_mtime)
-                            data_paths[symbol] = newest_file
-                            logger.info(f"Sử dụng file mới nhất cho {symbol}: {newest_file}")
-                            break
-            else:
-                # Nếu không có symbols, tìm tất cả các file
-                patterns = [f"**/*{timeframe}*.parquet", f"**/*{timeframe}*.csv"]
+        # Thêm log để debug
+        logger.info(f"Đang tìm kiếm dữ liệu trong thư mục: {input_dir}")
+        
+        # Liệt kê tất cả file parquet và csv trong thư mục và các thư mục con
+        all_parquet_files = list(input_dir.glob("**/*.parquet"))
+        all_csv_files = list(input_dir.glob("**/*.csv"))
+        all_files = all_parquet_files + all_csv_files
+        
+        logger.info(f"Tìm thấy tổng cộng {len(all_files)} file dữ liệu")
+        
+        if symbols:
+            for symbol in symbols:
+                symbol_safe = symbol.replace('/', '_').lower()
+                found = False
                 
-                for pattern in patterns:
-                    matching_files = list(input_dir.glob(pattern))
-                    
-                    for file_path in matching_files:
-                        # Trích xuất symbol từ tên file
-                        filename = file_path.stem
-                        parts = filename.split('_')
-                        # Tạo symbol từ hai phần đầu tiên nếu có (btc_usdt -> BTC/USDT)
-                        if len(parts) >= 2:
-                            try:
-                                # Đảm bảo phần đầu tiên là asset, phần thứ hai là currency
-                                symbol = f"{parts[0].upper()}/{parts[1].upper()}"
-                                if symbol not in data_paths:  # Chỉ lấy file đầu tiên cho mỗi symbol
-                                    data_paths[symbol] = file_path
-                                    logger.info(f"Tìm thấy dữ liệu cho {symbol}: {file_path}")
-                            except Exception as e:
-                                logger.debug(f"Không thể trích xuất symbol từ {filename}: {e}")
+                # Tìm file phù hợp với symbol
+                for file_path in all_files:
+                    file_name = file_path.stem.lower()
+                    if symbol_safe in file_name:
+                        # Kiểm tra timeframe nếu có yêu cầu
+                        if timeframes and any(tf.lower() in file_path.parent.name.lower() for tf in timeframes):
+                            data_paths[symbol] = file_path
+                            logger.info(f"Tìm thấy file cho {symbol}: {file_path}")
+                            found = True
+                            break
+                        elif not timeframes:
+                            data_paths[symbol] = file_path
+                            logger.info(f"Tìm thấy file cho {symbol}: {file_path}")
+                            found = True
+                            break
+                
+                if not found:
+                    logger.warning(f"Không tìm thấy file dữ liệu cho {symbol}")
+        else:
+            # Nếu không chỉ định symbols, lấy tất cả các file
+            for file_path in all_files:
+                file_name = file_path.stem.lower()
+                parts = file_name.split('_')
+                
+                # Tìm symbol từ tên file (giả sử 2 phần đầu là symbol)
+                if len(parts) >= 2:
+                    symbol = f"{parts[0].upper()}/{parts[1].upper()}"
+                    if symbol not in data_paths:
+                        data_paths[symbol] = file_path
+                        logger.info(f"Tìm thấy dữ liệu cho {symbol}: {file_path}")
     
     return data_paths
 

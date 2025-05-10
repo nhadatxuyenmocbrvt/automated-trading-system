@@ -104,7 +104,7 @@ class CollectCommands:
         if output_dir is None:
             # Tạo cấu trúc thư mục theo exchange/spot_futures/timeframe
             market_type = "futures" if is_futures else "spot"
-            output_dir = self.data_dir / "historical" / exchange_id / market_type / timeframe
+            output_dir = self.data_dir / "collected" / exchange_id / market_type / timeframe
         
         output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -746,7 +746,7 @@ class CollectCommands:
 
         # Xác định thư mục đầu ra
         if output_dir is None:
-            output_dir = self.data_dir / "sentiment" / "binance"
+            output_dir = self.data_dir / "sentiment" / exchange_id
         
         output_dir.mkdir(parents=True, exist_ok=True)
         
