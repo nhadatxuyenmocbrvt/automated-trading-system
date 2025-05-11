@@ -907,7 +907,8 @@ class DataPipeline:
     def merge_sentiment_data(
         self,
         market_data: Dict[str, pd.DataFrame],
-        sentiment_data: Optional[pd.DataFrame] = None,
+        sentiment_data: Optional[Union[pd.DataFrame, Dict[str, pd.DataFrame], str, Path]] = None,
+        sentiment_dir: Optional[Union[str, Path]] = None,
         method: str = 'last_value',
         window: str = '1D'
     ) -> Dict[str, pd.DataFrame]:
@@ -916,60 +917,89 @@ class DataPipeline:
         
         Args:
             market_data: Dict với key là symbol và value là DataFrame thị trường
-            sentiment_data: DataFrame dữ liệu tâm lý
+            sentiment_data: DataFrame dữ liệu tâm lý hoặc Dict chứa dữ liệu tâm lý theo symbol
+                            hoặc đường dẫn đến file dữ liệu tâm lý chung
+            sentiment_dir: Thư mục chứa các file dữ liệu tâm lý riêng cho từng symbol
             method: Phương pháp kết hợp ('last_value', 'mean', 'weighted_mean')
             window: Kích thước cửa sổ thời gian ('1D', '12H', '4H', ...)
             
         Returns:
             Dict với key là symbol và value là DataFrame đã kết hợp
         """
-        # Nếu không có dữ liệu tâm lý
-        if sentiment_data is None:
-            if "sentiment" in market_data:
-                sentiment_data = market_data["sentiment"]
-                # Xóa khỏi market_data
-                del market_data["sentiment"]
-            else:
-                return market_data
-        
-        # Nếu vẫn không có dữ liệu tâm lý
-        if sentiment_data is None or sentiment_data.empty:
-            self.logger.warning("Không có dữ liệu tâm lý để kết hợp")
-            return market_data
-        
-        self.logger.info(f"Bắt đầu kết hợp dữ liệu tâm lý với phương pháp {method}")
         results = {}
+        sentiment_by_symbol = {}
         
-        # Chuyển timestamp sang datetime nếu cần
-        if 'timestamp' in sentiment_data.columns:
-            if pd.api.types.is_numeric_dtype(sentiment_data['timestamp']):
-                # Chuyển UNIX timestamp sang datetime
-                sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'], unit='ms')
-                self.logger.info("Đã chuyển đổi UNIX timestamp sang datetime trong dữ liệu tâm lý")
-            elif not pd.api.types.is_datetime64_any_dtype(sentiment_data['timestamp']):
-                sentiment_data['timestamp'] = pd.to_datetime(sentiment_data['timestamp'])
-                self.logger.info("Đã chuyển đổi timestamp dạng chuỗi sang datetime trong dữ liệu tâm lý")
-        
-        # Xác định cột giá trị tâm lý
-        value_column = 'value'
-        if value_column not in sentiment_data.columns:
-            # Tìm cột thay thế
-            alternative_columns = ['sentiment_value', 'sentiment', 'score', 'fear_greed_value']
-            for col in alternative_columns:
-                if col in sentiment_data.columns:
-                    value_column = col
-                    self.logger.info(f"Sử dụng cột {value_column} thay cho 'value'")
-                    break
+        # Xử lý các trường hợp cung cấp dữ liệu tâm lý
+        if sentiment_data is not None:
+            if isinstance(sentiment_data, pd.DataFrame):
+                # Trường hợp 1: sentiment_data là một DataFrame duy nhất
+                self.logger.info("Sử dụng DataFrame tâm lý được cung cấp trực tiếp")
+                common_sentiment_data = sentiment_data
+            elif isinstance(sentiment_data, dict):
+                # Trường hợp 2: sentiment_data là Dictionary chứa DataFrame theo symbol
+                self.logger.info("Sử dụng Dictionary dữ liệu tâm lý theo symbol")
+                sentiment_by_symbol = sentiment_data
+                common_sentiment_data = None
+            elif isinstance(sentiment_data, (str, Path)):
+                # Trường hợp 3: sentiment_data là đường dẫn file
+                self.logger.info(f"Tải dữ liệu tâm lý từ file: {sentiment_data}")
+                try:
+                    file_path = Path(sentiment_data)
+                    if file_path.suffix.lower() == '.csv':
+                        common_sentiment_data = pd.read_csv(file_path, parse_dates=['timestamp'])
+                    elif file_path.suffix.lower() == '.parquet':
+                        common_sentiment_data = pd.read_parquet(file_path)
+                    else:
+                        self.logger.warning(f"Định dạng file không được hỗ trợ: {file_path.suffix}")
+                        common_sentiment_data = None
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi tải file dữ liệu tâm lý: {str(e)}")
+                    common_sentiment_data = None
             else:
-                self.logger.warning(f"Không tìm thấy cột giá trị tâm lý. Các cột hiện có: {sentiment_data.columns.tolist()}")
-                return market_data
+                self.logger.warning("Định dạng dữ liệu tâm lý không được hỗ trợ")
+                common_sentiment_data = None
+        elif "sentiment" in market_data:
+            # Trường hợp 4: Dữ liệu tâm lý có trong market_data
+            common_sentiment_data = market_data["sentiment"]
+            # Xóa khỏi market_data
+            del market_data["sentiment"]
+        else:
+            common_sentiment_data = None
         
+        # Tìm kiếm file dữ liệu tâm lý riêng cho từng symbol
+        if sentiment_dir is not None:
+            sentiment_dir_path = Path(sentiment_dir)
+            if sentiment_dir_path.exists() and sentiment_dir_path.is_dir():
+                self.logger.info(f"Tìm kiếm dữ liệu tâm lý từ thư mục: {sentiment_dir_path}")
+                
+                # Lấy danh sách symbols
+                for symbol in market_data.keys():
+                    # Chuẩn bị tên file dựa trên symbol
+                    asset = symbol.split('/')[0] if '/' in symbol else symbol
+                    
+                    # Tìm kiếm file với tên phù hợp (csv hoặc parquet)
+                    sentiment_files = list(sentiment_dir_path.glob(f"*{asset.lower()}*sentiment*.csv")) + \
+                                    list(sentiment_dir_path.glob(f"*{asset.lower()}*sentiment*.parquet"))
+                    
+                    if sentiment_files:
+                        # Sử dụng file đầu tiên tìm thấy
+                        file_path = sentiment_files[0]
+                        self.logger.info(f"Tìm thấy file dữ liệu tâm lý cho {symbol}: {file_path}")
+                        
+                        try:
+                            if file_path.suffix.lower() == '.csv':
+                                sentiment_by_symbol[symbol] = pd.read_csv(file_path, parse_dates=['timestamp'])
+                            elif file_path.suffix.lower() == '.parquet':
+                                sentiment_by_symbol[symbol] = pd.read_parquet(file_path)
+                        except Exception as e:
+                            self.logger.error(f"Lỗi khi tải file dữ liệu tâm lý cho {symbol}: {str(e)}")
+        
+        # Xử lý từng symbol
         for symbol, df in market_data.items():
             try:
                 # Chuyển timestamp sang datetime nếu cần
                 if 'timestamp' in df.columns:
                     if pd.api.types.is_numeric_dtype(df['timestamp']):
-                        # Chuyển UNIX timestamp sang datetime
                         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
                         self.logger.info(f"Đã chuyển đổi UNIX timestamp sang datetime cho {symbol}")
                     elif not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
@@ -978,64 +1008,91 @@ class DataPipeline:
                 # Tạo bản sao để tránh thay đổi dữ liệu gốc
                 merged_df = df.copy()
                 
-                # Lọc dữ liệu tâm lý cho asset tương ứng
-                asset = symbol.split('/')[0] if '/' in symbol else symbol
-                filtered_sentiment = sentiment_data
+                # Xác định dữ liệu tâm lý cho symbol này
+                symbol_sentiment = None
                 
-                if 'asset' in sentiment_data.columns:
-                    filtered_sentiment = sentiment_data[
-                        (sentiment_data['asset'] == asset) | 
-                        (sentiment_data['asset'].str.lower() == asset.lower() if isinstance(asset, str) else False) |
-                        (sentiment_data['asset'].isna())
-                    ].copy()
+                # Ưu tiên sử dụng dữ liệu tâm lý riêng cho symbol
+                if symbol in sentiment_by_symbol and not sentiment_by_symbol[symbol].empty:
+                    symbol_sentiment = sentiment_by_symbol[symbol]
+                    self.logger.info(f"Sử dụng dữ liệu tâm lý riêng cho {symbol}")
+                # Nếu không có, sử dụng dữ liệu chung
+                elif common_sentiment_data is not None and not common_sentiment_data.empty:
+                    # Lọc dữ liệu tâm lý cho asset tương ứng
+                    asset = symbol.split('/')[0] if '/' in symbol else symbol
+                    
+                    if 'asset' in common_sentiment_data.columns:
+                        symbol_sentiment = common_sentiment_data[
+                            (common_sentiment_data['asset'] == asset) | 
+                            (common_sentiment_data['asset'].str.lower() == asset.lower() if isinstance(asset, str) else False) |
+                            (common_sentiment_data['asset'].isna())
+                        ].copy()
+                    else:
+                        # Nếu không có cột asset, sử dụng tất cả dữ liệu tâm lý
+                        symbol_sentiment = common_sentiment_data.copy()
+                        self.logger.info(f"Sử dụng dữ liệu tâm lý chung cho {symbol} (không có thông tin asset)")
                 
-                if filtered_sentiment.empty:
-                    self.logger.warning(f"Không có dữ liệu tâm lý cho {asset}")
+                # Nếu không có dữ liệu tâm lý
+                if symbol_sentiment is None or symbol_sentiment.empty:
+                    self.logger.warning(f"Không có dữ liệu tâm lý cho {symbol}")
                     results[symbol] = merged_df
                     continue
                 
+                # Tiếp tục với code hiện tại để xử lý và kết hợp dữ liệu tâm lý
+                # [... Phần code còn lại giữ nguyên ...]
+
+                # Code phần xử lý tiếp theo giữ nguyên như cũ
+                # Xác định cột giá trị tâm lý
+                value_column = 'value'
+                if value_column not in symbol_sentiment.columns:
+                    # Tìm cột thay thế
+                    alternative_columns = ['sentiment_value', 'sentiment', 'score', 'fear_greed_value']
+                    for col in alternative_columns:
+                        if col in symbol_sentiment.columns:
+                            value_column = col
+                            self.logger.info(f"Sử dụng cột {value_column} thay cho 'value' với {symbol}")
+                            break
+                    else:
+                        self.logger.warning(f"Không tìm thấy cột giá trị tâm lý cho {symbol}. Các cột hiện có: {symbol_sentiment.columns.tolist()}")
+                        results[symbol] = merged_df
+                        continue
+                
                 # Ghi log thông tin dữ liệu tâm lý để debug
-                self.logger.info(f"Dữ liệu tâm lý cho {asset}: {len(filtered_sentiment)} dòng")
-                self.logger.info(f"Cột dữ liệu tâm lý: {filtered_sentiment.columns.tolist()}")
+                self.logger.info(f"Dữ liệu tâm lý cho {symbol}: {len(symbol_sentiment)} dòng")
                 
                 # Đặt timestamp làm index
                 if 'timestamp' in merged_df.columns:
                     merged_df.set_index('timestamp', inplace=True)
                 
-                if 'timestamp' in filtered_sentiment.columns:
-                    filtered_sentiment.set_index('timestamp', inplace=True)
+                if 'timestamp' in symbol_sentiment.columns:
+                    symbol_sentiment.set_index('timestamp', inplace=True)
                 
                 # Tính giá trị tâm lý theo phương pháp đã chọn
                 if method == 'last_value':
                     # Lấy giá trị cuối cùng trong cửa sổ
-                    resampled_sentiment = filtered_sentiment[value_column].resample(window).last()
+                    resampled_sentiment = symbol_sentiment[value_column].resample(window).last()
                 elif method == 'mean':
                     # Lấy giá trị trung bình trong cửa sổ
-                    resampled_sentiment = filtered_sentiment[value_column].resample(window).mean()
+                    resampled_sentiment = symbol_sentiment[value_column].resample(window).mean()
                 elif method == 'weighted_mean':
-                    # Lấy giá trị trung bình có trọng số (mới hơn có trọng số cao hơn)
-                    if 'weight' in filtered_sentiment.columns:
-                        weights = filtered_sentiment['weight']
+                    # Lấy giá trị trung bình có trọng số
+                    if 'weight' in symbol_sentiment.columns:
+                        weights = symbol_sentiment['weight']
                     else:
-                        # Tính trọng số dựa trên thời gian (mới hơn có trọng số cao hơn)
-                        max_time = filtered_sentiment.index.max()
-                        time_diff = (filtered_sentiment.index - filtered_sentiment.index.min()).total_seconds()
-                        max_diff = (max_time - filtered_sentiment.index.min()).total_seconds() or 1  # Tránh chia cho 0
-                        filtered_sentiment['weight'] = time_diff / max_diff
-                        weights = filtered_sentiment['weight']
+                        # Tính trọng số dựa trên thời gian
+                        max_time = symbol_sentiment.index.max()
+                        time_diff = (symbol_sentiment.index - symbol_sentiment.index.min()).total_seconds()
+                        max_diff = (max_time - symbol_sentiment.index.min()).total_seconds() or 1
+                        symbol_sentiment['weight'] = time_diff / max_diff
+                        weights = symbol_sentiment['weight']
                     
-                    # Tính trung bình có trọng số
-                    weighted_values = filtered_sentiment[value_column] * weights
+                    weighted_values = symbol_sentiment[value_column] * weights
                     resampled_sentiment = (weighted_values.resample(window).sum() / weights.resample(window).sum()).fillna(method='ffill')
                 else:
                     self.logger.warning(f"Phương pháp không hợp lệ: {method}, sử dụng 'last_value'")
-                    resampled_sentiment = filtered_sentiment[value_column].resample(window).last()
+                    resampled_sentiment = symbol_sentiment[value_column].resample(window).last()
                 
                 # Đổi tên để tránh xung đột
                 resampled_sentiment.name = 'sentiment_value'
-                
-                # Ghi log thông tin dữ liệu tâm lý đã resample để debug
-                self.logger.info(f"Dữ liệu tâm lý đã resample: {len(resampled_sentiment)} dòng")
                 
                 # Kết hợp vào dữ liệu thị trường
                 merged_df = merged_df.join(resampled_sentiment, how='left')
@@ -1353,6 +1410,7 @@ class DataPipeline:
             output_dir: Thư mục đầu ra
             file_format: Định dạng file ('csv', 'parquet', 'json')
             include_metadata: Bao gồm metadata
+            preserve_timestamp: Giữ nguyên timestamp
             
         Returns:
             Dict với key là symbol và value là đường dẫn file
@@ -1375,89 +1433,76 @@ class DataPipeline:
         results = {}
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
+        self.logger.info(f"Bắt đầu lưu {len(data)} DataFrame vào {output_dir}")
+        
         for symbol, df in data.items():
             try:
-                # Chuyển đổi các cột string thành float nếu có thể
-                df_prepared = df.copy()
-                if 'timestamp' in df_prepared.columns and df_prepared['timestamp'].dtype == 'object':
-                    try:
-                        df_prepared['timestamp'] = pd.to_datetime(df_prepared['timestamp'])
-                        self.logger.info(f"Đã chuyển đổi timestamp từ object sang datetime cho {symbol}")
-                    except Exception as e:
-                        self.logger.warning(f"Không thể chuyển đổi cột timestamp: {str(e)}")
-
-                # Lưu cột timestamp trước khi xử lý
-                timestamp_col = None
-                if preserve_timestamp and 'timestamp' in df_prepared.columns:
-                    timestamp_col = df_prepared['timestamp'].copy()
-
-                # Xử lý các cột còn lại    
-                for col in df_prepared.columns:
-                    if col != 'timestamp' and (df_prepared[col].dtype == 'object' or df_prepared[col].dtype == 'string'):
+                # Thông báo bắt đầu xử lý
+                self.logger.info(f"Đang xử lý dữ liệu cho {symbol} ({len(df)} dòng)")
+                
+                # Chuẩn bị DataFrame để lưu
+                df_to_save = df.copy()
+                
+                # Xử lý timestamp nếu cần
+                if 'timestamp' in df_to_save.columns and preserve_timestamp:
+                    if not pd.api.types.is_datetime64_any_dtype(df_to_save['timestamp']):
+                        df_to_save['timestamp'] = pd.to_datetime(df_to_save['timestamp'])
+                        self.logger.info(f"Đã chuyển đổi timestamp sang datetime cho {symbol}")
+                
+                # Xử lý các cột object nếu có
+                for col in df_to_save.columns:
+                    if col != 'timestamp' and df_to_save[col].dtype == 'object':
                         try:
-                            # Thử chuyển đổi sang float
-                            df_prepared[col] = df_prepared[col].astype(float)
-                            self.logger.info(f"Đã chuyển đổi cột {col} từ {df[col].dtype} sang float")
-                        except (ValueError, TypeError):
-                            # Giữ nguyên nếu không thể chuyển đổi
-                            self.logger.debug(f"Không thể chuyển đổi cột {col} sang float")
-
-                # Khôi phục cột timestamp sau khi xử lý
-                if timestamp_col is not None:
-                    df_prepared['timestamp'] = timestamp_col
-                    if df_prepared['timestamp'].dtype == 'object':
-                        df_prepared['timestamp'] = pd.to_datetime(df_prepared['timestamp'])
-                if file_format == 'csv':
-                    df_prepared.to_csv(file_path, index=False, date_format='%Y-%m-%d %H:%M:%S')
-                elif file_format == 'parquet':
-                    df_prepared.to_parquet(file_path, index=False)
-                elif file_format == 'json':
-                    df_prepared.to_json(file_path, orient='records', date_format='iso')
-
+                            df_to_save[col] = df_to_save[col].astype(float)
+                        except:
+                            pass
+                
                 # Tạo tên file
                 filename = f"{symbol.replace('/', '_').lower()}_{timestamp}"
                 file_path = output_dir / f"{filename}.{file_format}"
                 
+                self.logger.info(f"Đang lưu {symbol} vào {file_path}")
+                
                 # Lưu dữ liệu
-                if file_format == 'csv':
-                    df_prepared.to_csv(file_path, index=False)
-                elif file_format == 'parquet':
-                    df_prepared.to_parquet(file_path, index=False)
-                elif file_format == 'json':
-                    df_prepared.to_json(file_path, orient='records', date_format='iso')
-                
-                results[symbol] = str(file_path)
-                self.logger.info(f"Đã lưu {len(df)} dòng dữ liệu cho {symbol} vào {file_path}")
-                
-                # Lưu metadata nếu cần
-                if include_metadata:
-                    metadata = {
-                        "symbol": symbol,
-                        "rows": len(df),
-                        "columns": df.columns.tolist(),
-                        "dtypes": {col: str(df[col].dtype) for col in df.columns},
-                        "saved_at": datetime.now().isoformat(),
-                        "file_format": file_format,
-                        "file_path": str(file_path),
-                        "data_stats": {
-                            col: {
-                                "min": float(df[col].min()) if pd.api.types.is_numeric_dtype(df[col]) else None,
-                                "max": float(df[col].max()) if pd.api.types.is_numeric_dtype(df[col]) else None,
-                                "mean": float(df[col].mean()) if pd.api.types.is_numeric_dtype(df[col]) else None,
-                                "null_count": int(df[col].isna().sum())
-                            } for col in df.select_dtypes(include=[np.number]).columns
+                try:
+                    if file_format == 'csv':
+                        df_to_save.to_csv(file_path, index=False)
+                        self.logger.info(f"Đã lưu CSV cho {symbol}")
+                    elif file_format == 'parquet':
+                        df_to_save.to_parquet(file_path, index=False)
+                        self.logger.info(f"Đã lưu Parquet cho {symbol}")
+                    elif file_format == 'json':
+                        df_to_save.to_json(file_path, orient='records')
+                        self.logger.info(f"Đã lưu JSON cho {symbol}")
+                    
+                    # Lưu đường dẫn vào kết quả
+                    results[symbol] = str(file_path)
+                    self.logger.info(f"Đã thêm {symbol} vào kết quả")
+                    
+                    # Lưu metadata nếu cần
+                    if include_metadata:
+                        metadata = {
+                            "symbol": symbol,
+                            "rows": len(df),
+                            "columns": df.columns.tolist(),
+                            "saved_at": datetime.now().isoformat(),
+                            "file_format": file_format,
+                            "file_path": str(file_path)
                         }
-                    }
-                    
-                    metadata_path = output_dir / f"{filename}_metadata.json"
-                    with open(metadata_path, 'w', encoding='utf-8') as f:
-                        json.dump(metadata, f, indent=4, ensure_ascii=False)
-                    
-                    self.logger.debug(f"Đã lưu metadata cho {symbol} vào {metadata_path}")
+                        
+                        metadata_path = output_dir / f"{filename}_metadata.json"
+                        with open(metadata_path, 'w', encoding='utf-8') as f:
+                            json.dump(metadata, f, indent=4, ensure_ascii=False)
+                        
+                        self.logger.info(f"Đã lưu metadata cho {symbol}")
                 
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi lưu file cho {symbol}: {str(e)}", exc_info=True)
+                    
             except Exception as e:
-                self.logger.error(f"Lỗi khi lưu dữ liệu cho {symbol}: {str(e)}")
+                self.logger.error(f"Lỗi khi xử lý dữ liệu cho {symbol}: {str(e)}", exc_info=True)
         
+        self.logger.info(f"Đã lưu tổng cộng {len(results)}/{len(data)} file dữ liệu")
         return results
     
     def save_pipeline_state(self, file_path: Optional[Path] = None) -> None:
@@ -1559,7 +1604,8 @@ class DataPipeline:
         output_dir: Optional[Path] = None,
         save_results: bool = True,
         is_futures: bool = False,
-        preserve_timestamp: bool = True  # Thêm tham số này
+        preserve_timestamp: bool = True,
+        sentiment_dir: Optional[Union[str, Path]] = None
     ) -> Dict[str, pd.DataFrame]:
         """
         Chạy pipeline xử lý dữ liệu đầy đủ.
@@ -1652,7 +1698,11 @@ class DataPipeline:
                     "horizons": [1, 3, 5, 10],
                     "threshold": 0.001
                 }},
-                {"name": "merge_sentiment", "enabled": self.config.get("collectors", {}).get("include_sentiment", True)},
+                {"name": "merge_sentiment", "enabled": self.config.get("collectors", {}).get("include_sentiment", True), "params": {
+                    "sentiment_dir": sentiment_dir if sentiment_dir else str(self.data_dir / "sentiment"),
+                    "method": "last_value",
+                    "window": "1D"
+                }},
                 {"name": "prepare_training", "enabled": False},  # Mặc định không chuẩn bị dữ liệu huấn luyện
                 {"name": "save_data", "enabled": save_results}
             ]

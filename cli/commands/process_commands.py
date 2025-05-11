@@ -310,9 +310,10 @@ def create_features(data_type, input_dir, symbols, indicators, all_indicators, o
 @click.option("--preserve-timestamp/--no-preserve-timestamp", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
 @click.option("--verbose", "-v", count=True, help="Mức độ chi tiết của log (0-2)")
 @click.option("--include-sentiment", is_flag=True, default=True, help="Bao gồm đặc trưng tâm lý thị trường (Fear & Greed Index)")
+
 def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_dir, pipeline_name, 
                 no_clean, no_features, all_indicators, preserve_timestamp, verbose, include_sentiment):
-    logger.info(f"Tham số include_sentiment = {include_sentiment}")
+    logger.info(f"Pipeline đang chạy với include_sentiment={include_sentiment}")
     """
     Chạy toàn bộ pipeline xử lý dữ liệu.
     
@@ -363,6 +364,11 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
             # Chuyển đổi timeframes thành list
             timeframes_list = list(timeframes)
             
+            # Chuẩn bị thư mục sentiment
+            sentiment_dir_path = DEFAULT_DATA_DIR / "sentiment"
+            sentiment_dir_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Đã chuẩn bị thư mục dữ liệu tâm lý: {sentiment_dir_path}")
+
             # Chạy pipeline
             result_data = asyncio.run(pipeline.run_pipeline(
                 pipeline_name=pipeline_name,
@@ -374,7 +380,8 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
                 end_time=end_datetime,
                 output_dir=output_dir_path,
                 save_results=True,
-                preserve_timestamp=preserve_timestamp
+                preserve_timestamp=preserve_timestamp,
+                sentiment_dir=str(sentiment_dir_path)  # Thêm dòng này
             ))
             
             if not result_data:
@@ -481,7 +488,7 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
             if include_sentiment:
                 try:
                     # Tìm file tâm lý
-                    sentiment_dir = DEFAULT_DATA_DIR / "sentiment" / "binance"
+                    sentiment_dir = DEFAULT_DATA_DIR / "sentiment"
                     logger.info(f"Đang tìm kiếm file tâm lý trong thư mục: {sentiment_dir}")
                     
                     # Kiểm tra thư mục tồn tại
@@ -535,6 +542,7 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
                                 processed_data = pipeline.merge_sentiment_data(
                                     processed_data,
                                     sentiment_data=sentiment_data,
+                                    sentiment_dir=sentiment_dir,
                                     method='last_value',
                                     window='1D'
                                 )
@@ -748,6 +756,7 @@ def setup_process_parser(subparsers):
     pipeline_parser.add_argument("--preserve-timestamp/--no-preserve-timestamp", dest="preserve_timestamp", action="store_true", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
     pipeline_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
     pipeline_parser.add_argument("--include-sentiment", action="store_true", help="Bao gồm đặc trưng tâm lý thị trường (Fear & Greed Index)")
+    pipeline_parser.add_argument("--sentiment-dir", type=str, help="Thư mục chứa dữ liệu tâm lý")
     
     process_parser.set_defaults(func=handle_process_command)
 
@@ -971,7 +980,12 @@ def handle_process_command(args, system):
                     args.output_dir if hasattr(args, 'output_dir') else None,
                     default_input_subdir="collected"
                 )
-                
+
+                # THÊM Ở ĐÂY - Chuẩn bị thư mục sentiment
+                sentiment_dir_path = DEFAULT_DATA_DIR / "sentiment" 
+                sentiment_dir_path.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Đã chuẩn bị thư mục dữ liệu tâm lý: {sentiment_dir_path}")
+
                 # Chuyển đổi start_date và end_date thành datetime
                 start_datetime = None
                 end_datetime = None
@@ -1019,7 +1033,8 @@ def handle_process_command(args, system):
                         end_time=end_datetime,
                         output_dir=output_dir_path,
                         save_results=True,
-                        preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                        preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True,
+                        sentiment_dir=str(sentiment_dir_path)
                     ))
                     
                     if not result_data:
@@ -1168,6 +1183,57 @@ def handle_process_command(args, system):
                     )
                     
                     logger.info(f"Đã tạo nhãn mục tiêu cho {len(processed_data)} cặp tiền")
+
+                    # Lấy tham số include_sentiment từ args
+                    include_sentiment = args.include_sentiment if hasattr(args, 'include_sentiment') else False
+                    # Kết hợp dữ liệu tâm lý nếu include_sentiment được bật
+                    if include_sentiment:
+                        try:
+                            # Chắc chắn rằng thư mục sentiment đã được tạo
+                            sentiment_dir_path = DEFAULT_DATA_DIR / "sentiment"
+                            sentiment_dir_path.mkdir(parents=True, exist_ok=True)
+                            
+                            logger.info(f"Bắt đầu kết hợp dữ liệu tâm lý từ {sentiment_dir_path}")
+                            
+                            # Tìm tất cả các file tâm lý trong thư mục
+                            sentiment_files = list(sentiment_dir_path.glob("*sentiment*.csv"))
+                            sentiment_files.extend(list(sentiment_dir_path.glob("*sentiment*.parquet")))
+                            
+                            if sentiment_files:
+                                # Sử dụng file tâm lý mới nhất
+                                newest_file = max(sentiment_files, key=lambda x: x.stat().st_mtime)
+                                logger.info(f"Sử dụng file tâm lý: {newest_file}")
+                                
+                                try:
+                                    # Tải dữ liệu tâm lý
+                                    if newest_file.suffix.lower() == '.csv':
+                                        sentiment_data = pd.read_csv(newest_file, parse_dates=['timestamp'])
+                                    elif newest_file.suffix.lower() == '.parquet':
+                                        sentiment_data = pd.read_parquet(newest_file)
+                                    
+                                    # Gọi phương thức merge_sentiment_data
+                                    processed_data = pipeline.merge_sentiment_data(
+                                        processed_data,
+                                        sentiment_data=sentiment_data,
+                                        sentiment_dir=str(sentiment_dir_path),
+                                        method='last_value',
+                                        window='1D'
+                                    )
+                                    
+                                    # Kiểm tra kết quả
+                                    sentiment_columns_added = any('sentiment' in col.lower() for symbol in processed_data 
+                                                                for col in processed_data[symbol].columns)
+                                    if sentiment_columns_added:
+                                        logger.info("Đã thêm thành công dữ liệu tâm lý vào dữ liệu thị trường")
+                                    else:
+                                        logger.warning("Không thể tìm thấy cột tâm lý sau khi kết hợp")
+                                    
+                                except Exception as e:
+                                    logger.error(f"Lỗi khi tải và xử lý file tâm lý {newest_file}: {str(e)}")
+                            else:
+                                logger.warning(f"Không tìm thấy file tâm lý nào trong {sentiment_dir_path}")
+                        except Exception as e:
+                            logger.error(f"Lỗi khi kết hợp dữ liệu tâm lý: {str(e)}", exc_info=True)
 
                 # Lưu kết quả
                 saved_paths = pipeline.save_data(
