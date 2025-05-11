@@ -52,8 +52,10 @@ def process_commands():
 @click.option("--timeframes", "-tf", multiple=True, default=['1h'], help="Khung thời gian cần xử lý")
 @click.option("--output-dir", "-o", type=click.Path(), help="Thư mục lưu dữ liệu đã làm sạch")
 @click.option("--preserve-timestamp/--no-preserve-timestamp", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
+@click.option("--aggressive-nan/--normal-nan", default=True, help="Xử lý triệt để giá trị NaN")
+@click.option("--fill-method", type=click.Choice(['ffill+bfill', 'interpolate', 'mean']), default='ffill+bfill', help="Phương pháp điền các giá trị NaN")
 @click.option("--verbose", "-v", count=True, help="Mức độ chi tiết của log (0-2)")
-def clean_data(data_type, input_dir, symbols, timeframes, output_dir, preserve_timestamp, verbose):
+def clean_data(data_type, input_dir, symbols, timeframes, output_dir, preserve_timestamp, aggressive_nan, fill_method, verbose):
     """
     Làm sạch dữ liệu thị trường.
     
@@ -106,10 +108,13 @@ def clean_data(data_type, input_dir, symbols, timeframes, output_dir, preserve_t
         if data_type == 'ohlcv' or data_type == 'all':
             cleaned_data = pipeline.clean_data(
                 loaded_data,
-                clean_ohlcv=True,
-                clean_orderbook=(data_type == 'all'),
-                clean_trades=(data_type == 'all'),
-                preserve_timestamp=preserve_timestamp
+                clean_ohlcv=(data_type == 'ohlcv' or data_type == 'all'),
+                clean_orderbook=(data_type == 'orderbook' or data_type == 'all'),
+                clean_trades=(data_type == 'trades' or data_type == 'all'),
+                preserve_timestamp=preserve_timestamp,
+                aggressive_nan_handling=aggressive_nan,
+                fill_all_nan=True,
+                fill_method=fill_method
             )
         elif data_type == 'trades':
             cleaned_data = pipeline.clean_data(
@@ -187,8 +192,10 @@ def create_features(data_type, input_dir, symbols, indicators, all_indicators, o
         
         # Nếu thư mục processed không tồn tại, thử sử dụng thư mục collected
         if not input_dir_path.exists():
-            input_dir_path, _ = _prepare_directories(None, None, default_input_subdir="collected")
-            logger.info(f"Thư mục processed không tồn tại, sử dụng thư mục {input_dir_path}")
+            logger.error(f"Thư mục đầu vào không tồn tại: {input_dir_path}")
+            logger.error(f"Vui lòng sử dụng lệnh sau để làm sạch dữ liệu trước:")
+            logger.error(f"  python main.py process clean --data-type ohlcv --input-dir data/collected --symbols <symbols> --output-dir data/processed")
+            return 1
         
         # Tìm các file dữ liệu
         data_paths = _find_data_files(input_dir_path, symbols, [''], logger)  # Không filter theo timeframe
@@ -618,20 +625,18 @@ def _prepare_directories(input_dir: Optional[str],
                          default_input_subdir: str = "collected") -> Tuple[Path, Path]:
     """
     Chuẩn bị và kiểm tra các thư mục đầu vào/đầu ra.
-    
-    Args:
-        input_dir: Thư mục đầu vào
-        output_dir: Thư mục đầu ra
-        default_input_subdir: Thư mục con mặc định
-        
-    Returns:
-        Tuple (input_dir_path, output_dir_path)
     """
     # Chuyển đổi thành đường dẫn nếu có
     if input_dir:
         input_dir_path = Path(input_dir)
+        # Kiểm tra thư mục tồn tại và in thông báo rõ ràng
+        if not input_dir_path.exists():
+            logger.warning(f"Thư mục đầu vào không tồn tại: {input_dir_path}")
+            logger.warning(f"Vui lòng kiểm tra đường dẫn hoặc tạo thư mục trước khi tiếp tục.")
+            # Vẫn trả về đường dẫn đã chỉ định để mã báo lỗi ở cấp cao hơn
     else:
         input_dir_path = DEFAULT_DATA_DIR / default_input_subdir
+        logger.info(f"Sử dụng thư mục đầu vào mặc định: {input_dir_path}")
     
     # Chuyển đổi output_dir nếu có
     if output_dir:
@@ -642,6 +647,7 @@ def _prepare_directories(input_dir: Optional[str],
             output_dir_path = DEFAULT_DATA_DIR / "processed"
         else:
             output_dir_path = DEFAULT_DATA_DIR / "features"
+        logger.info(f"Sử dụng thư mục đầu ra mặc định: {output_dir_path}")
     
     # Đảm bảo thư mục đầu ra tồn tại
     output_dir_path.mkdir(parents=True, exist_ok=True)
@@ -692,8 +698,16 @@ def _find_data_files(input_dir: Path,
                 
                 if not found:
                     logger.warning(f"Không tìm thấy file dữ liệu cho {symbol}")
+                    # Hiển thị đầy đủ thông tin debug để tìm lỗi
+                    logger.warning(f"Đã tìm kiếm với pattern: '*{symbol_safe}*'")
+                    logger.warning(f"Danh sách file hiện có:")
+                    for i, f in enumerate(all_files[:5]):  # Hiển thị tối đa 5 file
+                        logger.warning(f"  - {i+1}. {f}")
+                    if len(all_files) > 5:
+                        logger.warning(f"  - ... và {len(all_files)-5} file khác")
         else:
             # Nếu không chỉ định symbols, lấy tất cả các file
+            logger.info("Không chỉ định symbols, tự động nhận dạng từ tên file")
             for file_path in all_files:
                 file_name = file_path.stem.lower()
                 parts = file_name.split('_')
@@ -704,6 +718,9 @@ def _find_data_files(input_dir: Path,
                     if symbol not in data_paths:
                         data_paths[symbol] = file_path
                         logger.info(f"Tìm thấy dữ liệu cho {symbol}: {file_path}")
+    else:
+        logger.error(f"Thư mục không tồn tại: {input_dir}")
+        logger.error(f"Vui lòng kiểm tra đường dẫn hoặc tạo thư mục trước khi tiếp tục.")
     
     return data_paths
 
@@ -953,13 +970,23 @@ def handle_process_command(args, system):
                     preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
                 )
                 
-                # Bước tiếp theo xử lý và lưu dữ liệu
-                # ...còn lại tương tự như trong hàm create_features...
-                
-                # Hiển thị kết quả cuối cùng
-                print("\n" + "="*50)
-                print(f"Đã tạo đặc trưng thành công cho {len(featured_data)} cặp tiền")
-                print("="*50 + "\n")
+                # Lưu dữ liệu đã tạo đặc trưng
+                saved_paths = pipeline.save_data(
+                    featured_data,
+                    output_dir=output_dir_path,
+                    file_format='parquet',
+                    include_metadata=True,
+                    preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                )
+
+                # Hiển thị kết quả
+                if saved_paths:
+                    total_features = {symbol: len(df.columns) for symbol, df in featured_data.items()}
+                    print("\n" + "="*50)
+                    print(f"Kết quả tạo đặc trưng cho {len(saved_paths)} cặp tiền:")
+                    for symbol, path in saved_paths.items():
+                        print(f"  - {symbol}: {total_features[symbol]} đặc trưng, lưu tại {path}")
+                    print("="*50 + "\n")
                 return 0
                 
             except Exception as e:

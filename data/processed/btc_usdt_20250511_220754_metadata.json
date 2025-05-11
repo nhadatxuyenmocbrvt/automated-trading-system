@@ -24,9 +24,9 @@
         "volatility_zscore",
         "volatility_rank"
     ],
-    "saved_at": "2025-05-11T18:28:39.910875",
+    "saved_at": "2025-05-11T22:07:54.359661",
     "file_format": "parquet",
-    "file_path": "data\\processed\\btc_usdt_20250511_182839.parquet",
+    "file_path": "data\\processed\\btc_usdt_20250511_220754.parquet",
     "consistency_report": {
         "rows": 500,
         "columns": 21,

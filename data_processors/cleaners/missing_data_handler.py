@@ -286,9 +286,12 @@ class MissingDataHandler:
         columns: Optional[List[str]] = None,
         threshold: float = 0.5,
         timestamp_col: Optional[str] = None,
-        # Thêm tham số mới cho xử lý NaN ở đầu
+        # Thêm tham số mới
         handle_leading_nan: bool = True,
-        leading_nan_method: str = 'drop'  # 'drop', 'backfill', 'custom_value'
+        leading_nan_method: str = 'backfill',
+        aggressive_cleaning: bool = True,  # Tham số mới để xử lý triệt để
+        ensure_no_nan: bool = True,        # Đảm bảo không còn NaN nào
+        extra_methods: Optional[List[str]] = None  # Các phương pháp bổ sung
     ) -> pd.DataFrame:
         """
         Xử lý các giá trị thiếu trong DataFrame.
@@ -300,6 +303,9 @@ class MissingDataHandler:
             timestamp_col: Tên cột thời gian (None để tự động phát hiện)
             handle_leading_nan: Xử lý các giá trị NaN ở đầu dữ liệu
             leading_nan_method: Phương pháp xử lý NaN đầu ('drop', 'backfill', 'custom_value')
+            aggressive_cleaning: Xử lý triệt để các giá trị NaN
+            ensure_no_nan: Đảm bảo không còn giá trị NaN nào sau khi xử lý
+            extra_methods: Các phương pháp bổ sung để xử lý NaN
             
         Returns:
             DataFrame đã xử lý
@@ -337,30 +343,13 @@ class MissingDataHandler:
         
         # Xử lý NaN ở đầu dữ liệu nếu cần
         if handle_leading_nan:
-            for col in columns:
-                if col not in result_df.columns:
-                    continue
-                    
-                # Tìm vị trí đầu tiên có giá trị không phải NA
-                first_valid_idx = result_df[col].first_valid_index()
-                
-                if first_valid_idx is not None and first_valid_idx > 0:
-                    leading_nans = result_df.index[result_df.index < first_valid_idx]
-                    
-                    if leading_nan_method == 'drop':
-                        # Giữ NaN cho các giá trị đầu tiên
-                        self.logger.info(f"Cột {col}: Giữ NaN ở {len(leading_nans)} giá trị đầu")
-                        
-                    elif leading_nan_method == 'backfill':
-                        # Điền giá trị đầu tiên cho các giá trị NaN đầu
-                        first_valid_value = result_df.loc[first_valid_idx, col]
-                        result_df.loc[leading_nans, col] = first_valid_value
-                        self.logger.info(f"Cột {col}: Điền giá trị đầu {first_valid_value} cho {len(leading_nans)} giá trị NaN đầu")
-                        
-                    elif leading_nan_method == 'custom_value':
-                        # Điền giá trị tùy chỉnh (ví dụ: 0) cho các giá trị NaN đầu
-                        result_df.loc[leading_nans, col] = 0
-                        self.logger.info(f"Cột {col}: Điền giá trị 0 cho {len(leading_nans)} giá trị NaN đầu")
+            result_df = self.handle_leading_nan(
+                result_df, 
+                columns=columns, 
+                method=leading_nan_method, 
+                min_periods=5  # Số giá trị tối thiểu để tính giá trị thay thế
+            )
+            self.logger.info(f"Đã xử lý các giá trị NaN ở đầu dữ liệu bằng phương pháp {leading_nan_method}")
         
         # Tự động phát hiện chuỗi thời gian nếu cần
         is_time_series = False
@@ -373,15 +362,147 @@ class MissingDataHandler:
             is_time_series = True
             self.logger.info(f"Sử dụng cột timestamp: {timestamp_col}")
         
-        # Áp dụng phương pháp phù hợp dựa trên loại dữ liệu
+        # Xử lý dữ liệu ban đầu
         if is_time_series and timestamp_col in result_df.columns:
             # Xử lý chuỗi thời gian
             self.logger.info("Áp dụng phương pháp xử lý chuỗi thời gian")
-            return self._handle_time_series_missing(result_df, columns, timestamp_col)
+            result_df = self._handle_time_series_missing(result_df, columns, timestamp_col)
         else:
             # Xử lý dữ liệu tabular
             self.logger.info("Áp dụng phương pháp xử lý dữ liệu bảng")
-            return self._handle_tabular_missing(result_df, columns)
+            result_df = self._handle_tabular_missing(result_df, columns)
+        
+        # THÊM ĐOẠN CODE MỚI: Xử lý triệt để các giá trị NaN nếu cần
+        if aggressive_cleaning:
+            # Kiểm tra số lượng NaN sau khi xử lý ban đầu
+            nan_count = result_df[columns].isna().sum().sum()
+            
+            if nan_count > 0:
+                self.logger.info(f"Còn {nan_count} giá trị NaN sau khi xử lý ban đầu, tiến hành xử lý triệt để")
+                
+                # Xác định các cột số để xử lý
+                numeric_cols = result_df[columns].select_dtypes(include=[np.number]).columns.tolist()
+                
+                # Sử dụng các phương pháp bổ sung nếu được cung cấp, hoặc sử dụng danh sách mặc định
+                if extra_methods is None:
+                    extra_methods = ['interpolate', 'ffill', 'bfill', 'mean']
+                
+                # Áp dụng từng phương pháp cho đến khi không còn NaN
+                for method in extra_methods:
+                    if method == 'interpolate':
+                        # Nội suy tuyến tính
+                        result_df[numeric_cols] = result_df[numeric_cols].interpolate(method='linear', limit_direction='both')
+                    elif method == 'ffill':
+                        # Forward fill
+                        result_df[numeric_cols] = result_df[numeric_cols].fillna(method='ffill')
+                    elif method == 'bfill':
+                        # Backward fill
+                        result_df[numeric_cols] = result_df[numeric_cols].fillna(method='bfill')
+                    elif method == 'mean':
+                        # Điền bằng giá trị trung bình
+                        for col in numeric_cols:
+                            if result_df[col].isna().any():
+                                mean_val = result_df[col].mean()
+                                if not np.isnan(mean_val):
+                                    result_df[col] = result_df[col].fillna(mean_val)
+                    
+                    # Kiểm tra nếu đã xử lý hết NaN
+                    nan_count = result_df[numeric_cols].isna().sum().sum()
+                    if nan_count == 0:
+                        self.logger.info(f"Đã xử lý hết các giá trị NaN sau khi áp dụng phương pháp {method}")
+                        break
+                
+                # Xử lý các cột không phải số
+                non_numeric_cols = [col for col in columns if col not in numeric_cols]
+                if non_numeric_cols:
+                    for col in non_numeric_cols:
+                        if result_df[col].isna().any():
+                            result_df[col] = result_df[col].fillna(method='ffill').fillna(method='bfill')
+                            
+                            # Nếu vẫn còn NaN, điền bằng giá trị phổ biến nhất
+                            if result_df[col].isna().any() and len(result_df[col].dropna()) > 0:
+                                mode_val = result_df[col].mode()[0]
+                                result_df[col] = result_df[col].fillna(mode_val)
+        
+        # THÊM ĐOẠN CODE MỚI: Đảm bảo không còn giá trị NaN nào, thay thế các giá trị còn thiếu bằng các giá trị hợp lý
+        if ensure_no_nan:
+            # Kiểm tra còn giá trị NaN không
+            remaining_nans = result_df[columns].isna().sum()
+            total_nans = remaining_nans.sum()
+            
+            if total_nans > 0:
+                self.logger.warning(f"Vẫn còn {total_nans} giá trị NaN sau khi xử lý, áp dụng biện pháp cuối cùng")
+                
+                # Xử lý theo từng cột
+                for col, nan_count in remaining_nans.items():
+                    if nan_count > 0:
+                        # Xác định giá trị hợp lý cho từng loại cột
+                        if col in ['open', 'high', 'low', 'close']:
+                            # Điền giá trị cuối cùng đã biết cho các cột giá
+                            if not result_df[col].isna().all():
+                                last_known = result_df[col].dropna().iloc[-1]
+                                result_df[col] = result_df[col].fillna(last_known)
+                            else:
+                                # Nếu cả cột đều là NaN, điền 0 (trường hợp hiếm)
+                                result_df[col] = result_df[col].fillna(0)
+                        elif col == 'volume':
+                            # Điền 0 cho khối lượng
+                            result_df[col] = result_df[col].fillna(0)
+                        elif 'rsi' in col.lower():
+                            # RSI giá trị nằm trong khoảng 0-100, điền 50 (trung lập)
+                            result_df[col] = result_df[col].fillna(50)
+                        elif 'macd' in col.lower():
+                            # MACD điền 0 (không có xu hướng)
+                            result_df[col] = result_df[col].fillna(0)
+                        elif any(x in col.lower() for x in ['bb_', 'bollinger']):
+                            # Bollinger Band điền giá trung bình
+                            if 'middle' in col.lower():
+                                # Middle band là SMA, điền trung bình toàn cục
+                                result_df[col] = result_df[col].fillna(result_df[col].mean() if not np.isnan(result_df[col].mean()) else 0)
+                            elif 'upper' in col.lower():
+                                # Upper band điền giá trị lớn hơn middle
+                                if 'bb_middle_20' in result_df.columns:
+                                    middle_val = result_df['bb_middle_20'].mean()
+                                    result_df[col] = result_df[col].fillna(middle_val * 1.05 if not np.isnan(middle_val) else 0)
+                                else:
+                                    result_df[col] = result_df[col].fillna(0)
+                            elif 'lower' in col.lower():
+                                # Lower band điền giá trị nhỏ hơn middle
+                                if 'bb_middle_20' in result_df.columns:
+                                    middle_val = result_df['bb_middle_20'].mean()
+                                    result_df[col] = result_df[col].fillna(middle_val * 0.95 if not np.isnan(middle_val) else 0)
+                                else:
+                                    result_df[col] = result_df[col].fillna(0)
+                            else:
+                                # Các thành phần Bollinger khác điền 0
+                                result_df[col] = result_df[col].fillna(0)
+                        else:
+                            # Các cột khác điền trung bình nếu là số, phổ biến nhất nếu là categorical
+                            if pd.api.types.is_numeric_dtype(result_df[col]):
+                                mean_val = result_df[col].mean()
+                                if not np.isnan(mean_val):
+                                    result_df[col] = result_df[col].fillna(mean_val)
+                                else:
+                                    result_df[col] = result_df[col].fillna(0)
+                            else:
+                                if len(result_df[col].dropna()) > 0:
+                                    mode_val = result_df[col].mode()[0]
+                                    result_df[col] = result_df[col].fillna(mode_val)
+                                else:
+                                    # Nếu không có giá trị hợp lệ, điền một giá trị đặc biệt
+                                    if pd.api.types.is_string_dtype(result_df[col]):
+                                        result_df[col] = result_df[col].fillna("unknown")
+                                    else:
+                                        result_df[col] = result_df[col].fillna(0)
+                
+                # Kiểm tra lại sau khi xử lý
+                final_nans = result_df[columns].isna().sum().sum()
+                if final_nans > 0:
+                    self.logger.error(f"Vẫn còn {final_nans} giá trị NaN sau khi áp dụng biện pháp cuối cùng!")
+                else:
+                    self.logger.info("Đã xử lý triệt để tất cả các giá trị NaN")
+        
+        return result_df
         
     # Thêm vào sau phương thức handle_missing_values hiện có
     def handle_leading_nan(

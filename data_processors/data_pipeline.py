@@ -887,12 +887,16 @@ class DataPipeline:
         clean_trades: bool = False,
         clean_sentiment: bool = True,
         configs: Optional[Dict[str, Dict[str, Any]]] = None,
-        # Thêm tham số mới
+        # Thay đổi mặc định của các tham số xử lý NaN
         handle_leading_nan: bool = True,
         leading_nan_method: str = 'backfill',
         min_periods: int = 5,
         handle_extreme_volume: bool = True,
-        preserve_timestamp: bool = True  # Thêm tham số này
+        preserve_timestamp: bool = True,
+        # Thêm tham số mới
+        aggressive_nan_handling: bool = True,  # Xử lý triệt để giá trị NaN
+        fill_all_nan: bool = True,  # Đảm bảo không còn NaN nào
+        fill_method: str = 'ffill+bfill'  # Phương pháp kết hợp forward fill và backward fill
     ) -> Dict[str, pd.DataFrame]:
         """
         Làm sạch dữ liệu.
@@ -908,6 +912,10 @@ class DataPipeline:
             leading_nan_method: Phương pháp xử lý NaN ở đầu ('backfill', 'zero', 'mean', 'median')
             min_periods: Số lượng giá trị tối thiểu để tính giá trị thay thế
             handle_extreme_volume: Xử lý giá trị cực đại của khối lượng
+            preserve_timestamp: Giữ nguyên timestamp
+            aggressive_nan_handling: Xử lý triệt để giá trị NaN
+            fill_all_nan: Đảm bảo không còn NaN nào
+            fill_method: Phương pháp điền các giá trị NaN
             
         Returns:
             Dict với key là symbol và value là DataFrame đã làm sạch
@@ -997,6 +1005,58 @@ class DataPipeline:
                         min_periods=min_periods
                     )
                     self.logger.info(f"Đã xử lý giá trị NaN ở đầu cho {symbol} bằng phương pháp {leading_nan_method}")
+
+                # THÊM ĐOẠN NÀY: Xử lý triệt để các giá trị NaN còn lại nếu được yêu cầu
+                if aggressive_nan_handling:
+                    # Kiểm tra số lượng NaN trước khi xử lý
+                    nan_count_before = df.isna().sum().sum()
+                    
+                    if nan_count_before > 0:
+                        self.logger.info(f"Còn {nan_count_before} giá trị NaN sau khi xử lý ban đầu cho {symbol}, tiến hành xử lý triệt để")
+                        
+                        # Xác định các cột số cần xử lý
+                        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+                        
+                        if fill_method == 'ffill+bfill':
+                            # Kết hợp forward fill và backward fill
+                            df[numeric_cols] = df[numeric_cols].fillna(method='ffill').fillna(method='bfill')
+                        elif fill_method == 'interpolate':
+                            # Sử dụng nội suy tuyến tính và sau đó ffill/bfill cho các giá trị còn thiếu
+                            df[numeric_cols] = df[numeric_cols].interpolate(method='linear', limit_direction='both').fillna(method='ffill').fillna(method='bfill')
+                        elif fill_method == 'mean':
+                            # Sử dụng giá trị trung bình của cột
+                            for col in numeric_cols:
+                                df[col] = df[col].fillna(df[col].mean())
+                        
+                        # Nếu vẫn còn NaN (ít xảy ra) nhưng cần đảm bảo không còn NaN nào
+                        if fill_all_nan and df[numeric_cols].isna().sum().sum() > 0:
+                            # Sử dụng zero hoặc một giá trị hợp lý cho cột tương ứng
+                            for col in numeric_cols:
+                                if df[col].isna().sum() > 0:
+                                    # Với giá, sử dụng giá đóng cửa gần nhất
+                                    if col in ['open', 'high', 'low', 'close']:
+                                        if 'close' in df.columns and not df['close'].isna().all():
+                                            last_valid = df['close'].dropna().iloc[-1]
+                                            df[col] = df[col].fillna(last_valid)
+                                        else:
+                                            # Nếu không có giá đóng cửa, sử dụng trung bình
+                                            col_mean = df[col].mean()
+                                            if np.isnan(col_mean):  # Nếu trung bình là NaN
+                                                col_mean = 0.0
+                                            df[col] = df[col].fillna(col_mean)
+                                    # Với volume, sử dụng 0
+                                    elif col == 'volume':
+                                        df[col] = df[col].fillna(0)
+                                    # Với các cột khác, sử dụng trung bình
+                                    else:
+                                        col_mean = df[col].mean()
+                                        if np.isnan(col_mean):  # Nếu trung bình là NaN
+                                            col_mean = 0.0
+                                        df[col] = df[col].fillna(col_mean)
+                        
+                        # Kiểm tra lại số lượng NaN sau khi xử lý
+                        nan_count_after = df.isna().sum().sum()
+                        self.logger.info(f"Đã xử lý {nan_count_before - nan_count_after} giá trị NaN cho {symbol}, còn lại {nan_count_after} giá trị NaN")                
 
                 # Xác định loại dữ liệu và làm sạch
                 if all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
@@ -1282,6 +1342,77 @@ class DataPipeline:
         
         return results
     
+    def find_sentiment_files(self, 
+                            sentiment_dir: Path, 
+                            asset: str,
+                            include_subdirs: bool = True) -> List[Path]:
+        """
+        Tìm kiếm file tâm lý trong thư mục và các thư mục con.
+        
+        Args:
+            sentiment_dir: Thư mục chứa dữ liệu tâm lý
+            asset: Mã tài sản (BTC, ETH, ...)
+            include_subdirs: Có tìm kiếm trong thư mục con hay không
+            
+        Returns:
+            Danh sách đường dẫn tới các file tâm lý, sắp xếp theo thời gian gần nhất
+        """
+        self.logger.info(f"Tìm kiếm dữ liệu tâm lý cho {asset} trong {sentiment_dir}")
+        
+        if not sentiment_dir.exists():
+            self.logger.warning(f"Thư mục {sentiment_dir} không tồn tại")
+            sentiment_dir.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"Đã tạo thư mục {sentiment_dir}")
+            return []
+        
+        asset_lower = asset.lower()
+        
+        # Pattern tìm kiếm các file tâm lý
+        patterns = [
+            f"*{asset_lower}*sentiment*.parquet",  # BTC_sentiment.parquet
+            f"*{asset_lower}*sentiment*.csv",      # BTC_sentiment.csv
+            f"*sentiment*{asset_lower}*.parquet",  # sentiment_BTC.parquet
+            f"*sentiment*{asset_lower}*.csv",      # sentiment_BTC.csv
+            f"*{asset_lower}*fear*greed*.parquet", # BTC_fear_greed.parquet
+            f"*{asset_lower}*fear*greed*.csv",     # BTC_fear_greed.csv
+            "*fear*greed*.parquet",                # fear_greed_index.parquet (general)
+            "*fear*greed*.csv"                     # fear_greed_index.csv (general)
+        ]
+        
+        # Tìm kiếm trong thư mục hiện tại
+        files = []
+        for pattern in patterns:
+            files.extend(list(sentiment_dir.glob(pattern)))
+            
+            # Nếu đã tìm thấy file cho asset cụ thể, không cần tìm file chung
+            if files and asset_lower in patterns[0]:
+                break
+        
+        # Nếu không tìm thấy và include_subdirs=True, tìm trong thư mục con
+        if not files and include_subdirs:
+            subdirs = [d for d in sentiment_dir.iterdir() if d.is_dir()]
+            for subdir in subdirs:
+                for pattern in patterns:
+                    subdir_files = list(subdir.glob(pattern))
+                    if subdir_files:
+                        files.extend(subdir_files)
+                        # Nếu đã tìm thấy file cho asset cụ thể, không cần tìm file chung
+                        if asset_lower in patterns[0]:
+                            break
+        
+        # Sắp xếp theo thời gian sửa đổi mới nhất
+        if files:
+            files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            self.logger.info(f"Tìm thấy {len(files)} file tâm lý cho {asset}, sử dụng file mới nhất: {files[0]}")
+        else:
+            self.logger.warning(f"Không tìm thấy file tâm lý nào cho {asset} trong {sentiment_dir}")
+            self.logger.warning(f"Bạn có thể tạo file tâm lý bằng lệnh:")
+            self.logger.warning(f"python main.py collect sentiment --asset {asset} --output-dir data/sentiment")
+            self.logger.warning(f"hoặc:")
+            self.logger.warning(f"python main.py collect fear_greed --output-dir data/sentiment")
+        
+        return files
+
     def merge_sentiment_data(
         self,
         market_data: Dict[str, pd.DataFrame],
@@ -1364,33 +1495,74 @@ class DataPipeline:
         # Tìm kiếm file dữ liệu tâm lý riêng cho từng symbol
         if sentiment_dir is not None:
             sentiment_dir_path = Path(sentiment_dir)
-            if sentiment_dir_path.exists() and sentiment_dir_path.is_dir():
-                self.logger.info(f"Tìm kiếm dữ liệu tâm lý từ thư mục: {sentiment_dir_path}")
+            
+            # Đảm bảo thư mục tồn tại
+            if not sentiment_dir_path.exists():
+                sentiment_dir_path.mkdir(parents=True, exist_ok=True)
+                self.logger.info(f"Đã tạo thư mục dữ liệu tâm lý: {sentiment_dir_path}")
+            
+            self.logger.info(f"Tìm kiếm dữ liệu tâm lý từ thư mục: {sentiment_dir_path}")
+            
+            # Lấy danh sách symbols
+            for symbol in market_data.keys():
+                # Chuẩn bị tên file dựa trên symbol
+                asset = symbol.split('/')[0] if '/' in symbol else symbol
                 
-                # Lấy danh sách symbols
-                for symbol in market_data.keys():
-                    # Chuẩn bị tên file dựa trên symbol
-                    asset = symbol.split('/')[0] if '/' in symbol else symbol
+                # Sử dụng hàm find_sentiment_files để tìm kiếm file
+                sentiment_files = self.find_sentiment_files(sentiment_dir_path, asset)
+                
+                if sentiment_files:
+                    # Sử dụng file mới nhất
+                    file_path = sentiment_files[0]
+                    self.logger.info(f"Sử dụng file tâm lý: {file_path}")
                     
-                    # Tìm kiếm file với tên phù hợp (csv hoặc parquet)
-                    sentiment_files = list(sentiment_dir_path.glob(f"*{asset.lower()}*sentiment*.csv")) + \
-                                    list(sentiment_dir_path.glob(f"*{asset.lower()}*sentiment*.parquet"))
+                    try:
+                        # Đọc dữ liệu tâm lý
+                        if file_path.suffix.lower() == '.csv':
+                            df = pd.read_csv(file_path)
+                            # Xử lý timestamp nếu có
+                            if 'timestamp' in df.columns:
+                                df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+                        elif file_path.suffix.lower() == '.parquet':
+                            df = pd.read_parquet(file_path)
+                        
+                        # Kiểm tra dữ liệu đọc được
+                        if df is not None and not df.empty:
+                            # Làm sạch dữ liệu tâm lý
+                            sentiment_by_symbol[symbol] = self.clean_sentiment_data(df)
+                            self.logger.info(f"Đã đọc {len(df)} dòng dữ liệu tâm lý cho {symbol}")
+                        else:
+                            self.logger.warning(f"File tâm lý {file_path} rỗng hoặc không đọc được")
+                    except Exception as e:
+                        self.logger.error(f"Lỗi khi đọc file tâm lý {file_path}: {str(e)}")
+                        traceback.print_exc()
+                else:
+                    # Nếu không tìm thấy file riêng, thử tìm file tâm lý chung
+                    self.logger.info(f"Không tìm thấy file tâm lý riêng cho {symbol}, tìm file tâm lý chung...")
+                    general_files = self.find_sentiment_files(sentiment_dir_path, "", include_subdirs=True)
                     
-                    if sentiment_files:
-                        # Sử dụng file đầu tiên tìm thấy
-                        file_path = sentiment_files[0]
-                        self.logger.info(f"Tìm thấy file dữ liệu tâm lý cho {symbol}: {file_path}")
+                    if general_files:
+                        file_path = general_files[0]
+                        self.logger.info(f"Sử dụng file tâm lý chung: {file_path}")
                         
                         try:
+                            # Đọc dữ liệu tâm lý chung
                             if file_path.suffix.lower() == '.csv':
-                                df = pd.read_csv(file_path, parse_dates=['timestamp'])
+                                df = pd.read_csv(file_path)
+                                if 'timestamp' in df.columns:
+                                    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
                             elif file_path.suffix.lower() == '.parquet':
                                 df = pd.read_parquet(file_path)
                             
-                            # Làm sạch dữ liệu tâm lý
+                            # Thêm cột asset nếu chưa có
+                            if 'asset' not in df.columns:
+                                df['asset'] = 'GENERAL'
+                            
+                            # Làm sạch dữ liệu tâm lý chung
                             sentiment_by_symbol[symbol] = self.clean_sentiment_data(df)
+                            self.logger.info(f"Đã đọc {len(df)} dòng dữ liệu tâm lý chung cho {symbol}")
                         except Exception as e:
-                            self.logger.error(f"Lỗi khi tải file dữ liệu tâm lý cho {symbol}: {str(e)}")
+                            self.logger.error(f"Lỗi khi đọc file tâm lý chung {file_path}: {str(e)}")
         
         # Xử lý từng symbol
         for symbol, df in market_data.items():
@@ -2176,6 +2348,18 @@ class DataPipeline:
         Returns:
             Dict với key là symbol và value là DataFrame kết quả
         """
+        # Đảm bảo thư mục sentiment tồn tại
+        sentiment_dir_path = self.data_dir / "sentiment"
+        if not sentiment_dir_path.exists():
+            sentiment_dir_path.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"Đã tạo thư mục dữ liệu tâm lý: {sentiment_dir_path}")
+        else:
+            sentiment_files = list(sentiment_dir_path.glob("*.csv")) + list(sentiment_dir_path.glob("*.parquet"))
+            if not sentiment_files:
+                self.logger.warning("Thư mục sentiment không có file dữ liệu nào.")
+                self.logger.warning("Bạn có thể tạo dữ liệu tâm lý bằng lệnh:")
+                self.logger.warning("python main.py collect fear_greed --output-dir data/sentiment")        
+        
         # Lấy pipeline nếu đã đăng ký
         pipeline_steps = []
         if pipeline_name and pipeline_name in self.registered_pipelines:

@@ -346,6 +346,7 @@ python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT
 # Làm sạch dữ liệu thị trường
 python main.py process clean --data-type ohlcv --input-dir data/collected --symbols BTC/USDT --output-dir data/processed
 
+
 # Làm sạch dữ liệu tâm lý cho tất cả file
 python main.py process clean --data-type all --input-dir data/sentiment --output-dir data/cleaned/sentiment
 # Làm sạch dữ liệu tâm lý cho symbol cụ thể
