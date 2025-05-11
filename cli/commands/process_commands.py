@@ -446,7 +446,10 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
                 clean_ohlcv=True,
                 clean_orderbook=False,
                 clean_trades=False,
-                preserve_timestamp=preserve_timestamp
+                preserve_timestamp=preserve_timestamp,
+                aggressive_nan_handling=True,
+                fill_all_nan=True,  
+                fill_method='interpolate' 
             )
             
             if not processed_data:
@@ -851,10 +854,10 @@ def handle_process_command(args, system):
                 if data_type == 'ohlcv' or data_type == 'all':
                     cleaned_data = pipeline.clean_data(
                         loaded_data,
-                        clean_ohlcv=True,
-                        clean_orderbook=(data_type == 'all'),
-                        clean_trades=(data_type == 'all'),
-                        preserve_timestamp=preserve_timestamp
+                        clean_ohlcv=(data_type == 'ohlcv' or data_type == 'all'),
+                        clean_orderbook=(data_type == 'orderbook' or data_type == 'all'),
+                        clean_trades=(data_type == 'trades' or data_type == 'all'),
+                        preserve_timestamp=preserve_timestamp,
                     )
                 elif data_type == 'trades':
                     cleaned_data = pipeline.clean_data(
@@ -1108,10 +1111,15 @@ def handle_process_command(args, system):
                         
                         if collected_data:
                             # Làm sạch và xử lý dữ liệu thu thập được
-                            processed_data = pipeline.clean_data(
-                                collected_data,
-                                clean_ohlcv=True,
-                                preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
+                            cleaned_data = pipeline.clean_data(
+                                loaded_data,
+                                clean_ohlcv=(data_type == 'ohlcv' or data_type == 'all'),
+                                clean_orderbook=(data_type == 'all'),
+                                clean_trades=(data_type == 'all'),
+                                preserve_timestamp=preserve_timestamp,
+                                aggressive_nan_handling=args.aggressive_nan if hasattr(args, 'aggressive_nan') else True,
+                                fill_all_nan=args.fill_all_nan if hasattr(args, 'fill_all_nan') else True,
+                                fill_method=args.fill_method if hasattr(args, 'fill_method') else 'interpolate'
                             )
                             
                             # Tạo đặc trưng

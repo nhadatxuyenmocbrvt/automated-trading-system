@@ -996,7 +996,6 @@ class DataPipeline:
                         df = self._convert_timestamp(df)
                     timestamp_col = df['timestamp'].copy()
 
-                # Trước tiên xử lý giá trị NaN ở đầu nếu được yêu cầu
                 if handle_leading_nan:
                     df = self.missing_data_handler.handle_leading_nan(
                         df,
@@ -1006,15 +1005,12 @@ class DataPipeline:
                     )
                     self.logger.info(f"Đã xử lý giá trị NaN ở đầu cho {symbol} bằng phương pháp {leading_nan_method}")
 
-                # THÊM ĐOẠN NÀY: Xử lý triệt để các giá trị NaN còn lại nếu được yêu cầu
                 if aggressive_nan_handling:
-                    # Kiểm tra số lượng NaN trước khi xử lý
                     nan_count_before = df.isna().sum().sum()
                     
                     if nan_count_before > 0:
                         self.logger.info(f"Còn {nan_count_before} giá trị NaN sau khi xử lý ban đầu cho {symbol}, tiến hành xử lý triệt để")
                         
-                        # Xác định các cột số cần xử lý
                         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
                         
                         if fill_method == 'ffill+bfill':
@@ -1056,7 +1052,7 @@ class DataPipeline:
                         
                         # Kiểm tra lại số lượng NaN sau khi xử lý
                         nan_count_after = df.isna().sum().sum()
-                        self.logger.info(f"Đã xử lý {nan_count_before - nan_count_after} giá trị NaN cho {symbol}, còn lại {nan_count_after} giá trị NaN")                
+                        self.logger.info(f"Đã xử lý {nan_count_before - nan_count_after} giá trị NaN cho {symbol}, còn lại {nan_count_after} giá trị NaN")
 
                 # Xác định loại dữ liệu và làm sạch
                 if all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
