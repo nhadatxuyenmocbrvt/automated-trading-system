@@ -17,6 +17,9 @@ import joblib
 import concurrent.futures
 from functools import partial
 import asyncio
+import random
+import traceback
+import inspect
 
 # Import các module từ hệ thống
 from config.system_config import get_system_config, DATA_DIR, MODEL_DIR
@@ -261,8 +264,80 @@ class DataPipeline:
             
         except Exception as e:
             self.logger.error(f"Lỗi khi tải cấu hình: {str(e)}")
+
+    def _convert_timestamp(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Chuyển đổi cột timestamp sang định dạng datetime64[ns] chuẩn.
+        
+        Args:
+            df: DataFrame chứa cột timestamp cần chuyển đổi
+            
+        Returns:
+            DataFrame với cột timestamp đã chuyển đổi
+        """
+        if 'timestamp' not in df.columns:
+            return df
+            
+        df_copy = df.copy()
+        
+        # Nếu timestamp đã ở dạng datetime64, không cần xử lý thêm
+        if pd.api.types.is_datetime64_any_dtype(df_copy['timestamp']):
+            return df_copy
+            
+        # Lưu lại loại dữ liệu ban đầu để debug
+        original_type = str(df_copy['timestamp'].dtype)
+        original_sample = str(df_copy['timestamp'].iloc[0]) if not df_copy.empty else "N/A"
+        
+        try:
+            # Kiểm tra xem timestamp có phải số không
+            if pd.api.types.is_numeric_dtype(df_copy['timestamp']):
+                # Thử với đơn vị khác nhau
+                timestamp_values = df_copy['timestamp'].astype(float).values
+                
+                # Kiểm tra phạm vi để xác định đơn vị
+                max_ts = np.max(timestamp_values)
+                
+                # Xác định đơn vị thời gian dựa trên giá trị tối đa
+                if max_ts > 1e18:  # nanoseconds
+                    df_copy['timestamp'] = pd.to_datetime(df_copy['timestamp'], unit='ns')
+                elif max_ts > 1e15:  # microseconds
+                    df_copy['timestamp'] = pd.to_datetime(df_copy['timestamp'], unit='us')
+                elif max_ts > 1e12:  # milliseconds
+                    df_copy['timestamp'] = pd.to_datetime(df_copy['timestamp'], unit='ms')
+                else:  # seconds (giá trị thông thường là ~1.6e9 cho năm 2020)
+                    df_copy['timestamp'] = pd.to_datetime(df_copy['timestamp'], unit='s')
+                
+                # Kiểm tra kết quả chuyển đổi
+                first_year = df_copy['timestamp'].dt.year.iloc[0] if not df_copy.empty else None
+                
+                # Nếu năm không hợp lệ, thử lại với đơn vị khác
+                if first_year is not None and (first_year < 1900 or first_year > 2100):
+                    if max_ts > 1e12:  # Đổi từ ms sang s
+                        df_copy['timestamp'] = pd.to_datetime(df_copy['timestamp'].astype(float) / 1000, unit='s')
+                    else:  # Đổi từ s sang ms
+                        df_copy['timestamp'] = pd.to_datetime(df_copy['timestamp'].astype(float) * 1000, unit='ms')
+            else:
+                # Nếu là chuỗi, thử parse trực tiếp
+                df_copy['timestamp'] = pd.to_datetime(df_copy['timestamp'], errors='coerce')
+                
+                # Nếu parse thất bại và có chứa dấu phẩy nghìn
+                if df_copy['timestamp'].isna().all() and isinstance(df_copy['timestamp'].iloc[0], str):
+                    # Loại bỏ dấu phẩy nghìn nếu là số được format
+                    df_copy['timestamp'] = pd.to_datetime(df_copy['timestamp'].str.replace(',', ''), errors='coerce')
+            
+            # Kiểm tra lỗi chuyển đổi
+            na_count = df_copy['timestamp'].isna().sum()
+            if na_count > 0:
+                self.logger.warning(f"Có {na_count} giá trị timestamp không thể chuyển đổi. Type ban đầu: {original_type}, Mẫu: {original_sample}")
+            
+            return df_copy
+            
+        except Exception as e:
+            self.logger.error(f"Lỗi khi chuyển đổi timestamp: {str(e)}")
+            # Trả về DataFrame gốc nếu có lỗi
+            return df
     
-    async def collect_data(
+    async def collect_data_improved(
         self,
         exchange_id: str = None,
         symbols: List[str] = None,
@@ -273,10 +348,11 @@ class DataPipeline:
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
         is_futures: bool = False,
-        preserve_timestamp: bool = True  # Thêm tham số này
+        max_retries: int = 3,
+        retry_delay: int = 2
     ) -> Dict[str, pd.DataFrame]:
         """
-        Thu thập dữ liệu từ các nguồn.
+        Thu thập dữ liệu từ các nguồn với xử lý lỗi và kiểm soát tốc độ cải tiến.
         
         Args:
             exchange_id: ID sàn giao dịch
@@ -287,6 +363,9 @@ class DataPipeline:
             include_sentiment: Bao gồm dữ liệu tâm lý
             api_key: API key (nếu cần)
             api_secret: API secret (nếu cần)
+            is_futures: Là thị trường hợp đồng tương lai hay không
+            max_retries: Số lần thử lại tối đa khi gặp lỗi
+            retry_delay: Thời gian chờ ban đầu giữa các lần thử lại (giây)
             
         Returns:
             Dict với key là symbol và value là DataFrame
@@ -323,87 +402,258 @@ class DataPipeline:
         
         self.logger.info(f"Thu thập dữ liệu từ {exchange_id} cho {len(symbols)} cặp giao dịch, khung thời gian {timeframe}")
         
+        # Tối ưu số lượng workers dựa trên số lượng symbols
+        optimal_workers = min(self.max_workers, len(symbols))
+        
+        # Tạo semaphore để kiểm soát số lượng requests đồng thời
+        semaphore = asyncio.Semaphore(optimal_workers)
+        
+        async def fetch_with_retry(symbol):
+            """Hàm thu thập dữ liệu với cơ chế retry thông minh"""
+            async with semaphore:  # Đảm bảo không quá nhiều requests đồng thời
+                # Thêm delay ngẫu nhiên để tránh đồng thời quá nhiều request
+                await asyncio.sleep(random.uniform(0.1, 0.5))
+                
+                attempt = 0
+                delay = retry_delay
+                
+                while attempt < max_retries:
+                    try:
+                        if self.collectors.get("historical") is None:
+                            # Khởi tạo collector nếu chưa có
+                            self.collectors["historical"] = await create_data_collector(
+                                exchange_id=exchange_id,
+                                api_key=api_key,
+                                api_secret=api_secret,
+                                testnet=False,
+                                max_workers=self.max_workers,
+                                is_futures=is_futures
+                            )
+                        
+                        historical_collector = self.collectors["historical"]
+                        
+                        # Thu thập OHLCV
+                        fetch_method = historical_collector.exchange_connector.fetch_ohlcv
+                        if inspect.iscoroutinefunction(fetch_method):
+                            # Nếu là coroutine function, sử dụng await
+                            ohlcv_data = await fetch_method(
+                                symbol=symbol,
+                                timeframe=timeframe,
+                                since=int(start_time.timestamp() * 1000) if isinstance(start_time, datetime) else start_time,
+                                limit=None
+                            )
+                        else:
+                            # Nếu không phải coroutine function, gọi trực tiếp
+                            ohlcv_data = fetch_method(
+                                symbol=symbol,
+                                timeframe=timeframe,
+                                since=int(start_time.timestamp() * 1000) if isinstance(start_time, datetime) else start_time,
+                                limit=None
+                            )
+                        
+                        if not ohlcv_data:
+                            self.logger.warning(f"Không có dữ liệu OHLCV cho {symbol}")
+                            return symbol, None
+                        
+                        # Chuyển thành DataFrame
+                        df = pd.DataFrame(
+                            ohlcv_data,
+                            columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                        )
+                        
+                        # Chuyển timestamp sang datetime
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                        
+                        # Đảm bảo tất cả các cột số là float
+                        for col in ['open', 'high', 'low', 'close', 'volume']:
+                            df[col] = df[col].astype(float)
+                        
+                        # Thêm thông tin symbol
+                        df['symbol'] = symbol
+                        
+                        # Kiểm tra dữ liệu và log
+                        self.logger.info(f"Đã thu thập {len(df)} dòng dữ liệu OHLCV cho {symbol}, "
+                                        f"từ {df['timestamp'].min()} đến {df['timestamp'].max()}")
+                        
+                        return symbol, df
+                    
+                    except Exception as e:
+                        attempt += 1
+                        error_msg = str(e)
+                        self.logger.warning(f"Lỗi khi thu thập dữ liệu cho {symbol} (lần {attempt}/{max_retries}): {error_msg}")
+                        
+                        if attempt < max_retries:
+                            # Thực hiện retry với backoff
+                            await asyncio.sleep(delay)
+                            delay *= 2  # Tăng gấp đôi thời gian chờ
+                        else:
+                            self.logger.error(f"Đã thử {max_retries} lần nhưng không thể thu thập dữ liệu cho {symbol}")
+                            return symbol, None
+        
+        # Thu thập dữ liệu thị trường đồng thời
+        tasks = [fetch_with_retry(symbol) for symbol in symbols]
         results = {}
         
-        try:
-            # Khởi tạo collector cho dữ liệu lịch sử nếu chưa có
-            if self.collectors.get("historical") is None:
-                historical_collector = await create_data_collector(
-                    exchange_id=exchange_id,
-                    api_key=api_key,
-                    api_secret=api_secret,
-                    testnet=False,
-                    max_workers=self.max_workers,
-                    is_futures=is_futures
-                )
-                self.collectors["historical"] = historical_collector
-            else:
-                historical_collector = self.collectors["historical"]
+        for task in asyncio.as_completed(tasks):
+            symbol, df = await task
+            if df is not None and not df.empty:
+                results[symbol] = df
+        
+        # Thu thập dữ liệu tâm lý nếu cần
+        if include_sentiment and self.collectors.get("sentiment") is not None:
+            sentiment_results = await self._collect_sentiment_data(symbols, start_time, end_time)
             
-            # Thu thập dữ liệu OHLCV
-            market_data = await historical_collector.collect_all_symbols_ohlcv(
-                symbols=symbols,
-                timeframe=timeframe,
-                start_time=start_time,
-                end_time=end_time,
-                concurrency=min(len(symbols), self.max_workers)
+            if sentiment_results:
+                # Thêm dữ liệu tâm lý vào kết quả
+                results.update(sentiment_results)
+        
+        # Cập nhật trạng thái dữ liệu
+        self.data_state = {
+            "exchange": exchange_id,
+            "symbols": symbols,
+            "timeframe": timeframe,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "last_updated": datetime.now().isoformat(),
+            "record_counts": {symbol: len(df) for symbol, df in results.items()}
+        }
+        
+        return results
+    
+    async def _collect_sentiment_data(
+        self,
+        symbols: List[str],
+        start_time: datetime,
+        end_time: datetime
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Thu thập dữ liệu tâm lý cho các symbols.
+        
+        Args:
+            symbols: Danh sách cặp giao dịch
+            start_time: Thời gian bắt đầu
+            end_time: Thời gian kết thúc
+            
+        Returns:
+            Dict với key là symbol_sentiment và value là DataFrame dữ liệu tâm lý
+        """
+        sentiment_results = {}
+        
+        try:
+            if not symbols:
+                return {}
+            
+            # Lấy asset từ symbol đầu tiên (VD: "BTC/USDT" -> "BTC")
+            asset = symbols[0].split('/')[0] if '/' in symbols[0] else symbols[0]
+            
+            self.logger.info(f"Thu thập dữ liệu tâm lý cho asset {asset}")
+            
+            # SỬA CHỮA: Thay vì thu thập từ Fear & Greed Index, thu thập từ Binance
+            from cli.commands.collect_commands import CollectCommands
+            
+            # Khởi tạo CollectCommands
+            cmd = CollectCommands()
+            
+            # Thu thập dữ liệu tâm lý từ Binance
+            self.logger.info(f"Thu thập dữ liệu tâm lý từ Binance cho {asset}")
+            
+            # Chuyển datetime sang string format YYYY-MM-DD cho start_date và end_date
+            start_date = start_time.strftime("%Y-%m-%d") if start_time else None
+            end_date = end_time.strftime("%Y-%m-%d") if end_time else None
+            
+            # Thu thập dữ liệu tâm lý từ Binance
+            binance_sentiment = await cmd.collect_binance_sentiment(
+                exchange_id="binance",
+                symbols=[symbol for symbol in symbols if asset in symbol],
+                start_date=start_date,
+                end_date=end_date,
+                output_dir=self.data_dir / "sentiment" / "binance",
+                save_format='parquet'
             )
             
-            # Lưu kết quả
-            for symbol, df in market_data.items():
-                if not df.empty:
-                    results[symbol] = df
-                    self.logger.info(f"Đã thu thập {len(df)} dòng dữ liệu cho {symbol}")
-                else:
-                    self.logger.warning(f"Không có dữ liệu cho {symbol}")
-            
-            # Thu thập dữ liệu tâm lý nếu cần
-            if include_sentiment and "sentiment" in self.collectors:
-                sentiment_collector = self.collectors["sentiment"]
+            if binance_sentiment and any(binance_sentiment.values()):
+                # Tạo DataFrame từ kết quả
+                for symbol, file_path in binance_sentiment.items():
+                    try:
+                        # Đọc file parquet đã lưu
+                        sentiment_df = pd.read_parquet(file_path)
+                        sentiment_key = f"{asset}_sentiment"
+                        sentiment_results[sentiment_key] = sentiment_df
+                        self.logger.info(f"Đã thu thập {len(sentiment_df)} dòng dữ liệu tâm lý từ Binance cho {asset}")
+                    except Exception as e:
+                        self.logger.error(f"Lỗi khi đọc file dữ liệu tâm lý: {str(e)}")
+            else:
+                self.logger.warning(f"Không thể thu thập dữ liệu tâm lý từ Binance cho {asset}")
                 
-                # Tách mã tài sản từ symbol đầu tiên (ví dụ: "BTC/USDT" -> "BTC")
-                if symbols:
-                    asset = symbols[0].split('/')[0]
-                    
-                    # Thu thập dữ liệu tâm lý
-                    sentiment_data = await sentiment_collector.collect_from_all_sources(asset=asset)
-                    
-                    # Chuyển sang DataFrame và lưu
-                    if any(sentiment_data.values()):
-                        all_sentiment = []
-                        for source_name, source_data in sentiment_data.items():
-                            if source_data:
-                                all_sentiment.extend(source_data)
+                # Vẫn thử thu thập từ các nguồn khác nếu có (giữ lại code cũ)
+                sentiment_collector = self.collectors.get("sentiment")
+                if sentiment_collector is not None:
+                    try:
+                        sentiment_data = await sentiment_collector.collect_from_all_sources(asset=asset)
                         
-                        if all_sentiment:
-                            sentiment_df = sentiment_collector.convert_to_dataframe(all_sentiment)
-                            results["sentiment"] = sentiment_df
-                            self.logger.info(f"Đã thu thập {len(sentiment_df)} dòng dữ liệu tâm lý")
-            
-            # Cập nhật trạng thái dữ liệu
-            self.data_state = {
-                "exchange": exchange_id,
-                "symbols": symbols,
-                "timeframe": timeframe,
-                "start_time": start_time.isoformat(),
-                "end_time": end_time.isoformat(),
-                "last_updated": datetime.now().isoformat(),
-                "record_counts": {symbol: len(df) for symbol, df in results.items()}
-            }
-            
-            return results
-            
+                        if any(sentiment_data.values()):
+                            self.logger.info(f"Đã thu thập dữ liệu tâm lý từ các nguồn khác cho {asset}")
+                            # Xử lý dữ liệu như code hiện tại
+                            all_sentiment = []
+                            for source_name, source_data in sentiment_data.items():
+                                if source_data:
+                                    self.logger.info(f"Đã thu thập {len(source_data)} mục dữ liệu tâm lý từ nguồn {source_name}")
+                                    all_sentiment.extend(source_data)
+                            
+                            if all_sentiment:
+                                sentiment_df = sentiment_collector.convert_to_dataframe(all_sentiment)
+                                sentiment_key = f"{asset}_sentiment"
+                                sentiment_results[sentiment_key] = sentiment_df
+                    except Exception as e:
+                        self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý từ các nguồn khác: {str(e)}")
+        
         except Exception as e:
-            self.logger.error(f"Lỗi khi thu thập dữ liệu: {str(e)}")
-            return {}
-        finally:
-            # Đóng các collector nếu cần
-            try:
-                if historical_collector:
-                    await historical_collector.exchange_connector.close()
-            except:
-                pass
+            self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý: {str(e)}")
+        
+        return sentiment_results
     
+    async def collect_data(
+        self,
+        exchange_id: str = None,
+        symbols: List[str] = None,
+        timeframe: str = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        include_sentiment: Optional[bool] = None,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        is_futures: bool = False,
+        preserve_timestamp: bool = True  # Thêm tham số này
+    ) -> Dict[str, pd.DataFrame]:
+        """
+        Thu thập dữ liệu từ các nguồn.
+        
+        Args:
+            exchange_id: ID sàn giao dịch
+            symbols: Danh sách cặp giao dịch
+            timeframe: Khung thời gian
+            start_time: Thời gian bắt đầu
+            end_time: Thời gian kết thúc
+            include_sentiment: Bao gồm dữ liệu tâm lý
+            api_key: API key (nếu cần)
+            api_secret: API secret (nếu cần)
+            
+        Returns:
+            Dict với key là symbol và value là DataFrame
+        """
+        # Sử dụng phương thức cải tiến
+        return await self.collect_data_improved(
+            exchange_id=exchange_id,
+            symbols=symbols,
+            timeframe=timeframe,
+            start_time=start_time,
+            end_time=end_time,
+            include_sentiment=include_sentiment,
+            api_key=api_key,
+            api_secret=api_secret,
+            is_futures=is_futures
+        )
+
     def load_data(
         self,
         file_paths: Union[str, Path, List[Union[str, Path]]],
@@ -451,27 +701,21 @@ class DataPipeline:
                     df = pd.read_csv(file_path, parse_dates=['timestamp'])
                     
                     # Kiểm tra và xử lý thêm nếu timestamp vẫn là object
-                    if 'timestamp' in df.columns and df['timestamp'].dtype == 'object':
-                        self.logger.info(f"Cột timestamp vẫn là object sau khi parse_dates, thử chuyển đổi thủ công")
-                        try:
-                            df['timestamp'] = pd.to_datetime(df['timestamp'])
-                        except Exception as e:
-                            self.logger.warning(f"Không thể chuyển đổi cột timestamp: {str(e)}")
-                    
-                    # Log thông tin về kiểu dữ liệu của timestamp
-                    if 'timestamp' in df.columns:
-                        self.logger.info(f"Kiểu dữ liệu của cột timestamp sau khi đọc: {df['timestamp'].dtype}")
+                    if 'timestamp' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                        self.logger.info(f"Cột timestamp vẫn không phải datetime64, thử chuyển đổi thủ công")
+                        df = self._convert_timestamp(df)
                     
                 elif file_format == 'parquet':
                     df = pd.read_parquet(file_path)
-                    # Parquet tự động lưu giữ kiểu dữ liệu, nhưng vẫn nên kiểm tra
+                    # Chuyển đổi timestamp nếu cần
                     if 'timestamp' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
-                        df['timestamp'] = pd.to_datetime(df['timestamp'])
+                        df = self._convert_timestamp(df)
                         
                 elif file_format == 'json':
                     df = pd.read_json(file_path)
+                    # Chuyển đổi timestamp nếu cần
                     if 'timestamp' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
-                        df['timestamp'] = pd.to_datetime(df['timestamp'])
+                        df = self._convert_timestamp(df)
                 else:
                     self.logger.error(f"Định dạng file không được hỗ trợ: {file_format}")
                     continue
@@ -497,18 +741,143 @@ class DataPipeline:
                         # Nếu không tìm thấy, sử dụng phần đầu tiên
                         if symbol is None:
                             symbol = parts[0].upper()
+                            # Xác định nếu là dữ liệu tâm lý
+                            if 'sentiment' in file_path.stem.lower():
+                                symbol = f"{symbol}_sentiment"
                 
                 # Nếu vẫn không xác định được, sử dụng tên file
                 if symbol is None:
                     symbol = file_path.stem
+                
+                # Kiểm tra chất lượng dữ liệu
+                if df.empty:
+                    self.logger.warning(f"DataFrame trống cho {symbol} từ file {file_path}")
+                    continue
+                
+                # Log thông tin về timestamp để debug
+                if 'timestamp' in df.columns:
+                    self.logger.info(f"Timestamp cho {symbol}: dtype={df['timestamp'].dtype}, "
+                                    f"min={df['timestamp'].min()}, max={df['timestamp'].max()}")
                 
                 results[symbol] = df
                 self.logger.info(f"Đã tải {len(df)} dòng dữ liệu từ {file_path} cho {symbol}")
                 
             except Exception as e:
                 self.logger.error(f"Lỗi khi tải file {file_path}: {str(e)}")
+                traceback.print_exc()
         
         return results
+    
+    def clean_sentiment_data(self, sentiment_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Làm sạch dữ liệu tâm lý.
+        
+        Args:
+            sentiment_df: DataFrame dữ liệu tâm lý
+            
+        Returns:
+            DataFrame dữ liệu tâm lý đã làm sạch
+        """
+        if sentiment_df is None or sentiment_df.empty:
+            self.logger.warning("Không có dữ liệu tâm lý để làm sạch")
+            return sentiment_df
+        
+        self.logger.info(f"Bắt đầu làm sạch dữ liệu tâm lý: {len(sentiment_df)} dòng")
+        
+        # Tạo bản sao để tránh thay đổi dữ liệu gốc
+        df = sentiment_df.copy()
+        
+        # 1. Xử lý timestamp
+        if 'timestamp' in df.columns:
+            # Chuyển đổi timestamp sang datetime
+            if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                df = self._convert_timestamp(df)
+                
+                # Loại bỏ các dòng có timestamp không hợp lệ
+                invalid_timestamp = df['timestamp'].isna().sum()
+                if invalid_timestamp > 0:
+                    self.logger.warning(f"Loại bỏ {invalid_timestamp} dòng có timestamp không hợp lệ")
+                    df = df.dropna(subset=['timestamp'])
+        
+        # 2. Xác định cột chứa giá trị tâm lý
+        value_column = None
+        for col in ['value', 'sentiment_value', 'sentiment', 'score', 'fear_greed_value']:
+            if col in df.columns:
+                value_column = col
+                break
+        
+        if value_column is None:
+            self.logger.error("Không tìm thấy cột chứa giá trị tâm lý")
+            return df
+        
+        # 3. Chuyển đổi giá trị sang số
+        try:
+            # Nếu cột giá trị có định dạng không phải số
+            if not pd.api.types.is_numeric_dtype(df[value_column]):
+                # Thử chuyển đổi sang số
+                df[value_column] = pd.to_numeric(df[value_column], errors='coerce')
+                self.logger.info(f"Đã chuyển đổi cột {value_column} sang kiểu số")
+        except Exception as e:
+            self.logger.warning(f"Không thể chuyển đổi cột {value_column} sang kiểu số: {str(e)}")
+        
+        # 4. Xử lý giá trị ngoại lệ (outliers)
+        if pd.api.types.is_numeric_dtype(df[value_column]):
+            # Tính Q1, Q3 và IQR
+            Q1 = df[value_column].quantile(0.25)
+            Q3 = df[value_column].quantile(0.75)
+            IQR = Q3 - Q1
+            
+            # Xác định ngưỡng outlier
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            
+            # Đếm số lượng outlier
+            outliers = ((df[value_column] < lower_bound) | (df[value_column] > upper_bound)).sum()
+            
+            if outliers > 0:
+                self.logger.info(f"Phát hiện {outliers} giá trị ngoại lệ trong cột {value_column}")
+                
+                # Xử lý outlier bằng cách winsorize (cắt giới hạn)
+                df.loc[df[value_column] < lower_bound, value_column] = lower_bound
+                df.loc[df[value_column] > upper_bound, value_column] = upper_bound
+                self.logger.info(f"Đã xử lý giá trị ngoại lệ bằng phương pháp winsorize")
+        
+        # 5. Xử lý giá trị thiếu (NaN)
+        missing_values = df[value_column].isna().sum()
+        if missing_values > 0:
+            self.logger.info(f"Phát hiện {missing_values} giá trị thiếu trong cột {value_column}")
+            
+            # Interpolate (nội suy) các giá trị thiếu
+            df[value_column] = df[value_column].interpolate(method='time')
+            
+            # Nếu còn giá trị NaN ở đầu hoặc cuối, sử dụng forward/backward fill
+            df[value_column] = df[value_column].fillna(method='ffill').fillna(method='bfill')
+            
+            remaining_na = df[value_column].isna().sum()
+            if remaining_na > 0:
+                self.logger.warning(f"Vẫn còn {remaining_na} giá trị thiếu sau khi xử lý")
+        
+        # 6. Chuẩn hóa giá trị nếu cần
+        if pd.api.types.is_numeric_dtype(df[value_column]):
+            # Chuẩn hóa về khoảng [0, 1] hoặc [-1, 1] tùy theo loại dữ liệu
+            min_val = df[value_column].min()
+            max_val = df[value_column].max()
+            
+            if min_val < 0 or max_val > 1:
+                # Tạo cột mới cho giá trị chuẩn hóa
+                norm_col = f"{value_column}_normalized"
+                
+                # Chuẩn hóa MinMax
+                df[norm_col] = (df[value_column] - min_val) / (max_val - min_val) if max_val > min_val else 0.5
+                self.logger.info(f"Đã chuẩn hóa giá trị tâm lý về khoảng [0, 1] trong cột {norm_col}")
+        
+        # 7. Sắp xếp theo timestamp
+        if 'timestamp' in df.columns:
+            df = df.sort_values('timestamp')
+        
+        self.logger.info(f"Hoàn thành làm sạch dữ liệu tâm lý: {len(df)} dòng")
+        
+        return df
     
     def clean_data(
         self,
@@ -583,11 +952,40 @@ class DataPipeline:
         
         results = {}
         
+        # Phân loại dữ liệu
+        market_data = {}
+        sentiment_data = {}
+        
+        # Phân loại dữ liệu trước khi xử lý
         for symbol, df in data.items():
+            if symbol.lower().endswith('_sentiment') or symbol.lower() == 'sentiment':
+                sentiment_data[symbol] = df
+            else:
+                market_data[symbol] = df
+        
+        # Làm sạch dữ liệu tâm lý
+        if clean_sentiment and sentiment_data:
+            self.logger.info(f"Làm sạch {len(sentiment_data)} bộ dữ liệu tâm lý")
+            for symbol, df in sentiment_data.items():
+                try:
+                    # Sử dụng hàm làm sạch tâm lý chuyên biệt
+                    cleaned_sentiment = self.clean_sentiment_data(df)
+                    results[symbol] = cleaned_sentiment
+                    
+                    self.logger.info(f"Đã làm sạch dữ liệu tâm lý cho {symbol}: {len(df)} -> {len(cleaned_sentiment)} dòng")
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi làm sạch dữ liệu tâm lý cho {symbol}: {str(e)}")
+                    results[symbol] = df
+        
+        # Làm sạch dữ liệu thị trường
+        for symbol, df in market_data.items():
             try:
                 # Lưu cột timestamp nếu có
                 timestamp_col = None
                 if preserve_timestamp and 'timestamp' in df.columns:
+                    # Đảm bảo timestamp là datetime trước khi lưu
+                    if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                        df = self._convert_timestamp(df)
                     timestamp_col = df['timestamp'].copy()
 
                 # Trước tiên xử lý giá trị NaN ở đầu nếu được yêu cầu
@@ -600,48 +998,8 @@ class DataPipeline:
                     )
                     self.logger.info(f"Đã xử lý giá trị NaN ở đầu cho {symbol} bằng phương pháp {leading_nan_method}")
 
-                # Xác định loại dữ liệu
-                if symbol.lower() == "sentiment" and clean_sentiment:
-                    # Làm sạch dữ liệu tâm lý
-                    config = default_configs["sentiment"]
-                    cleaned_df = self.data_cleaner.clean_dataframe(
-                        df,
-                        drop_na=config.get("drop_na", False),
-                        normalize=config.get("normalize", True),
-                        remove_outliers=config.get("remove_outliers", True),
-                        handle_missing=config.get("handle_missing_values", True),
-                        remove_duplicates=True
-                    )
-                    
-                    self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu tâm lý")
-
-                    # Sau khi làm sạch dữ liệu cơ bản, thêm bước xử lý giá trị cực đại của volume
-                    if handle_extreme_volume and 'volume' in cleaned_df.columns:
-                        # Import các hàm cần thiết
-                        from data_processors.utils.preprocessing import handle_extreme_values
-                        from data_processors.feature_engineering.market_features.volume_features import normalize_volume_features
-
-                        # Xử lý giá trị cực đại
-                        cleaned_df = handle_extreme_values(
-                            cleaned_df,
-                            columns=['volume'],
-                            method="winsorize",
-                            lower_quantile=0.01,
-                            upper_quantile=0.99,
-                            log_transform_columns=['volume']
-                        )
-
-                        # Chuẩn hóa khối lượng
-                        cleaned_df = normalize_volume_features(
-                             cleaned_df,
-                             volume_column='volume',
-                             method='log',
-                             winsorize=True
-                        )
-
-                        self.logger.info(f"Đã xử lý giá trị cực đại của khối lượng cho {symbol}")
-                    
-                elif all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
+                # Xác định loại dữ liệu và làm sạch
+                if all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
                     # Làm sạch dữ liệu OHLCV
                     config = default_configs["ohlcv"]
                     cleaned_df = self.data_cleaner.clean_ohlcv_data(
@@ -652,6 +1010,7 @@ class DataPipeline:
                         verify_open_close=config.get("verify_open_close", True),
                         flag_outliers_only=config.get("flag_outliers_only", False)
                     )
+                    
                     # THÊM ĐOẠN CODE NÀY: Làm sạch và chuẩn hóa các chỉ báo kỹ thuật
                     if handle_extreme_volume or config.get("handle_technical_indicators", True):
                         # Import các hàm cần thiết
@@ -681,32 +1040,7 @@ class DataPipeline:
 
                     self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu OHLCV cho {symbol}")
                     
-                elif all(col in df.columns for col in ['price', 'amount', 'side']) and clean_orderbook:
-                    # Làm sạch dữ liệu orderbook
-                    config = default_configs["orderbook"]
-                    cleaned_df = self.data_cleaner.clean_orderbook_data(
-                        df,
-                        verify_price_levels=config.get("verify_price_levels", True),
-                        verify_quantities=config.get("verify_quantities", True),
-                        flag_outliers_only=config.get("flag_outliers_only", False),
-                        min_quantity_threshold=config.get("min_quantity_threshold", 0.0)
-                    )
-                    
-                    self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu orderbook cho {symbol}")
-                    
-                elif all(col in df.columns for col in ['price', 'amount']) and clean_trades:
-                    # Làm sạch dữ liệu giao dịch
-                    config = default_configs["trades"]
-                    cleaned_df = self.data_cleaner.clean_trade_data(
-                        df,
-                        verify_price=config.get("verify_price", True),
-                        verify_amount=config.get("verify_amount", True),
-                        flag_outliers_only=config.get("flag_outliers_only", False),
-                        min_quantity_threshold=config.get("min_quantity_threshold", 0.0)
-                    )
-                    
-                    self.logger.info(f"Đã làm sạch {len(df)} -> {len(cleaned_df)} dòng dữ liệu giao dịch cho {symbol}")
-                    
+                # Xử lý các loại dữ liệu khác (orderbook, trades, ...)
                 else:
                     # Làm sạch dữ liệu chung
                     cleaned_df = self.data_cleaner.clean_dataframe(
@@ -723,11 +1057,15 @@ class DataPipeline:
                 # Khôi phục cột timestamp nếu đã lưu
                 if timestamp_col is not None:
                     cleaned_df['timestamp'] = timestamp_col
+                elif 'timestamp' in cleaned_df.columns and not pd.api.types.is_datetime64_any_dtype(cleaned_df['timestamp']):
+                    # Đảm bảo timestamp là datetime
+                    cleaned_df = self._convert_timestamp(cleaned_df)
 
                 results[symbol] = cleaned_df
 
             except Exception as e:
                 self.logger.error(f"Lỗi khi làm sạch dữ liệu cho {symbol}: {str(e)}")
+                self.logger.error(traceback.format_exc())
                 # Trả về dữ liệu gốc nếu có lỗi
                 results[symbol] = df
     
@@ -752,6 +1090,8 @@ class DataPipeline:
             use_pipeline: Tên pipeline có sẵn để sử dụng
             fit_pipeline: Học pipeline mới hay không
             all_indicators: Sử dụng tất cả các chỉ báo kỹ thuật có sẵn  # Thêm mô tả này
+            clean_indicators: Làm sạch các chỉ báo kỹ thuật
+            preserve_timestamp: Giữ nguyên timestamp
             
         Returns:
             Dict với key là symbol và value là DataFrame có đặc trưng
@@ -761,6 +1101,21 @@ class DataPipeline:
             return data
         
         results = {}
+        
+        # Phân loại dữ liệu
+        market_data = {}
+        sentiment_data = {}
+        
+        # Phân loại dữ liệu trước khi xử lý
+        for symbol, df in data.items():
+            if symbol.lower().endswith('_sentiment') or symbol.lower() == 'sentiment':
+                sentiment_data[symbol] = df
+            else:
+                market_data[symbol] = df
+        
+        # Thêm các sentiment data vào kết quả mà không xử lý
+        for symbol, df in sentiment_data.items():
+            results[symbol] = df
         
         # Đảm bảo đăng ký chỉ báo dựa trên all_indicators
         if all_indicators:
@@ -776,26 +1131,34 @@ class DataPipeline:
             pipeline_config = self.registered_pipelines[use_pipeline]
             
             # Tạo đặc trưng cho từng DataFrame
-            for symbol, df in data.items():
+            for symbol, df in market_data.items():
                 try:
-                    # Bỏ qua dữ liệu tâm lý
-                    if symbol.lower() == "sentiment":
-                        results[symbol] = df
-                        continue
-                    
                     # Kiểm tra yêu cầu tối thiểu
                     if not all(col in df.columns for col in ['open', 'high', 'low', 'close']):
                         self.logger.warning(f"Bỏ qua tạo đặc trưng cho {symbol}: Thiếu các cột OHLC cần thiết")
                         results[symbol] = df
                         continue
                     
+                    # Lưu timestamp nếu cần
+                    timestamp_col = None
+                    if preserve_timestamp and 'timestamp' in df.columns:
+                        # Đảm bảo timestamp là datetime
+                        if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                            df = self._convert_timestamp(df)
+                        timestamp_col = df['timestamp'].copy()
+                        # Loại bỏ timestamp tạm thời để tạo đặc trưng
+                        df = df.drop('timestamp', axis=1)
+                    
                     # Áp dụng pipeline
                     features_df = self.feature_generator.transform_data(
                         df, 
                         pipeline_name=pipeline_config.get("pipeline_name"),
-                        fit=fit_pipeline,
-                        preserve_timestamp=preserve_timestamp  # Truyền tham số
+                        fit=fit_pipeline
                     )
+                    
+                    # Khôi phục timestamp nếu đã lưu
+                    if timestamp_col is not None:
+                        features_df.insert(0, 'timestamp', timestamp_col)
                     
                     results[symbol] = features_df
                     self.logger.info(f"Đã tạo đặc trưng cho {symbol}: {df.shape[1]} -> {features_df.shape[1]} cột")
@@ -807,21 +1170,34 @@ class DataPipeline:
             return results
         
         # Tạo đặc trưng với cấu hình riêng cho mỗi symbol
-        for symbol, df in data.items():
+        for symbol, df in market_data.items():
             try:
-                # Bỏ qua dữ liệu tâm lý
-                if symbol.lower() == "sentiment":
-                    results[symbol] = df
-                    continue
-                
                 # Lấy cấu hình cho symbol này
-                symbol_config = feature_configs.get(symbol, {}) if feature_configs else {}
+                if feature_configs is None:
+                    feature_configs = {}
+                
+                # Sử dụng cấu hình chung cho "_default_" nếu không có cấu hình riêng
+                if symbol not in feature_configs and "_default_" in feature_configs:
+                    symbol_config = feature_configs["_default_"].copy()
+                else:
+                    symbol_config = feature_configs.get(symbol, {})
                 
                 # Kiểm tra yêu cầu tối thiểu
                 if not all(col in df.columns for col in ['open', 'high', 'low', 'close']):
                     self.logger.warning(f"Bỏ qua tạo đặc trưng cho {symbol}: Thiếu các cột OHLC cần thiết")
                     results[symbol] = df
                     continue
+                
+                # Lưu timestamp nếu cần
+                timestamp_col = None
+                timestamp_index = False
+                if preserve_timestamp and 'timestamp' in df.columns:
+                    # Đảm bảo timestamp là datetime
+                    if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                        df = self._convert_timestamp(df)
+                    timestamp_col = df['timestamp'].copy()
+                    # Loại bỏ timestamp tạm thời để tạo đặc trưng
+                    df = df.drop('timestamp', axis=1)
                 
                 # THÊM ĐOẠN CODE NÀY: Làm sạch và chuẩn hóa các chỉ báo kỹ thuật trước khi tạo đặc trưng
                 if clean_indicators:
@@ -845,9 +1221,6 @@ class DataPipeline:
                     # Áp dụng clean_technical_features
                     df = clean_technical_features(df, clean_config)
                     self.logger.info(f"Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho {symbol} trước khi tạo đặc trưng")                    
-
-                # Tạo danh sách đặc trưng cần tính
-                feature_names = symbol_config.get("feature_names")
 
                 # Tạo danh sách đặc trưng cần tính
                 feature_names = symbol_config.get("feature_names")
@@ -895,11 +1268,16 @@ class DataPipeline:
                     }
                 }
                 
+                # Khôi phục timestamp nếu đã lưu
+                if timestamp_col is not None:
+                    features_df.insert(0, 'timestamp', timestamp_col)
+                
                 results[symbol] = features_df
                 self.logger.info(f"Đã tạo đặc trưng cho {symbol}: {df.shape[1]} -> {features_df.shape[1]} cột")
                 
             except Exception as e:
                 self.logger.error(f"Lỗi khi tạo đặc trưng cho {symbol}: {str(e)}")
+                self.logger.error(traceback.format_exc())
                 results[symbol] = df
         
         return results
@@ -929,16 +1307,22 @@ class DataPipeline:
         results = {}
         sentiment_by_symbol = {}
         
+        if market_data is None or not market_data:
+            self.logger.warning("Không có dữ liệu thị trường để kết hợp")
+            return {}
+        
         # Xử lý các trường hợp cung cấp dữ liệu tâm lý
         if sentiment_data is not None:
             if isinstance(sentiment_data, pd.DataFrame):
                 # Trường hợp 1: sentiment_data là một DataFrame duy nhất
                 self.logger.info("Sử dụng DataFrame tâm lý được cung cấp trực tiếp")
+                sentiment_data = self.clean_sentiment_data(sentiment_data)  # Làm sạch dữ liệu tâm lý
                 common_sentiment_data = sentiment_data
             elif isinstance(sentiment_data, dict):
                 # Trường hợp 2: sentiment_data là Dictionary chứa DataFrame theo symbol
                 self.logger.info("Sử dụng Dictionary dữ liệu tâm lý theo symbol")
-                sentiment_by_symbol = sentiment_data
+                # Làm sạch dữ liệu tâm lý cho từng symbol
+                sentiment_by_symbol = {k: self.clean_sentiment_data(v) for k, v in sentiment_data.items()}
                 common_sentiment_data = None
             elif isinstance(sentiment_data, (str, Path)):
                 # Trường hợp 3: sentiment_data là đường dẫn file
@@ -952,19 +1336,30 @@ class DataPipeline:
                     else:
                         self.logger.warning(f"Định dạng file không được hỗ trợ: {file_path.suffix}")
                         common_sentiment_data = None
+                    
+                    # Làm sạch dữ liệu tâm lý
+                    if common_sentiment_data is not None:
+                        common_sentiment_data = self.clean_sentiment_data(common_sentiment_data)
                 except Exception as e:
                     self.logger.error(f"Lỗi khi tải file dữ liệu tâm lý: {str(e)}")
                     common_sentiment_data = None
             else:
                 self.logger.warning("Định dạng dữ liệu tâm lý không được hỗ trợ")
                 common_sentiment_data = None
-        elif "sentiment" in market_data:
-            # Trường hợp 4: Dữ liệu tâm lý có trong market_data
-            common_sentiment_data = market_data["sentiment"]
-            # Xóa khỏi market_data
-            del market_data["sentiment"]
         else:
-            common_sentiment_data = None
+            # Tìm kiếm trong market_data nếu có dữ liệu tâm lý
+            sentiment_keys = [k for k in market_data.keys() if k.lower().endswith('_sentiment') or k.lower() == 'sentiment']
+            
+            if sentiment_keys:
+                # Sử dụng dữ liệu tâm lý từ market_data
+                for key in sentiment_keys:
+                    sentiment_by_symbol[key] = market_data[key]
+                    # Loại bỏ khỏi market_data
+                    market_data = {k: v for k, v in market_data.items() if k != key}
+                
+                common_sentiment_data = None
+            else:
+                common_sentiment_data = None
         
         # Tìm kiếm file dữ liệu tâm lý riêng cho từng symbol
         if sentiment_dir is not None:
@@ -988,22 +1383,30 @@ class DataPipeline:
                         
                         try:
                             if file_path.suffix.lower() == '.csv':
-                                sentiment_by_symbol[symbol] = pd.read_csv(file_path, parse_dates=['timestamp'])
+                                df = pd.read_csv(file_path, parse_dates=['timestamp'])
                             elif file_path.suffix.lower() == '.parquet':
-                                sentiment_by_symbol[symbol] = pd.read_parquet(file_path)
+                                df = pd.read_parquet(file_path)
+                            
+                            # Làm sạch dữ liệu tâm lý
+                            sentiment_by_symbol[symbol] = self.clean_sentiment_data(df)
                         except Exception as e:
                             self.logger.error(f"Lỗi khi tải file dữ liệu tâm lý cho {symbol}: {str(e)}")
         
         # Xử lý từng symbol
         for symbol, df in market_data.items():
             try:
-                # Chuyển timestamp sang datetime nếu cần
+                # Đảm bảo timestamp là datetime
                 if 'timestamp' in df.columns:
-                    if pd.api.types.is_numeric_dtype(df['timestamp']):
-                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-                        self.logger.info(f"Đã chuyển đổi UNIX timestamp sang datetime cho {symbol}")
-                    elif not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
-                        df['timestamp'] = pd.to_datetime(df['timestamp'])
+                    # Chuyển timestamp sang datetime nếu cần
+                    if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                        df = self._convert_timestamp(df)
+                    
+                    self.logger.info(f"Timestamp cho {symbol}: {df['timestamp'].dtype}, "
+                                    f"min={df['timestamp'].min()}, max={df['timestamp'].max()}")
+                else:
+                    self.logger.warning(f"Không tìm thấy cột timestamp trong dữ liệu thị trường cho {symbol}")
+                    results[symbol] = df
+                    continue
                 
                 # Tạo bản sao để tránh thay đổi dữ liệu gốc
                 merged_df = df.copy()
@@ -1012,20 +1415,33 @@ class DataPipeline:
                 symbol_sentiment = None
                 
                 # Ưu tiên sử dụng dữ liệu tâm lý riêng cho symbol
-                if symbol in sentiment_by_symbol and not sentiment_by_symbol[symbol].empty:
+                if symbol in sentiment_by_symbol:
                     symbol_sentiment = sentiment_by_symbol[symbol]
                     self.logger.info(f"Sử dụng dữ liệu tâm lý riêng cho {symbol}")
+                # Nếu không có, thử với symbol_sentiment
+                elif f"{symbol}_sentiment" in sentiment_by_symbol:
+                    symbol_sentiment = sentiment_by_symbol[f"{symbol}_sentiment"]
+                    self.logger.info(f"Sử dụng dữ liệu tâm lý {symbol}_sentiment")
+                # Nếu không có, thử tìm dữ liệu tâm lý cho asset
+                elif '/' in symbol:
+                    asset = symbol.split('/')[0]
+                    asset_key = f"{asset}_sentiment"
+                    if asset_key in sentiment_by_symbol:
+                        symbol_sentiment = sentiment_by_symbol[asset_key]
+                        self.logger.info(f"Sử dụng dữ liệu tâm lý asset {asset_key}")
                 # Nếu không có, sử dụng dữ liệu chung
-                elif common_sentiment_data is not None and not common_sentiment_data.empty:
+                elif common_sentiment_data is not None:
                     # Lọc dữ liệu tâm lý cho asset tương ứng
                     asset = symbol.split('/')[0] if '/' in symbol else symbol
                     
                     if 'asset' in common_sentiment_data.columns:
-                        symbol_sentiment = common_sentiment_data[
+                        asset_mask = (
                             (common_sentiment_data['asset'] == asset) | 
                             (common_sentiment_data['asset'].str.lower() == asset.lower() if isinstance(asset, str) else False) |
                             (common_sentiment_data['asset'].isna())
-                        ].copy()
+                        )
+                        symbol_sentiment = common_sentiment_data[asset_mask].copy()
+                        self.logger.info(f"Lọc dữ liệu tâm lý chung cho {asset}: {len(symbol_sentiment)} dòng")
                     else:
                         # Nếu không có cột asset, sử dụng tất cả dữ liệu tâm lý
                         symbol_sentiment = common_sentiment_data.copy()
@@ -1037,77 +1453,110 @@ class DataPipeline:
                     results[symbol] = merged_df
                     continue
                 
-                # Tiếp tục với code hiện tại để xử lý và kết hợp dữ liệu tâm lý
-                # [... Phần code còn lại giữ nguyên ...]
-
-                # Code phần xử lý tiếp theo giữ nguyên như cũ
                 # Xác định cột giá trị tâm lý
-                value_column = 'value'
-                if value_column not in symbol_sentiment.columns:
-                    # Tìm cột thay thế
-                    alternative_columns = ['sentiment_value', 'sentiment', 'score', 'fear_greed_value']
-                    for col in alternative_columns:
-                        if col in symbol_sentiment.columns:
-                            value_column = col
-                            self.logger.info(f"Sử dụng cột {value_column} thay cho 'value' với {symbol}")
-                            break
-                    else:
-                        self.logger.warning(f"Không tìm thấy cột giá trị tâm lý cho {symbol}. Các cột hiện có: {symbol_sentiment.columns.tolist()}")
-                        results[symbol] = merged_df
-                        continue
+                value_column = None
+                for col in ['sentiment_value', 'sentiment_value_normalized', 'value', 'sentiment', 'score', 'fear_greed_value']:
+                    if col in symbol_sentiment.columns:
+                        value_column = col
+                        self.logger.info(f"Sử dụng cột {value_column} cho giá trị tâm lý của {symbol}")
+                        break
                 
-                # Ghi log thông tin dữ liệu tâm lý để debug
-                self.logger.info(f"Dữ liệu tâm lý cho {symbol}: {len(symbol_sentiment)} dòng")
+                if value_column is None:
+                    self.logger.warning(f"Không tìm thấy cột giá trị tâm lý cho {symbol}")
+                    results[symbol] = merged_df
+                    continue
                 
-                # Đặt timestamp làm index
-                if 'timestamp' in merged_df.columns:
-                    merged_df.set_index('timestamp', inplace=True)
-                
+                # Đảm bảo timestamp trong dữ liệu tâm lý là datetime
                 if 'timestamp' in symbol_sentiment.columns:
-                    symbol_sentiment.set_index('timestamp', inplace=True)
+                    if not pd.api.types.is_datetime64_any_dtype(symbol_sentiment['timestamp']):
+                        symbol_sentiment = self._convert_timestamp(symbol_sentiment)
+                    
+                    self.logger.info(f"Timestamp tâm lý cho {symbol}: {symbol_sentiment['timestamp'].dtype}, "
+                                    f"min={symbol_sentiment['timestamp'].min()}, max={symbol_sentiment['timestamp'].max()}")
+                else:
+                    self.logger.warning(f"Không tìm thấy cột timestamp trong dữ liệu tâm lý cho {symbol}")
+                    results[symbol] = merged_df
+                    continue
+                
+                # Đặt timestamp làm index để kết hợp dữ liệu
+                market_df = merged_df.set_index('timestamp')
+                sentiment_df = symbol_sentiment.set_index('timestamp')
                 
                 # Tính giá trị tâm lý theo phương pháp đã chọn
                 if method == 'last_value':
                     # Lấy giá trị cuối cùng trong cửa sổ
-                    resampled_sentiment = symbol_sentiment[value_column].resample(window).last()
+                    resampled_sentiment = sentiment_df[value_column].resample(window).last()
                 elif method == 'mean':
                     # Lấy giá trị trung bình trong cửa sổ
-                    resampled_sentiment = symbol_sentiment[value_column].resample(window).mean()
+                    resampled_sentiment = sentiment_df[value_column].resample(window).mean()
                 elif method == 'weighted_mean':
                     # Lấy giá trị trung bình có trọng số
-                    if 'weight' in symbol_sentiment.columns:
-                        weights = symbol_sentiment['weight']
+                    if 'weight' in sentiment_df.columns:
+                        weights = sentiment_df['weight']
                     else:
                         # Tính trọng số dựa trên thời gian
-                        max_time = symbol_sentiment.index.max()
-                        time_diff = (symbol_sentiment.index - symbol_sentiment.index.min()).total_seconds()
-                        max_diff = (max_time - symbol_sentiment.index.min()).total_seconds() or 1
-                        symbol_sentiment['weight'] = time_diff / max_diff
-                        weights = symbol_sentiment['weight']
+                        max_time = sentiment_df.index.max()
+                        min_time = sentiment_df.index.min()
+                        time_diff = (sentiment_df.index - min_time).total_seconds()
+                        max_diff = (max_time - min_time).total_seconds() or 1  # Tránh chia cho 0
+                        weights = time_diff / max_diff
                     
-                    weighted_values = symbol_sentiment[value_column] * weights
+                    weighted_values = sentiment_df[value_column] * weights
                     resampled_sentiment = (weighted_values.resample(window).sum() / weights.resample(window).sum()).fillna(method='ffill')
                 else:
                     self.logger.warning(f"Phương pháp không hợp lệ: {method}, sử dụng 'last_value'")
-                    resampled_sentiment = symbol_sentiment[value_column].resample(window).last()
+                    resampled_sentiment = sentiment_df[value_column].resample(window).last()
                 
-                # Đổi tên để tránh xung đột
-                resampled_sentiment.name = 'sentiment_value'
+                # Kết quả kết hợp
+                merged_result = pd.DataFrame(index=market_df.index)
                 
-                # Kết hợp vào dữ liệu thị trường
-                merged_df = merged_df.join(resampled_sentiment, how='left')
+                # Thêm dữ liệu thị trường
+                for col in market_df.columns:
+                    merged_result[col] = market_df[col]
                 
-                # Điền các giá trị thiếu bằng forward fill và backward fill
-                merged_df['sentiment_value'] = merged_df['sentiment_value'].fillna(method='ffill').fillna(method='bfill')
+                # Thêm giá trị tâm lý
+                merged_result['sentiment_value'] = np.nan  # Khởi tạo cột trống
                 
-                # Đặt lại index thành cột
-                merged_df.reset_index(inplace=True)
+                # Tìm các ngày chung giữa dữ liệu tâm lý và dữ liệu thị trường
+                # Cách này hiệu quả hơn pd.merge()
+                common_dates = merged_result.index.intersection(resampled_sentiment.index)
+                self.logger.info(f"Tìm thấy {len(common_dates)} ngày chung giữa dữ liệu thị trường và tâm lý")
                 
-                results[symbol] = merged_df
-                self.logger.info(f"Đã kết hợp dữ liệu tâm lý cho {symbol}")
+                if len(common_dates) > 0:
+                    # Gán giá trị tâm lý cho các ngày chung
+                    merged_result.loc[common_dates, 'sentiment_value'] = resampled_sentiment.loc[common_dates]
+                    
+                    # Điền các giá trị thiếu bằng forward fill và backward fill
+                    merged_result['sentiment_value'] = merged_result['sentiment_value'].fillna(method='ffill').fillna(method='bfill')
+                    
+                    # Đếm số lượng giá trị hợp lệ
+                    valid_sentiment = merged_result['sentiment_value'].notna().sum()
+                    self.logger.info(f"Số giá trị tâm lý hợp lệ: {valid_sentiment}/{len(merged_result)} ({valid_sentiment/len(merged_result)*100:.2f}%)")
+                    
+                    # Thêm các biến phái sinh tâm lý
+                    # Lag values
+                    for lag in [1, 3, 5]:
+                        merged_result[f'sentiment_lag_{lag}'] = merged_result['sentiment_value'].shift(lag)
+                    
+                    # Thay đổi so với kỳ trước
+                    merged_result['sentiment_change'] = merged_result['sentiment_value'].diff()
+                    
+                    # Trung bình động của tâm lý
+                    for window_size in [5, 10, 20]:
+                        merged_result[f'sentiment_ma_{window_size}'] = merged_result['sentiment_value'].rolling(window=window_size).mean()
+                else:
+                    self.logger.warning(f"Không tìm thấy ngày chung giữa dữ liệu thị trường và tâm lý cho {symbol}")
+                
+                # Reset index để đưa timestamp trở lại thành cột
+                merged_result = merged_result.reset_index()
+                
+                results[symbol] = merged_result
+                self.logger.info(f"Đã kết hợp dữ liệu tâm lý vào dữ liệu thị trường cho {symbol}")
                 
             except Exception as e:
                 self.logger.error(f"Lỗi khi kết hợp dữ liệu tâm lý cho {symbol}: {str(e)}")
+                self.logger.error(traceback.format_exc())
+                # Trả về dữ liệu gốc nếu có lỗi
                 results[symbol] = df
         
         return results
@@ -1208,7 +1657,7 @@ class DataPipeline:
             self.logger.info(f"Làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho {symbol}")
             try:
                 # Bỏ qua dữ liệu tâm lý
-                if symbol.lower() == "sentiment":
+                if symbol.lower().endswith('_sentiment') or symbol.lower() == 'sentiment':
                     results[symbol] = df
                     continue
                 
@@ -1276,7 +1725,7 @@ class DataPipeline:
             self.logger.info(f"Tạo cột mục tiêu cho {symbol}")
             try:
                 # Bỏ qua dữ liệu tâm lý
-                if symbol.lower() == "sentiment":
+                if symbol.lower().endswith('_sentiment') or symbol.lower() == 'sentiment':
                     results[symbol] = df
                     continue
                 
@@ -1299,98 +1748,162 @@ class DataPipeline:
                 
                     # Ghi log số cột mục tiêu đã tạo
                     new_cols = set(results[symbol].columns) - set(df.columns)
-                    self.logger.info(f"Đã tạo {len(new_cols)} cột mục tiêu cho {symbol}: {', '.join(new_cols)}")
+                    if new_cols:
+                        self.logger.info(f"Đã tạo {len(new_cols)} cột mục tiêu cho {symbol}: {', '.join(new_cols)}")
+                    else:
+                        self.logger.warning(f"Không có cột mục tiêu mới nào được tạo cho {symbol}")
                 else:
                     # Nếu không có MissingDataHandler, trả về dữ liệu gốc
                     results[symbol] = df
                     self.logger.warning("MissingDataHandler không được khởi tạo, không thể tạo cột mục tiêu")
             except Exception as e:
                 self.logger.error(f"Lỗi khi tạo cột mục tiêu cho {symbol}: {str(e)}")
+                self.logger.error(traceback.format_exc())
                 results[symbol] = df
     
         return results
-
-    def prepare_training_data(
-        self,
-        data: Dict[str, pd.DataFrame],
-        target_column: str = 'close',
-        price_delta_periods: int = 1,
-        normalize_targets: bool = True,
-        train_test_split: float = 0.8,
-        include_timestamp: bool = False
-    ) -> Dict[str, Dict[str, pd.DataFrame]]:
+    
+    def check_data_consistency(self, data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, Any]]:
         """
-        Chuẩn bị dữ liệu cho huấn luyện.
+        Kiểm tra tính nhất quán của dữ liệu trước khi lưu.
         
         Args:
             data: Dict với key là symbol và value là DataFrame
-            target_column: Cột mục tiêu
-            price_delta_periods: Số kỳ cho delta giá
-            normalize_targets: Chuẩn hóa giá trị mục tiêu
-            train_test_split: Tỷ lệ chia tập train/test
-            include_timestamp: Bao gồm timestamp trong đầu ra
             
         Returns:
-            Dict với key là symbol và value là Dict với 'train' và 'test' DataFrames
+            Dict với key là symbol và value là báo cáo kiểm tra
         """
         results = {}
         
         for symbol, df in data.items():
+            self.logger.info(f"Kiểm tra tính nhất quán của dữ liệu cho {symbol}")
+            
+            report = {
+                "rows": len(df),
+                "columns": len(df.columns),
+                "issues": [],
+                "warnings": []
+            }
+            
             try:
-                # Kiểm tra cột mục tiêu
-                if target_column not in df.columns:
-                    self.logger.warning(f"Bỏ qua chuẩn bị dữ liệu cho {symbol}: Không tìm thấy cột mục tiêu {target_column}")
-                    continue
-                
-                # Tạo bản sao
-                prepared_df = df.copy()
-                
-                # Tạo cột mục tiêu - delta giá
-                prepared_df[f'{target_column}_delta'] = prepared_df[target_column].pct_change(periods=price_delta_periods)
-                
-                # Tạo cột hướng giá (1: tăng, 0: giảm/không đổi)
-                prepared_df[f'{target_column}_direction'] = (prepared_df[f'{target_column}_delta'] > 0).astype(int)
-                
-                # Loại bỏ các dòng có NA do tính delta
-                prepared_df = prepared_df.dropna(subset=[f'{target_column}_delta'])
-                
-                # Loại bỏ cột timestamp nếu không cần
-                if not include_timestamp and 'timestamp' in prepared_df.columns:
-                    timestamp_values = prepared_df['timestamp']
-                    prepared_df = prepared_df.drop('timestamp', axis=1)
-                
-                # Chuẩn hóa giá trị mục tiêu nếu cần
-                if normalize_targets:
-                    mean = prepared_df[f'{target_column}_delta'].mean()
-                    std = prepared_df[f'{target_column}_delta'].std()
+                # 1. Kiểm tra timestamp
+                if 'timestamp' in df.columns:
+                    # Kiểm tra kiểu dữ liệu timestamp
+                    if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                        report["issues"].append("timestamp không phải kiểu datetime64")
+                        
+                        # Thử chuyển đổi timestamp
+                        try:
+                            df = self._convert_timestamp(df)
+                            if pd.api.types.is_datetime64_any_dtype(df['timestamp']):
+                                report["warnings"].append("timestamp đã được chuyển đổi tự động sang datetime64")
+                            else:
+                                report["issues"].append("không thể chuyển đổi timestamp sang datetime64")
+                        except Exception as e:
+                            report["issues"].append(f"lỗi khi chuyển đổi timestamp: {str(e)}")
                     
-                    if std > 0:
-                        prepared_df[f'{target_column}_delta_norm'] = (prepared_df[f'{target_column}_delta'] - mean) / std
-                    else:
-                        prepared_df[f'{target_column}_delta_norm'] = prepared_df[f'{target_column}_delta'] - mean
+                    # Kiểm tra khoảng thời gian
+                    if len(df) > 1:
+                        time_diffs = pd.Series(df['timestamp'].diff().dropna())
+                        unique_diffs = time_diffs.unique()
+                        
+                        if len(unique_diffs) > 1:
+                            report["warnings"].append(f"khoảng cách timestamp không đều ({len(unique_diffs)} giá trị khác nhau)")
+                            
+                            # Tính thống kê khoảng cách
+                            report["timestamp_stats"] = {
+                                "min_diff": str(time_diffs.min()),
+                                "max_diff": str(time_diffs.max()),
+                                "mean_diff": str(time_diffs.mean()),
+                                "unique_diffs": len(unique_diffs)
+                            }
+                        
+                        # Kiểm tra dữ liệu trùng lặp
+                        duplicates = df['timestamp'].duplicated().sum()
+                        if duplicates > 0:
+                            report["issues"].append(f"có {duplicates} timestamp trùng lặp")
+                else:
+                    report["issues"].append("thiếu cột timestamp")
                 
-                # Chia tập huấn luyện/kiểm thử
-                train_size = int(len(prepared_df) * train_test_split)
-                train_df = prepared_df.iloc[:train_size]
-                test_df = prepared_df.iloc[train_size:]
+                # 2. Kiểm tra dữ liệu thiếu (NaN)
+                missing_values = df.isna().sum()
+                missing_columns = missing_values[missing_values > 0].to_dict()
                 
-                # Thêm lại timestamp nếu đã loại bỏ
-                if not include_timestamp and 'timestamp' in df.columns:
-                    train_df.insert(0, 'timestamp', timestamp_values[:train_size].values)
-                    test_df.insert(0, 'timestamp', timestamp_values[train_size:].values)
+                if missing_columns:
+                    report["warnings"].append(f"có {len(missing_columns)} cột chứa giá trị NaN")
+                    report["missing_values"] = missing_columns
                 
-                results[symbol] = {
-                    'train': train_df,
-                    'test': test_df,
-                    'train_size': len(train_df),
-                    'test_size': len(test_df),
-                    'feature_count': train_df.shape[1]
-                }
+                # 3. Kiểm tra dữ liệu tâm lý
+                if 'sentiment_value' in df.columns:
+                    sentiment_na = df['sentiment_value'].isna().sum()
+                    sentiment_coverage = (len(df) - sentiment_na) / len(df) * 100
+                    
+                    report["sentiment_stats"] = {
+                        "missing_values": sentiment_na,
+                        "coverage_percentage": sentiment_coverage
+                    }
+                    
+                    if sentiment_coverage < 50:
+                        report["issues"].append(f"dữ liệu tâm lý có tỷ lệ phủ thấp ({sentiment_coverage:.2f}%)")
+                    elif sentiment_coverage < 90:
+                        report["warnings"].append(f"dữ liệu tâm lý chưa đầy đủ ({sentiment_coverage:.2f}%)")
+                    
+                    # Kiểm tra kiểu dữ liệu
+                    if not pd.api.types.is_numeric_dtype(df['sentiment_value']):
+                        report["issues"].append("sentiment_value không phải kiểu số")
                 
-                self.logger.info(f"Đã chuẩn bị dữ liệu huấn luyện cho {symbol}: {len(train_df)} mẫu train, {len(test_df)} mẫu test")
+                # 4. Kiểm tra dữ liệu OHLCV
+                ohlc_cols = ['open', 'high', 'low', 'close']
+                if all(col in df.columns for col in ohlc_cols):
+                    # Kiểm tra logic OHLC
+                    high_low_issue = (df['high'] < df['low']).sum()
+                    if high_low_issue > 0:
+                        report["issues"].append(f"có {high_low_issue} candle với high < low")
+                    
+                    # Kiểm tra giá trị âm
+                    negative_values = {}
+                    for col in ohlc_cols:
+                        neg_count = (df[col] < 0).sum()
+                        if neg_count > 0:
+                            negative_values[col] = neg_count
+                    
+                    if negative_values:
+                        report["issues"].append(f"có giá trị âm trong cột OHLC: {negative_values}")
+                
+                # 5. Kiểm tra cột mục tiêu
+                target_cols = [col for col in df.columns if col.startswith('target_')]
+                if target_cols:
+                    missing_target = {}
+                    for col in target_cols:
+                        na_count = df[col].isna().sum()
+                        if na_count > 0:
+                            missing_target[col] = na_count
+                    
+                    if missing_target:
+                        report["warnings"].append(f"có giá trị NaN trong {len(missing_target)} cột mục tiêu")
+                        report["missing_target"] = missing_target
+                
+                # 6. Đánh giá tổng thể
+                if report["issues"]:
+                    report["overall_status"] = "failed" if len(report["issues"]) > 2 else "warning"
+                elif report["warnings"]:
+                    report["overall_status"] = "warning"
+                else:
+                    report["overall_status"] = "passed"
+                
+                results[symbol] = report
+                
+                # Log kết quả kiểm tra
+                if report["overall_status"] == "failed":
+                    self.logger.error(f"Dữ liệu {symbol} có vấn đề nghiêm trọng: {', '.join(report['issues'])}")
+                elif report["overall_status"] == "warning":
+                    self.logger.warning(f"Dữ liệu {symbol} có cảnh báo: {', '.join(report['warnings'])}")
+                else:
+                    self.logger.info(f"Dữ liệu {symbol} đạt yêu cầu nhất quán")
                 
             except Exception as e:
-                self.logger.error(f"Lỗi khi chuẩn bị dữ liệu huấn luyện cho {symbol}: {str(e)}")
+                self.logger.error(f"Lỗi khi kiểm tra tính nhất quán cho {symbol}: {str(e)}")
+                results[symbol] = {"overall_status": "error", "error": str(e)}
         
         return results
     
@@ -1414,7 +1927,21 @@ class DataPipeline:
             
         Returns:
             Dict với key là symbol và value là đường dẫn file
-        """
+        """       
+        # Thêm class NumpyEncoder trong phương thức
+        class NumpyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, (np.integer, np.int64)):
+                    return int(obj)
+                elif isinstance(obj, (np.floating, np.float64)):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, np.bool_):
+                    return bool(obj)
+                elif isinstance(obj, (datetime, pd.Timestamp)):
+                    return obj.isoformat()
+                return super(NumpyEncoder, self).default(obj)        
         if output_dir is None:
             output_dir = self.output_dir
         else:
@@ -1430,6 +1957,9 @@ class DataPipeline:
             self.logger.warning(f"Định dạng không được hỗ trợ: {file_format}, sử dụng 'parquet'")
             file_format = 'parquet'
         
+        # Kiểm tra tính nhất quán dữ liệu trước khi lưu
+        consistency_reports = self.check_data_consistency(data)
+        
         results = {}
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
@@ -1437,25 +1967,21 @@ class DataPipeline:
         
         for symbol, df in data.items():
             try:
-                # Thông báo bắt đầu xử lý
-                self.logger.info(f"Đang xử lý dữ liệu cho {symbol} ({len(df)} dòng)")
+                # Kiểm tra báo cáo nhất quán
+                report = consistency_reports.get(symbol, {})
+                status = report.get("overall_status", "unknown")
                 
-                # Chuẩn bị DataFrame để lưu
+                if status == "failed":
+                    self.logger.warning(f"Dữ liệu {symbol} có vấn đề nghiêm trọng, lưu có thể không chính xác")
+                
+                # Thực hiện các bước cuối cùng để chuẩn bị dữ liệu
                 df_to_save = df.copy()
                 
-                # Xử lý timestamp nếu cần
+                # Đảm bảo timestamp là datetime64[ns]
                 if 'timestamp' in df_to_save.columns and preserve_timestamp:
                     if not pd.api.types.is_datetime64_any_dtype(df_to_save['timestamp']):
-                        df_to_save['timestamp'] = pd.to_datetime(df_to_save['timestamp'])
-                        self.logger.info(f"Đã chuyển đổi timestamp sang datetime cho {symbol}")
-                
-                # Xử lý các cột object nếu có
-                for col in df_to_save.columns:
-                    if col != 'timestamp' and df_to_save[col].dtype == 'object':
-                        try:
-                            df_to_save[col] = df_to_save[col].astype(float)
-                        except:
-                            pass
+                        self.logger.info(f"Chuyển đổi timestamp cho {symbol} trước khi lưu")
+                        df_to_save = self._convert_timestamp(df_to_save)
                 
                 # Tạo tên file
                 filename = f"{symbol.replace('/', '_').lower()}_{timestamp}"
@@ -1472,35 +1998,59 @@ class DataPipeline:
                         df_to_save.to_parquet(file_path, index=False)
                         self.logger.info(f"Đã lưu Parquet cho {symbol}")
                     elif file_format == 'json':
-                        df_to_save.to_json(file_path, orient='records')
+                        df_to_save.to_json(file_path, orient='records', date_format='iso')
                         self.logger.info(f"Đã lưu JSON cho {symbol}")
                     
                     # Lưu đường dẫn vào kết quả
                     results[symbol] = str(file_path)
-                    self.logger.info(f"Đã thêm {symbol} vào kết quả")
                     
                     # Lưu metadata nếu cần
                     if include_metadata:
                         metadata = {
                             "symbol": symbol,
-                            "rows": len(df),
-                            "columns": df.columns.tolist(),
+                            "rows": len(df_to_save),
+                            "columns": df_to_save.columns.tolist(),
                             "saved_at": datetime.now().isoformat(),
                             "file_format": file_format,
-                            "file_path": str(file_path)
+                            "file_path": str(file_path),
+                            "consistency_report": report
                         }
+                        
+                        # Thêm thông tin thời gian nếu có
+                        if 'timestamp' in df_to_save.columns:
+                            metadata["start_date"] = df_to_save['timestamp'].min().isoformat()
+                            metadata["end_date"] = df_to_save['timestamp'].max().isoformat()
                         
                         metadata_path = output_dir / f"{filename}_metadata.json"
                         with open(metadata_path, 'w', encoding='utf-8') as f:
-                            json.dump(metadata, f, indent=4, ensure_ascii=False)
+                            json.dump(metadata, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
                         
                         self.logger.info(f"Đã lưu metadata cho {symbol}")
                 
                 except Exception as e:
-                    self.logger.error(f"Lỗi khi lưu file cho {symbol}: {str(e)}", exc_info=True)
+                    self.logger.error(f"Lỗi khi lưu file cho {symbol}: {str(e)}")
+                    traceback.print_exc()
                     
             except Exception as e:
-                self.logger.error(f"Lỗi khi xử lý dữ liệu cho {symbol}: {str(e)}", exc_info=True)
+                self.logger.error(f"Lỗi khi xử lý dữ liệu cho {symbol}: {str(e)}")
+                traceback.print_exc()
+        
+        # Lưu báo cáo tổng hợp
+        summary = {
+            "timestamp": timestamp,
+            "saved_symbols": len(results),
+            "total_symbols": len(data),
+            "output_dir": str(output_dir),
+            "file_format": file_format,
+            "consistency_summary": {
+                symbol: report.get("overall_status", "unknown") 
+                for symbol, report in consistency_reports.items()
+            }
+        }
+        
+        summary_path = output_dir / f"summary_{timestamp}.json"
+        with open(summary_path, 'w', encoding='utf-8') as f:
+            json.dump(summary, f, indent=4, ensure_ascii=False)
         
         self.logger.info(f"Đã lưu tổng cộng {len(results)}/{len(data)} file dữ liệu")
         return results
@@ -1637,6 +2187,10 @@ class DataPipeline:
             # Sử dụng các bước mặc định
             pipeline_steps = [
                 {"name": "collect_data", "enabled": exchange_id is not None},
+                {"name": "collect_binance_sentiment", "enabled": exchange_id is not None, "params": {
+                    "output_dir": str(self.data_dir / "sentiment" / "binance"),
+                    "save_format": "parquet"
+                }},                
                 {"name": "load_data", "enabled": input_files is not None},
                 {"name": "clean_data", "enabled": True, "params": {
                     "handle_leading_nan": True,
@@ -1703,7 +2257,7 @@ class DataPipeline:
                     "method": "last_value",
                     "window": "1D"
                 }},
-                {"name": "prepare_training", "enabled": False},  # Mặc định không chuẩn bị dữ liệu huấn luyện
+                {"name": "check_consistency", "enabled": True},
                 {"name": "save_data", "enabled": save_results}
             ]
             
@@ -1729,8 +2283,8 @@ class DataPipeline:
             
             try:
                 if step_name == "collect_data":
-                    # Thu thập dữ liệu
-                    collected_data = await self.collect_data(
+                    # Thu thập dữ liệu với phương thức cải tiến
+                    collected_data = await self.collect_data_improved(
                         exchange_id=exchange_id,
                         symbols=symbols,
                         timeframe=timeframe,
@@ -1821,35 +2375,58 @@ class DataPipeline:
                 elif step_name == "merge_sentiment":
                     # Kết hợp dữ liệu tâm lý
                     sentiment_data = step_params.get("sentiment_data", None)
-                    if sentiment_data is None and "sentiment" in current_data:
-                        sentiment_data = current_data["sentiment"]
+                    
+                    # Tìm kiếm dữ liệu tâm lý trong current_data
+                    sentiment_keys = [k for k in current_data.keys() if k.lower().endswith('_sentiment') or k.lower() == 'sentiment']
+                    
+                    if sentiment_keys:
+                        # Tách dữ liệu tâm lý và dữ liệu thị trường
+                        market_data = {k: v for k, v in current_data.items() if k not in sentiment_keys}
+                        isolated_sentiment = {k: current_data[k] for k in sentiment_keys}
                         
-                    if sentiment_data is not None:
+                        # Kết hợp dữ liệu
                         merged_data = self.merge_sentiment_data(
-                            current_data,
+                            market_data=market_data,
+                            sentiment_data=isolated_sentiment,
+                            **{k: v for k, v in step_params.items() if k != "sentiment_data"}
+                        )
+                        current_data = merged_data
+                        step_results["merge_sentiment"] = merged_data
+                    elif sentiment_data is not None:
+                        # Sử dụng dữ liệu tâm lý được cung cấp
+                        merged_data = self.merge_sentiment_data(
+                            market_data=current_data,
                             sentiment_data=sentiment_data,
                             **{k: v for k, v in step_params.items() if k != "sentiment_data"}
                         )
                         current_data = merged_data
                         step_results["merge_sentiment"] = merged_data
                     else:
-                        self.logger.info("Không có dữ liệu tâm lý để kết hợp")
+                        # Sử dụng thư mục dữ liệu tâm lý nếu được cung cấp
+                        sentiment_dir_param = step_params.get("sentiment_dir")
+                        if sentiment_dir_param:
+                            merged_data = self.merge_sentiment_data(
+                                market_data=current_data,
+                                sentiment_dir=sentiment_dir_param,
+                                **{k: v for k, v in step_params.items() if k != "sentiment_dir"}
+                            )
+                            current_data = merged_data
+                            step_results["merge_sentiment"] = merged_data
+                        else:
+                            self.logger.info("Không có dữ liệu tâm lý để kết hợp")
                 
-                elif step_name == "prepare_training":
-                    # Chuẩn bị dữ liệu huấn luyện
-                    training_data = self.prepare_training_data(
-                        current_data,
-                        **step_params
-                    )
-                    step_results["prepare_training"] = training_data
+                elif step_name == "check_consistency":
+                    # Kiểm tra tính nhất quán dữ liệu
+                    consistency_report = self.check_data_consistency(current_data)
+                    step_results["check_consistency"] = consistency_report
                     
-                    # Chuyển đổi định dạng dữ liệu sang Dict[str, pd.DataFrame]
-                    training_flat = {}
-                    for symbol, data_dict in training_data.items():
-                        training_flat[f"{symbol}_train"] = data_dict['train']
-                        training_flat[f"{symbol}_test"] = data_dict['test']
+                    # Log kết quả kiểm tra tính nhất quán
+                    failed_symbols = [symbol for symbol, report in consistency_report.items() 
+                                    if report.get('overall_status') == 'failed']
+                    if failed_symbols:
+                        self.logger.warning(f"Có {len(failed_symbols)} symbol không đạt yêu cầu nhất quán: {failed_symbols}")
                     
-                    current_data = training_flat
+                    # Không thay đổi dữ liệu ở bước này
                 
                 elif step_name == "save_data":
                     # Lưu dữ liệu
@@ -1863,11 +2440,52 @@ class DataPipeline:
                     )
                     step_results["save_data"] = saved_paths
                 
-                else:
-                    self.logger.warning(f"Không nhận dạng được bước '{step_name}'")
-                
+                elif step_name == "collect_binance_sentiment":
+                    # Thu thập dữ liệu tâm lý từ Binance
+                    asset = symbols[0].split('/')[0] if '/' in symbols[0] else symbols[0]
+                    self.logger.info(f"Bước thu thập dữ liệu tâm lý từ Binance cho {asset}")
+                    
+                    from cli.commands.collect_commands import CollectCommands
+                    cmd = CollectCommands()
+                    
+                    # Chuyển datetime sang string format YYYY-MM-DD
+                    start_date = start_time.strftime("%Y-%m-%d") if isinstance(start_time, datetime) else start_time
+                    end_date = end_time.strftime("%Y-%m-%d") if isinstance(end_time, datetime) else end_time
+                    
+                    # Thu thập dữ liệu tâm lý
+                    binance_sentiment_results = await cmd.collect_binance_sentiment(
+                        exchange_id=exchange_id,
+                        symbols=symbols,
+                        start_date=start_date,
+                        end_date=end_date,
+                        output_dir=step_params.get("output_dir", self.data_dir / "sentiment" / "binance"),
+                        save_format=step_params.get("save_format", 'parquet')
+                    )
+                    
+                    if binance_sentiment_results:
+                        # Đọc các file đã lưu và thêm vào dữ liệu hiện tại
+                        sentiment_data = {}
+                        for symbol, file_path in binance_sentiment_results.items():
+                            try:
+                                sentiment_df = pd.read_parquet(file_path)
+                                asset_name = symbol.split('/')[0] if '/' in symbol else symbol
+                                sentiment_key = f"{asset_name}_sentiment"
+                                sentiment_data[sentiment_key] = sentiment_df
+                                self.logger.info(f"Đã đọc {len(sentiment_df)} dòng dữ liệu tâm lý cho {asset_name}")
+                            except Exception as e:
+                                self.logger.error(f"Lỗi khi đọc file dữ liệu tâm lý: {str(e)}")
+                        
+                        # Thêm dữ liệu tâm lý vào kết quả
+                        if sentiment_data:
+                            current_data.update(sentiment_data)
+                            step_results["collect_binance_sentiment"] = sentiment_data
+                    else:
+                        self.logger.warning("Không thu thập được dữ liệu tâm lý từ Binance")
+
             except Exception as e:
-                self.logger.error(f"Lỗi khi thực hiện bước '{step_name}': {str(e)}")
+                self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý từ Binance: {str(e)}")
+                import traceback
+                self.logger.error(traceback.format_exc())
         
         # Lưu trạng thái pipeline nếu cần
         if save_results:
@@ -1895,7 +2513,7 @@ class DataPipeline:
             results = {}
             for symbol, df in data.items():
                 # Bỏ qua dữ liệu tâm lý
-                if symbol.lower() == "sentiment":
+                if symbol.lower().endswith('_sentiment') or symbol.lower() == 'sentiment':
                     results[symbol] = df
                     continue
                 
@@ -1967,6 +2585,7 @@ class DataPipeline:
                 
         except Exception as e:
             self.logger.error(f"Lỗi khi tính toán đặc trưng tâm lý: {str(e)}")
+            self.logger.error(traceback.format_exc())
             # Trả về dữ liệu gốc nếu có lỗi
             return data        
 
@@ -2039,4 +2658,3 @@ def main():
 if __name__ == "__main__":
     # Chạy hàm main
     main()
-

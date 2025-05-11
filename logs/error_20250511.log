@@ -1,0 +1,25 @@
+2025-05-11 15:23:32,352 - trading_system.trading_system - ERROR - [data_pipeline.py:478] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
+2025-05-11 15:23:32,358 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1913] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'start_date'
+2025-05-11 15:24:40,779 - trading_system.trading_system - ERROR - [data_pipeline.py:478] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
+2025-05-11 15:24:40,784 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1913] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'start_date'
+2025-05-11 15:24:47,074 - trading_system.trading_system - ERROR - [data_pipeline.py:478] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
+2025-05-11 15:24:47,080 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1913] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'start_date'
+2025-05-11 15:24:53,214 - trading_system.trading_system - ERROR - [data_pipeline.py:478] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
+2025-05-11 15:24:53,220 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1913] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'start_date'
+2025-05-11 15:25:57,534 - trading_system.trading_system - ERROR - [data_pipeline.py:478] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
+2025-05-11 15:25:57,540 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1913] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'start_date'
+2025-05-11 15:31:15,449 - trading_system.trading_system - ERROR - [data_pipeline.py:478] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
+2025-05-11 15:31:15,452 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1913] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'start_time'
+2025-05-11 15:39:38,733 - trading_system.trading_system - ERROR - [data_pipeline.py:478] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
+2025-05-11 15:39:38,738 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1913] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'start_time'
+2025-05-11 15:44:48,075 - trading_system.trading_system - ERROR - [data_pipeline.py:478] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
+2025-05-11 15:44:48,078 - trading_system.sentiment_collector - ERROR - [sentiment_collector.py:1913] - Lỗi khi thu thập dữ liệu tâm lý từ Fear and Greed Index: get_sentiment() got an unexpected keyword argument 'start_date'
+2025-05-11 16:31:05,456 - trading_system.trading_system - ERROR - [data_pipeline.py:2017] - Lỗi khi lưu file cho BTC_sentiment: Object of type int64 is not JSON serializable
+2025-05-11 16:54:49,788 - trading_system.trading_system - ERROR - [data_pipeline.py:2017] - Lỗi khi lưu file cho BTC_sentiment: Object of type int64 is not JSON serializable
+2025-05-11 18:42:37,892 - trading_system.process_commands - ERROR - [process_commands.py:803] - Không tìm thấy file dữ liệu phù hợp trong data\sentiment
+2025-05-11 18:45:05,370 - trading_system.process_commands - ERROR - [process_commands.py:803] - Không tìm thấy file dữ liệu phù hợp trong data\sentiment\binance
+2025-05-11 18:46:42,525 - trading_system.process_commands - ERROR - [process_commands.py:803] - Không tìm thấy file dữ liệu phù hợp trong data\sentiment
+2025-05-11 18:51:50,960 - trading_system.process_commands - ERROR - [process_commands.py:803] - Không tìm thấy file dữ liệu phù hợp trong data\sentiment
+2025-05-11 18:58:39,139 - trading_system.process_commands - ERROR - [process_commands.py:803] - Không tìm thấy file dữ liệu phù hợp trong data\sentiment
+2025-05-11 19:35:39,875 - trading_system.process_commands - ERROR - [process_commands.py:803] - Không tìm thấy file dữ liệu phù hợp trong data\sentiment
+2025-05-11 20:11:14,648 - trading_system.process_commands - ERROR - [process_commands.py:1063] - Không tìm thấy file dữ liệu phù hợp trong data\processed

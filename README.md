@@ -324,11 +324,96 @@ pip install -r requirements.txt
 ## 2. Thu thập dữ liệu lịch sử
 
 ```bash
-# Thu thập dữ liệu thị trường spot cho BTC/USDT và ETH/USDT
-python main.py collect --exchange binance --symbols BTCUSDT,ETHUSDT --timeframes 1h --start-date 2024-06-01 --end-date 2024-12-30
+# 1. THU THẬP DỮ LIỆU
+# Thu thập dữ liệu BTC/USDT trên thị trường spot
+python main.py collect historical --exchange binance --symbols BTC/USDT --timeframe 1h --start-date 2025-02-10 --end-date 2025-05-10 --save-format csv --output-dir ./my_data
 
-# Thu thập dữ liệu cho một khung thời gian cụ thể (subcommand "historical")
-python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT,BNB/USDT,XRP/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2024-12-30 --futures
+# Thu thập dữ liệu BTC/USDT trên thị trường futures
+python main.py collect historical --exchange binance --symbols BTC/USDT --timeframe 1h --start-date 2025-02-10 --end-date 2025-05-10 --futures --force-update
+# Thu thập nhiều cặp tiền trên Futures với nhiều khung thời gian
+python main.py collect --exchange binance --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframes 1h,4h,1d --start-date 2025-02-10 --end-date 2025-05-10 --futures --save-format parquet
+
+# Thu thập nhiều cặp tiền 
+python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframe 1h --start-date 2025-02-10 --end-date 2025-05-10
+
+# Nếu bạn muốn thu thập nhiều khung thời gian
+
+
+
+
+
+# 2. LÀM SẠCH DỮ LIỆU
+# Làm sạch dữ liệu thị trường
+python main.py process clean --data-type ohlcv --input-dir data/collected --symbols BTC/USDT --output-dir data/processed
+
+# Làm sạch dữ liệu tâm lý cho tất cả file
+python main.py process clean --data-type all --input-dir data/sentiment --output-dir data/cleaned/sentiment
+# Làm sạch dữ liệu tâm lý cho symbol cụ thể
+python main.py process clean --data-type all --input-dir data/collected --symbols BTC_sentiment --output-dir data/cleaned/sentiment
+python main.py process clean --data-type all --input-dir data/sentiment --symbols BTC/USDT --output-dir data/cleaned/sentiment
+# Làm sạch dữ liệu thị trường với các tùy chọn bổ sung
+python main.py process clean --data-path data/collected/BTC_USDT.parquet --handle-leading-nan --leading-nan-method backfill --min-periods 5 --handle-extreme-volume --output-dir data/cleaned
+
+
+# 3. TẠO ĐẶC TRƯNG KỸ THUẬT
+# Tạo đặc trưng kỹ thuật
+python main.py process pipeline --input-dir data/processed --symbols BTC/USDT --no-clean --output-dir data/features --all-indicators
+python main.py process features --input-dir data/processed --symbols BTC/USDT --all-indicators --output-dir data/features
+
+# 4. KẾT HỢP DỮ LIỆU TÂM LÝ VỚI DỮ LIỆU THỊ TRƯỜNG
+# Kết hợp dữ liệu tâm lý với dữ liệu thị trường
+python main.py process --market-data data/features/BTC_USDT.parquet --sentiment-data data/sentiment/BTC_sentiment.parquet --merge-sentiment --output-dir data/merged
+
+# Kết hợp với phương pháp và cửa sổ thời gian cụ thể
+python main.py process --market-data data/features/BTC_USDT.parquet --sentiment-dir data/sentiment --merge-sentiment --sentiment-method last_value --sentiment-window 1D
+
+# 5. CHẠY TOÀN BỘ PIPELINE XỬ LÝ DỮ LIỆU
+# Chạy toàn bộ pipeline từ đầu đến cuối
+python main.py process --data-path data/collected/BTC_USDT.parquet --run-pipeline --output-dir data/processed
+python main.py process pipeline --symbols BTC/USDT  --no-clean --output-dir data/features 
+# Dưới đây là một ví dụ về quy trình đầy đủ từ thu thập dữ liệu đến xử lý:
+# 1. Thu thập dữ liệu thị trường và dữ liệu tâm lý
+python main.py collect --exchange binance --symbols BTC/USDT,ETH/USDT --timeframe 1h --days 90 --include-sentiment --output-dir data/collected
+
+# 2. Làm sạch dữ liệu
+python main.py process --data-path data/collected/BTC_USDT.parquet --clean-data --handle-leading-nan --output-dir data/cleaned
+
+# 3. Tạo đặc trưng kỹ thuật
+python main.py process --data-path data/cleaned/BTC_USDT.parquet --generate-features --all-indicators --output-dir data/features
+
+# 4. Kết hợp dữ liệu tâm lý
+python main.py process --market-data data/features/BTC_USDT.parquet --sentiment-dir data/collected --merge-sentiment --output-dir data/merged
+
+# 5. Tạo các đặc trưng mục tiêu
+python main.py process --data-path data/merged/BTC_USDT.parquet --create-targets --output-dir data/final
+
+# Ví dụ chạy pipeline với các tham số chi tiết
+   # Chạy toàn bộ quy trình với đầy đủ tham số
+   python main.py run-pipeline \
+  --exchange binance \
+  --symbols BTC/USDT \
+  --timeframe 1h \
+  --start 2023-01-01 \
+  --end 2023-05-01 \
+  --futures \
+  --include-sentiment \
+  --sentiment-dir data/sentiment \
+  --clean-indicators \
+  --leading-method backfill \
+  --all-indicators \
+  --remove-redundant \
+  --correlation-threshold 0.95 \
+  --create-targets \
+  --target-types direction,return,volatility \
+  --horizons 1,3,5,10 \
+  --output-dir data/processed \
+  --output-format parquet
+  # Những lệnh này có thể được điều chỉnh dựa trên cách bạn đã cấu hình trong main.py để xử lý các tham số dòng lệnh. Các tham số và cấu trúc lệnh có   thể cần phải được điều chỉnh để phù hợp với triển khai cụ thể của ứng dụng của bạn.
+
+
+
+
+
 # Thu thập dữ liệu cho nhiều khung thời gian cùng lúc
 python main.py collect --exchange binance --symbols BTC/USDT --timeframes 1h,4h,1d --start-date 2022-01-01 --end-date 2024-12-30 --futures
 

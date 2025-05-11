@@ -1,0 +1,11 @@
+{
+    "timestamp": "20250511_192124",
+    "saved_symbols": 2,
+    "total_symbols": 2,
+    "output_dir": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\futures\\1h",
+    "file_format": "parquet",
+    "consistency_summary": {
+        "BTC/USDT": "passed",
+        "BTC_sentiment": "passed"
+    }
+}

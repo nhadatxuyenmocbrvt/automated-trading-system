@@ -1,0 +1,73 @@
+{
+    "symbol": "BTC/USDT",
+    "rows": 500,
+    "columns": [
+        "timestamp",
+        "volume_log",
+        "volume_extreme_log",
+        "ema_89",
+        "trend_strength",
+        "trend_acceleration",
+        "atr_14",
+        "volatility_zscore",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "symbol",
+        "indicators_fixed",
+        "volume_extreme",
+        "target_direction_1",
+        "target_return_1",
+        "target_volatility_1",
+        "target_direction_3",
+        "target_return_3",
+        "target_volatility_3",
+        "target_direction_5",
+        "target_return_5",
+        "target_volatility_5",
+        "target_direction_10",
+        "target_return_10",
+        "target_volatility_10"
+    ],
+    "saved_at": "2025-05-11T20:17:03.949538",
+    "file_format": "parquet",
+    "file_path": "data\\features\\btc_usdt_20250511_201703.parquet",
+    "consistency_report": {
+        "rows": 500,
+        "columns": 28,
+        "issues": [
+            "có 314 candle với high < low",
+            "có giá trị âm trong cột OHLC: {'open': 134, 'high': 135, 'low': 136, 'close': 135}"
+        ],
+        "warnings": [
+            "có 9 cột chứa giá trị NaN",
+            "có giá trị NaN trong 8 cột mục tiêu"
+        ],
+        "missing_values": {
+            "atr_14": 13,
+            "target_return_1": 1,
+            "target_volatility_1": 500,
+            "target_return_3": 3,
+            "target_volatility_3": 3,
+            "target_return_5": 5,
+            "target_volatility_5": 5,
+            "target_return_10": 10,
+            "target_volatility_10": 10
+        },
+        "missing_target": {
+            "target_return_1": 1,
+            "target_volatility_1": 500,
+            "target_return_3": 3,
+            "target_volatility_3": 3,
+            "target_return_5": 5,
+            "target_volatility_5": 5,
+            "target_return_10": 10,
+            "target_volatility_10": 10
+        },
+        "overall_status": "warning"
+    },
+    "start_date": "2025-02-09T17:00:00",
+    "end_date": "2025-03-02T12:00:00"
+}
