@@ -893,10 +893,10 @@ class DataPipeline:
         min_periods: int = 5,
         handle_extreme_volume: bool = True,
         preserve_timestamp: bool = True,
-        # Thêm tham số mới
-        aggressive_nan_handling: bool = True,  # Xử lý triệt để giá trị NaN
-        fill_all_nan: bool = True,  # Đảm bảo không còn NaN nào
-        fill_method: str = 'ffill+bfill'  # Phương pháp kết hợp forward fill và backward fill
+        # Đổi giá trị mặc định 
+        aggressive_nan_handling: bool = True,  # Thay đổi từ False sang True
+        fill_all_nan: bool = True,             # Thay đổi từ False sang True
+        fill_method: str = 'interpolate'       # Thay đổi từ 'ffill+bfill' sang 'interpolate'
     ) -> Dict[str, pd.DataFrame]:
         """
         Làm sạch dữ liệu.

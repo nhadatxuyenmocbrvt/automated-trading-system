@@ -53,9 +53,10 @@ def process_commands():
 @click.option("--output-dir", "-o", type=click.Path(), help="Thư mục lưu dữ liệu đã làm sạch")
 @click.option("--preserve-timestamp/--no-preserve-timestamp", default=True, help="Giữ nguyên timestamp trong quá trình xử lý")
 @click.option("--aggressive-nan/--normal-nan", default=True, help="Xử lý triệt để giá trị NaN")
-@click.option("--fill-method", type=click.Choice(['ffill+bfill', 'interpolate', 'mean']), default='ffill+bfill', help="Phương pháp điền các giá trị NaN")
+@click.option("--fill-all-nan/--allow-nan", default=True, help="Đảm bảo không còn NaN sau khi xử lý")
+@click.option("--fill-method", type=click.Choice(['ffill+bfill', 'interpolate', 'mean']), default='interpolate', help="Phương pháp điền các giá trị NaN")
 @click.option("--verbose", "-v", count=True, help="Mức độ chi tiết của log (0-2)")
-def clean_data(data_type, input_dir, symbols, timeframes, output_dir, preserve_timestamp, aggressive_nan, fill_method, verbose):
+def clean_data(data_type, input_dir, symbols, timeframes, output_dir, preserve_timestamp, aggressive_nan, fill_all_nan, fill_method, verbose):
     """
     Làm sạch dữ liệu thị trường.
     
@@ -113,7 +114,7 @@ def clean_data(data_type, input_dir, symbols, timeframes, output_dir, preserve_t
                 clean_trades=(data_type == 'trades' or data_type == 'all'),
                 preserve_timestamp=preserve_timestamp,
                 aggressive_nan_handling=aggressive_nan,
-                fill_all_nan=True,
+                fill_all_nan=fill_all_nan,
                 fill_method=fill_method
             )
         elif data_type == 'trades':
