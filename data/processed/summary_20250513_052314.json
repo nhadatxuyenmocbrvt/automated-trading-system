@@ -1,0 +1,10 @@
+{
+    "timestamp": "20250513_052314",
+    "saved_symbols": 1,
+    "total_symbols": 1,
+    "output_dir": "E:\\AI_AGENT\\automated-trading-system\\data\\processed",
+    "file_format": "parquet",
+    "consistency_summary": {
+        "BTC/USDT": "warning"
+    }
+}

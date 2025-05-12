@@ -1,0 +1,32 @@
+{
+    "symbol": "BTC_sentiment",
+    "rows": 2130,
+    "columns": [
+        "timestamp",
+        "funding_rate",
+        "funding_sentiment",
+        "rsi_sentiment",
+        "bb_sentiment",
+        "sentiment_score",
+        "sentiment_label",
+        "sentiment_value",
+        "symbol",
+        "source"
+    ],
+    "saved_at": "2025-05-13T04:17:15.840109",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\futures\\1h\\btc_sentiment_20250513_041715.parquet",
+    "consistency_report": {
+        "rows": 2130,
+        "columns": 10,
+        "issues": [],
+        "warnings": [],
+        "sentiment_stats": {
+            "missing_values": 0,
+            "coverage_percentage": 100.0
+        },
+        "overall_status": "passed"
+    },
+    "start_date": "2025-02-10T00:00:00",
+    "end_date": "2025-05-09T17:00:00"
+}

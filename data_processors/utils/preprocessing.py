@@ -1396,6 +1396,8 @@ def generate_labels(
     price_col: str = 'close',
     window: int = 10,
     threshold: float = 0.01,
+    handle_nan: bool = True,
+    nan_handling_method: str = 'ffill',
     **kwargs
 ) -> pd.DataFrame:
     """
@@ -1420,6 +1422,13 @@ def generate_labels(
     
     # Tính % thay đổi giá trong tương lai
     future_returns = result_df[price_col].shift(-window) / result_df[price_col] - 1
+    
+    # Xử lý các giá trị NaN nếu cần
+    if handle_nan:
+        nan_count_before = future_returns.isna().sum()
+        future_returns = handle_trailing_nans(future_returns, method=nan_handling_method)
+        nan_count_after = future_returns.isna().sum()
+        logger.info(f"Đã xử lý {nan_count_before - nan_count_after} giá trị NaN trong future_returns")
     
     # Tạo nhãn: 1 (mua) nếu lợi nhuận > threshold, -1 (bán) nếu lỗ > threshold, 0 (giữ nguyên) nếu khác
     result_df['label'] = 0
@@ -1459,7 +1468,9 @@ def clean_technical_features(
             'add_volatility_zscore': True,
             'generate_labels': True,
             'label_window': 10,
-            'label_threshold': 0.01
+            'label_threshold': 0.01,
+            'handle_nan': True,
+            'nan_handling_method': 'ffill'
         }
     
     result_df = df.copy()
@@ -1539,7 +1550,9 @@ def clean_technical_features(
             result_df,
             price_col=config.get('price_col', 'close'),
             window=config.get('label_window', 10),
-            threshold=config.get('label_threshold', 0.01)
+            threshold=config.get('label_threshold', 0.01),
+            handle_nan=config.get('handle_nan', True),
+            nan_handling_method=config.get('nan_handling_method', 'ffill')
         )
         logger.info("Đã tạo nhãn cho dữ liệu")
     
@@ -1677,5 +1690,41 @@ def handle_leading_nans(series, fill_value=None):
         # Điền tất cả NaN ở đầu với giá trị này
         mask = result.index < first_valid_index
         result.loc[mask] = value_to_fill
+    
+    return result
+
+def handle_trailing_nans(series, fill_value=None, method='ffill'):
+    """
+    Xử lý các giá trị NaN ở cuối series.
+    
+    Args:
+        series: Series cần xử lý
+        fill_value: Giá trị để điền (nếu None, sử dụng phương pháp chỉ định)
+        method: Phương pháp điền khi fill_value là None ('ffill', 'mean', 'zero')
+    
+    Returns:
+        Series đã xử lý
+    """
+    result = series.copy()
+    last_valid_index = result.last_valid_index()
+    
+    if last_valid_index is not None and last_valid_index < result.index[-1]:
+        # Có giá trị NaN ở cuối series
+        if fill_value is not None:
+            # Điền bằng giá trị cụ thể
+            mask = result.index > last_valid_index
+            result.loc[mask] = fill_value
+        else:
+            # Áp dụng phương pháp điền
+            if method == 'ffill':
+                # Forward fill - sử dụng giá trị cuối cùng
+                result = result.fillna(method='ffill')
+            elif method == 'mean':
+                # Điền bằng giá trị trung bình
+                mean_value = result.mean()
+                result = result.fillna(mean_value)
+            elif method == 'zero':
+                # Điền bằng 0
+                result = result.fillna(0)
     
     return result

@@ -1088,7 +1088,8 @@ class MissingDataHandler:
         price_column: str = 'close',
         target_types: List[str] = ['direction', 'return', 'volatility'],
         horizons: List[int] = [1, 3, 5, 10],
-        threshold: float = 0.0
+        threshold: float = 0.0,
+        fill_nan: bool = True
     ) -> pd.DataFrame:
         """
         Tạo các cột mục tiêu cho huấn luyện có giám sát.
@@ -1134,16 +1135,48 @@ class MissingDataHandler:
                 target_df[col_name] = target_df[price_column].pct_change(periods=horizon).shift(-horizon)
                 target_columns_created.append(col_name)
         
-            # Loại 3: Target biến động
+            # Loại 3: Target biến động - SỬA TẠI ĐÂY
             if 'volatility' in target_types:
                 col_name = f'target_volatility_{horizon}'
-                # Tính biến động như độ lệch chuẩn của lợi nhuận
-                rolling_returns = target_df[price_column].pct_change().rolling(window=horizon).std().shift(-horizon)
-                target_df[col_name] = rolling_returns
+                
+                # Cách tính cải tiến:
+                # 1. Tính lợi nhuận theo phần trăm
+                returns = target_df[price_column].pct_change()
+                
+                # 2. Tính độ lệch chuẩn của lợi nhuận trong cửa sổ horizon 
+                # (đối với horizon=1, dùng cửa sổ tối thiểu là 2)
+                window_size = max(horizon, 2)
+                volatility = returns.rolling(window=window_size).std()
+                
+                # 3. Tính giá trị volatility trong tương lai
+                target_df[col_name] = volatility.shift(-horizon)
+                
                 target_columns_created.append(col_name)
-    
+
+        # THÊM ĐOẠN NÀY: Xử lý các giá trị NaN trong các cột mục tiêu
+        if fill_nan:
+            for col in target_columns_created:
+                if target_df[col].isna().any():
+                    # Đối với các cột direction, có thể điền bằng giá trị phổ biến nhất
+                    if 'direction' in col:
+                        most_common = target_df[col].mode().iloc[0] if not target_df[col].dropna().empty else 0
+                        target_df[col] = target_df[col].fillna(most_common)
+                    
+                    # Đối với các cột return và volatility, điền bằng trung bình
+                    elif 'return' in col or 'volatility' in col:
+                        mean_val = target_df[col].mean()
+                        if pd.isna(mean_val):  # Nếu trung bình là NaN (có thể xảy ra nếu tất cả đều là NaN)
+                            # Đối với volatility, sử dụng một giá trị nhỏ phù hợp
+                            if 'volatility' in col:
+                                target_df[col] = target_df[col].fillna(0.01)  # Giá trị biến động nhỏ mặc định
+                            # Đối với return, sử dụng 0 (không thay đổi)
+                            else:
+                                target_df[col] = target_df[col].fillna(0)
+                        else:
+                            target_df[col] = target_df[col].fillna(mean_val)
+
         self.logger.info(f"Đã tạo {len(target_columns_created)} cột mục tiêu: {', '.join(target_columns_created)}")
-    
+
         return target_df
 
     # Thêm phương thức mới để xử lý vấn đề chỉ báo trùng thông tin

@@ -330,40 +330,24 @@ python main.py collect historical --exchange binance --symbols BTC/USDT --timefr
 
 # Thu thập dữ liệu BTC/USDT trên thị trường futures
 python main.py collect historical --exchange binance --symbols BTC/USDT --timeframe 1h --start-date 2025-02-10 --end-date 2025-05-10 --futures --force-update
-# Thu thập nhiều cặp tiền trên Futures với nhiều khung thời gian
-python main.py collect --exchange binance --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframes 1h,4h,1d --start-date 2025-02-10 --end-date 2025-05-10 --futures --save-format parquet
-
 # Thu thập nhiều cặp tiền 
 python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframe 1h --start-date 2025-02-10 --end-date 2025-05-10
 
-# Nếu bạn muốn thu thập nhiều khung thời gian
-
-
-
-
-
 # 2. LÀM SẠCH DỮ LIỆU
-# Làm sạch dữ liệu thị trường
 python main.py process clean --data-type ohlcv --input-dir data/collected --symbols BTC/USDT --output-dir data/processed
-
-
+# Làm sạch dữ liệu tâm lý cho symbol cụ thể
+python main.py process clean --data-type all --input-dir data/collected --symbols BTC_sentiment --output-dir data/processed
 # Làm sạch dữ liệu tâm lý cho tất cả file
 python main.py process clean --data-type all --input-dir data/sentiment --output-dir data/cleaned/sentiment
-# Làm sạch dữ liệu tâm lý cho symbol cụ thể
-python main.py process clean --data-type all --input-dir data/collected --symbols BTC_sentiment --output-dir data/cleaned/sentiment
-python main.py process clean --data-type all --input-dir data/sentiment --symbols BTC/USDT --output-dir data/cleaned/sentiment
-# Làm sạch dữ liệu thị trường với các tùy chọn bổ sung
-python main.py process clean --data-path data/collected/BTC_USDT.parquet --handle-leading-nan --leading-nan-method backfill --min-periods 5 --handle-extreme-volume --output-dir data/cleaned
-
 
 # 3. TẠO ĐẶC TRƯNG KỸ THUẬT
-# Tạo đặc trưng kỹ thuật
 python main.py process pipeline --input-dir data/processed --symbols BTC/USDT --no-clean --output-dir data/features --all-indicators
-python main.py process features --input-dir data/processed --symbols BTC/USDT --all-indicators --output-dir data/features
-
+python main.py process features --data-type ohlcv --input-dir data/processed --symbols BTC/USDT --output-dir data/features --all-indicators --fill-all-nan
+python main.py process features --data-type ohlcv --input-dir data/processed --symbols BTC/USDT --output-dir data/features --aggressive-nan
 # 4. KẾT HỢP DỮ LIỆU TÂM LÝ VỚI DỮ LIỆU THỊ TRƯỜNG
-# Kết hợp dữ liệu tâm lý với dữ liệu thị trường
-python main.py process --market-data data/features/BTC_USDT.parquet --sentiment-data data/sentiment/BTC_sentiment.parquet --merge-sentiment --output-dir data/merged
+python main.py process --input-dir data/features/BTC/USDT.parquet --sentiment-data data/sentiment/BTC_sentiment.parquet --merge-sentiment --output-dir data/merged
+python main.py process pipeline --input-dir data/processed --symbols BTC/USDT --timeframes 1h --include-sentiment --sentiment-dir data/sentiment
+
 
 # Kết hợp với phương pháp và cửa sổ thời gian cụ thể
 python main.py process --market-data data/features/BTC_USDT.parquet --sentiment-dir data/sentiment --merge-sentiment --sentiment-method last_value --sentiment-window 1D
