@@ -1431,46 +1431,6 @@ def generate_labels(
     
     return result_df
 
-def generate_labels(
-    df: pd.DataFrame,
-    price_col: str = 'close',
-    window: int = 10,
-    threshold: float = 0.01,
-    **kwargs
-) -> pd.DataFrame:
-    """
-    Tạo nhãn cho dữ liệu dựa trên biến động giá tương lai.
-    
-    Args:
-        df: DataFrame với dữ liệu giá
-        price_col: Tên cột giá
-        window: Cửa sổ thời gian tương lai (số candle)
-        threshold: Ngưỡng % thay đổi giá để xác định nhãn
-        **kwargs: Tham số bổ sung
-    
-    Returns:
-        DataFrame với cột nhãn mới
-    """
-    result_df = df.copy()
-    
-    # Kiểm tra xem cột giá tồn tại không
-    if price_col not in result_df.columns:
-        logger.warning(f"Cột giá {price_col} không tồn tại trong DataFrame")
-        return result_df
-    
-    # Tính % thay đổi giá trong tương lai
-    future_returns = result_df[price_col].shift(-window) / result_df[price_col] - 1
-    
-    # Tạo nhãn: 1 (mua) nếu lợi nhuận > threshold, -1 (bán) nếu lỗ > threshold, 0 (giữ nguyên) nếu khác
-    result_df['label'] = 0
-    result_df.loc[future_returns > threshold, 'label'] = 1  # Long signal
-    result_df.loc[future_returns < -threshold, 'label'] = -1  # Short signal
-    
-    # Thêm các biến trợ giúp
-    result_df['future_return_pct'] = future_returns * 100  # Dưới dạng %
-    
-    return result_df
-
 def clean_technical_features(
     df: pd.DataFrame,
     config: Optional[Dict[str, Any]] = None,

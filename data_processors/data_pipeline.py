@@ -339,7 +339,7 @@ class DataPipeline:
             self.logger.error(f"Lỗi khi chuyển đổi timestamp: {str(e)}")
             # Trả về DataFrame gốc nếu có lỗi
             return df
-    
+
     async def collect_data_improved(
         self,
         exchange_id: str = None,

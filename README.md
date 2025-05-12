@@ -81,7 +81,7 @@ automated-trading-system/
 │   ├── utils/
 │   │   ├── __init__.py                   # Exports các tiện ích chung
 │   │   ├── validation.py                 # Xác thực đặc trưng
-│   │   ├── preprocessing.py              # Tiền xử lý trước khi tạo đặc trưng
+│   │   ├── preprocessing.py              # Tiền xử lý trước khi tạo đặc trưng, Tiện ích Xử lý NaN
 │   │   └── visualization.py              # Trực quan hóa đặc trưng
 │   └── data_pipeline.py                   # Pipeline xử lý dữ liệu
 │
@@ -370,8 +370,8 @@ python main.py process --market-data data/features/BTC_USDT.parquet --sentiment-
 
 # 5. CHẠY TOÀN BỘ PIPELINE XỬ LÝ DỮ LIỆU
 # Chạy toàn bộ pipeline từ đầu đến cuối
-python main.py process --data-path data/collected/BTC_USDT.parquet --run-pipeline --output-dir data/processed
-python main.py process pipeline --symbols BTC/USDT  --no-clean --output-dir data/features 
+python main.py process --data-path data/collected --run-pipeline --output-dir data/features
+python main.py process pipeline --symbols BTC/USDT --output-dir data/features 
 # Dưới đây là một ví dụ về quy trình đầy đủ từ thu thập dữ liệu đến xử lý:
 # 1. Thu thập dữ liệu thị trường và dữ liệu tâm lý
 python main.py collect --exchange binance --symbols BTC/USDT,ETH/USDT --timeframe 1h --days 90 --include-sentiment --output-dir data/collected
