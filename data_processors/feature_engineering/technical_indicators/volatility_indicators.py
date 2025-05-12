@@ -20,7 +20,9 @@ def average_true_range(
     window: int = 14,
     method: str = 'ema',
     normalize_by_price: bool = True,
-    prefix: str = ''
+    prefix: str = '',
+    min_periods: int = 1,  # Thêm tham số để giảm NaN
+    handle_leading_nan: bool = True  # Thêm tham số xử lý NaN đầu tiên
 ) -> pd.DataFrame:
     """
     Tính Average True Range (ATR).
@@ -32,6 +34,8 @@ def average_true_range(
                'rma'/'wilder' là Running Moving Average kiểu Wilder chính xác
         normalize_by_price: Nếu True, tính thêm ATR chia cho giá đóng cửa
         prefix: Tiền tố cho tên cột kết quả
+        min_periods: Số lượng giá trị tối thiểu để tính trong cửa sổ
+        handle_leading_nan: Nếu True, điền giá trị NaN đầu bằng giá trị hợp lệ đầu tiên
         
     Returns:
         DataFrame với cột mới chứa ATR
@@ -52,47 +56,83 @@ def average_true_range(
         # Tính True Range
         tr = true_range(result_df['high'], result_df['low'], result_df['close'])
         
-        # Tính ATR dựa trên phương pháp chỉ định
+        # Tính ATR dựa trên phương pháp chỉ định với min_periods giảm NaN đầu
         if method.lower() == 'ema':
-            # Sử dụng EMA với alpha = 2/(window+1)
-            atr = tr.ewm(span=window, min_periods=window, adjust=False).mean()
+            # Sử dụng EMA với min_periods để giảm số lượng NaN
+            atr = tr.ewm(span=window, min_periods=min_periods, adjust=False).mean()
         elif method.lower() in ['rma', 'wilder']:
-            # Sử dụng Wilder's Running Moving Average
-            # RMA(current, length) = (RMA(prev, length) * (length - 1) + current) / length
+            # Sử dụng Wilder's Running Moving Average với min_periods cải tiến
             atr = pd.Series(index=tr.index, dtype=float)
             
-            # Tính giá trị đầu tiên (SMA)
+            # Tính giá trị đầu tiên (SMA) với min_periods giảm
             first_valid_idx = tr.first_valid_index()
             if first_valid_idx:
                 start_idx = tr.index.get_loc(first_valid_idx)
-                if start_idx + window <= len(tr):
-                    first_value = tr.iloc[start_idx:start_idx+window].mean()
-                    atr.iloc[start_idx+window-1] = first_value
+                
+                # Sử dụng min_periods thay vì window để bắt đầu sớm hơn
+                if start_idx + min_periods <= len(tr):
+                    # Tính SMA đầu tiên dựa trên min_periods
+                    first_value = tr.iloc[start_idx:start_idx+min_periods].mean()
+                    atr.iloc[start_idx] = first_value
                     
-                    # Tính các giá trị tiếp theo sử dụng công thức Wilder
-                    for i in range(start_idx+window, len(tr)):
+                    # Tính các giá trị RMA tiếp theo từ điểm thứ hai
+                    for i in range(start_idx + 1, len(tr)):
                         atr.iloc[i] = (atr.iloc[i-1] * (window - 1) + tr.iloc[i]) / window
         else:
-            # Mặc định sử dụng SMA
-            atr = tr.rolling(window=window, min_periods=window).mean()
+            # Mặc định sử dụng SMA với min_periods giảm NaN
+            atr = tr.rolling(window=window, min_periods=min_periods).mean()
         
-        # Đặt tên cột kết quả - đảm bảo có tên cột rõ ràng
+        # Đặt tên cột kết quả
         atr_col_name = f"{prefix}atr_{window}"
         result_df[atr_col_name] = atr
+        
+        # Xử lý NaN ở đầu dữ liệu nếu cần
+        if handle_leading_nan and atr.isna().any():
+            # Tìm vị trí giá trị đầu tiên không phải NaN
+            first_valid_index = atr.first_valid_index()
+            if first_valid_index is not None:
+                # Lấy giá trị đầu tiên hợp lệ
+                first_valid_value = atr.loc[first_valid_index]
+                # Điền tất cả NaN ở đầu với giá trị này
+                mask = atr.index < first_valid_index
+                result_df.loc[mask, atr_col_name] = first_valid_value
+                logger.info(f"Đã điền {sum(mask)} giá trị NaN ở đầu ATR")
         
         # Tính ATR chia cho giá (chuẩn hóa)
         if normalize_by_price:
             # Tránh chia cho 0 hoặc NaN
             close_prices = result_df['close'].replace(0, np.nan)
-            atr_normalized = atr / close_prices
+            atr_normalized = result_df[atr_col_name] / close_prices
             
             # ATR dưới dạng phần trăm của giá
             atr_pct = atr_normalized * 100
-            result_df[f"{prefix}atr_pct_{window}"] = atr_pct
+            atr_pct_col = f"{prefix}atr_pct_{window}"
+            result_df[atr_pct_col] = atr_pct
             
-            # ATR chuẩn hóa (dạng thập phân, hữu ích cho neural networks)
+            # ATR chuẩn hóa (dạng thập phân)
             atr_norm_col = f"{prefix}atr_norm_{window}"
             result_df[atr_norm_col] = atr_normalized
+            
+            # Xử lý giá trị NaN ở đầu dữ liệu cho các cột chuẩn hóa
+            if handle_leading_nan:
+                for col in [atr_pct_col, atr_norm_col]:
+                    first_valid_index = result_df[col].first_valid_index()
+                    if first_valid_index is not None:
+                        first_valid_value = result_df.loc[first_valid_index, col]
+                        mask = result_df.index < first_valid_index
+                        result_df.loc[mask, col] = first_valid_value
+        
+        # Thêm volatility_rank dựa trên ATR
+        volatility_rank_col = f"{prefix}volatility_rank"
+        result_df[volatility_rank_col] = result_df[atr_col_name].rank(pct=True) * 100
+        
+        # Xử lý NaN trong volatility_rank
+        if handle_leading_nan and result_df[volatility_rank_col].isna().any():
+            first_valid_index = result_df[volatility_rank_col].first_valid_index()
+            if first_valid_index is not None:
+                first_valid_value = result_df.loc[first_valid_index, volatility_rank_col]
+                mask = result_df.index < first_valid_index
+                result_df.loc[mask, volatility_rank_col] = first_valid_value
         
         # Ghi log các cột mới đã tạo
         new_cols = [col for col in result_df.columns if col not in df.columns]
@@ -104,13 +144,15 @@ def average_true_range(
         # Ghi log lỗi
         logger.error(f"Lỗi khi tính ATR: {e}")
         
-        # Trả về DataFrame ban đầu với ít nhất một cột mới để quá trình không bị gián đoạn
+        # Trả về DataFrame với cột NaN để quá trình không bị gián đoạn
         result_df = df.copy()
         result_df[f"{prefix}atr_{window}"] = np.nan
         
         if normalize_by_price:
             result_df[f"{prefix}atr_pct_{window}"] = np.nan
             result_df[f"{prefix}atr_norm_{window}"] = np.nan
+        
+        result_df[f"{prefix}volatility_rank"] = np.nan
             
         return result_df
 

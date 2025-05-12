@@ -389,7 +389,11 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
                 output_dir=output_dir_path,
                 save_results=True,
                 preserve_timestamp=preserve_timestamp,
-                sentiment_dir=str(sentiment_dir_path)  # Thêm dòng này
+                sentiment_dir=str(sentiment_dir_path),
+                handle_leading_nan=True,
+                leading_nan_method="backfill",
+                aggressive_nan_handling=True,
+                fill_all_nan=True                
             ))
             
             if not result_data:
@@ -778,6 +782,12 @@ def setup_process_parser(subparsers):
     pipeline_parser.add_argument("--verbose", "-v", action="count", default=0, help="Mức độ chi tiết của log (0-2)")
     pipeline_parser.add_argument("--include-sentiment", action="store_true", help="Bao gồm đặc trưng tâm lý thị trường (Fear & Greed Index)")
     pipeline_parser.add_argument("--sentiment-dir", type=str, help="Thư mục chứa dữ liệu tâm lý")
+    pipeline_parser.add_argument("--handle-leading-nan/--no-handle-leading-nan", dest="handle_leading_nan", action="store_true", default=True, help="Xử lý NaN ở đầu dữ liệu")
+    pipeline_parser.add_argument("--leading-nan-method", type=str, choices=['backfill', 'zero', 'mean', 'median'], default='backfill', help="Phương pháp xử lý NaN đầu")
+    pipeline_parser.add_argument("--min-periods", type=int, default=5, help="Số lượng giá trị tối thiểu để tính giá trị thay thế")
+    pipeline_parser.add_argument("--aggressive-nan-handling/--no-aggressive-nan-handling", dest="aggressive_nan_handling", action="store_true", default=True, help="Xử lý triệt để giá trị NaN")
+    pipeline_parser.add_argument("--fill-all-nan/--allow-nan", dest="fill_all_nan", action="store_true", default=True, help="Đảm bảo không còn NaN sau khi xử lý")
+    pipeline_parser.add_argument("--fill-method", type=str, choices=['ffill+bfill', 'interpolate', 'mean'], default='interpolate', help="Phương pháp điền các giá trị NaN")
     
     process_parser.set_defaults(func=handle_process_command)
 
@@ -858,6 +868,12 @@ def handle_process_command(args, system):
                         clean_orderbook=(data_type == 'orderbook' or data_type == 'all'),
                         clean_trades=(data_type == 'trades' or data_type == 'all'),
                         preserve_timestamp=preserve_timestamp,
+                        handle_leading_nan=True,
+                        leading_nan_method="backfill",
+                        min_periods=5,
+                        aggressive_nan_handling=True,
+                        fill_all_nan=True,
+                        fill_method='interpolate'
                     )
                 elif data_type == 'trades':
                     cleaned_data = pipeline.clean_data(
@@ -1065,7 +1081,11 @@ def handle_process_command(args, system):
                         output_dir=output_dir_path,
                         save_results=True,
                         preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True,
-                        sentiment_dir=str(sentiment_dir_path)
+                        sentiment_dir=str(sentiment_dir_path),
+                        handle_leading_nan=True,
+                        leading_nan_method="backfill",
+                        aggressive_nan_handling=True,
+                        fill_all_nan=True                       
                     ))
                     
                     if not result_data:
