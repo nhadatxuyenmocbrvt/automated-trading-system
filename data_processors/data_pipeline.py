@@ -11,7 +11,7 @@ import logging
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Any, Tuple, Callable, Set
+from typing import Dict, List, Optional, Union, Any, Tuple, Set, Callable
 from datetime import datetime, timedelta
 import joblib
 import concurrent.futures
@@ -867,6 +867,36 @@ class DataPipeline:
         self.logger.info(f"Hoàn thành làm sạch dữ liệu tâm lý: {len(df)} dòng")
         
         return df
+
+    def handle_missing_values_in_dataframe(self, df, method='bfill', handle_leading=True):
+        """
+        Xử lý tất cả các giá trị NaN trong DataFrame.
+        
+        Args:
+            df: DataFrame cần xử lý
+            method: Phương pháp điền ('bfill', 'ffill', 'mean', 'median', 'zero')
+            handle_leading: Có xử lý riêng NaN ở đầu không
+            
+        Returns:
+            DataFrame đã xử lý NaN
+        """
+        from data_processors.utils.preprocessing import handle_leading_nans, fill_nan_values
+        
+        result_df = df.copy()
+        # Chỉ áp dụng với các cột số
+        numeric_cols = result_df.select_dtypes(include=['number']).columns
+        
+        for col in numeric_cols:
+            if result_df[col].isna().any():
+                # Xử lý NaN ở đầu nếu cần
+                if handle_leading:
+                    result_df[col] = handle_leading_nans(result_df[col])
+                    
+                # Xử lý NaN còn lại
+                if result_df[col].isna().any():
+                    result_df[col] = fill_nan_values(result_df[col], method=method)
+        
+        return result_df
     
     def clean_data(
         self,
@@ -993,12 +1023,29 @@ class DataPipeline:
                     numeric_cols = df.select_dtypes(include=['number']).columns
                     for col in numeric_cols:
                         if df[col].isna().any():
-                            df[col] = handle_leading_nans(df[col])
+                            # Sử dụng giá trị fill_value dựa trên leading_nan_method
+                            if leading_nan_method == 'zero':
+                                fill_value = 0
+                            elif leading_nan_method == 'mean' and len(df[col].dropna()) > min_periods:
+                                fill_value = df[col].mean()
+                            elif leading_nan_method == 'median' and len(df[col].dropna()) > min_periods:
+                                fill_value = df[col].median()
+                            else:
+                                # Mặc định để None sẽ sử dụng giá trị hợp lệ đầu tiên
+                                fill_value = None
+                                
+                            df[col] = handle_leading_nans(df[col], fill_value=fill_value)
                     
                     self.logger.info(f"Đã xử lý giá trị NaN ở đầu cho {symbol} bằng phương pháp {leading_nan_method}")
 
                 if aggressive_nan_handling:
-                    from data_processors.utils.preprocessing import clean_technical_features
+                    # Xử lý NaN còn lại sau khi đã xử lý NaN ở đầu
+                    df = self.handle_missing_values_in_dataframe(
+                        df, 
+                        method=fill_method if fill_method else 'interpolate',
+                        handle_leading=False # Đã xử lý ở trên rồi
+                    )
+
                 # Xác định loại dữ liệu và làm sạch
                 if all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
                     # Làm sạch dữ liệu OHLCV
@@ -1756,7 +1803,7 @@ class DataPipeline:
         Returns:
             Dict với key là symbol và value là DataFrame đã xử lý
         """
-        from data_processors.utils.preprocessing import clean_technical_features
+        from data_processors.utils.preprocessing import clean_technical_features, handle_leading_nans, fill_nan_values
         
         if label_config is None:
             label_config = {
@@ -1797,6 +1844,17 @@ class DataPipeline:
                 
                 # Áp dụng clean_technical_features
                 processed_df = clean_technical_features(df, config)
+                
+                # Xử lý NaN còn sót lại sau khi chuẩn hóa
+                for indicator_type in config:
+                    for suffix in ['_std', '_norm', '_scaled', '_log']:
+                        cols = [col for col in processed_df.columns if col.endswith(suffix)]
+                        for col in cols:
+                            if processed_df[col].isna().any():
+                                # Xử lý NaN
+                                processed_df[col] = handle_leading_nans(processed_df[col])
+                                if processed_df[col].isna().any():
+                                    processed_df[col] = fill_nan_values(processed_df[col], method='ffill')
                 
                 # Ghi log các cột mới được thêm vào
                 new_cols = set(processed_df.columns) - set(df.columns)
@@ -2602,7 +2660,7 @@ class DataPipeline:
                         self.logger.warning("Không thu thập được dữ liệu tâm lý từ Binance")
 
             except Exception as e:
-                self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý từ Binance: {str(e)}")
+                self.logger.error(f"Lỗi khi thực hiện bước '{step_name}': {str(e)}")
                 import traceback
                 self.logger.error(traceback.format_exc())
         
