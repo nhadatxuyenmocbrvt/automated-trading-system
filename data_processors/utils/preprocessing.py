@@ -1758,3 +1758,54 @@ def add_volatility_zscore(
     result_df["volatility_rank"] = volatility_rank
     
     return result_df
+
+def fill_nan_values(series, method='bfill', column_name=None):
+    """
+    Điền các giá trị NaN trong một Series theo phương pháp chỉ định.
+    
+    Args:
+        series: Series cần điền giá trị NaN
+        method: Phương pháp điền ('bfill', 'ffill', 'mean', 'median', 'zero')
+        column_name: Tên cột để log (nếu cần)
+        
+    Returns:
+        Series đã được điền giá trị NaN
+    """
+    if method in ['bfill', 'backfill']:
+        return series.fillna(method='bfill')
+    elif method in ['ffill', 'forward']:
+        return series.fillna(method='ffill')
+    elif method == 'mean':
+        mean_val = series.mean()
+        return series.fillna(0 if pd.isna(mean_val) else mean_val)
+    elif method == 'median':
+        median_val = series.median()
+        return series.fillna(0 if pd.isna(median_val) else median_val)
+    elif method == 'zero':
+        return series.fillna(0)
+    else:
+        # Mặc định sử dụng 'bfill'
+        return series.fillna(method='bfill')
+
+def handle_leading_nans(series, fill_value=None):
+    """
+    Xử lý các giá trị NaN ở đầu series bằng giá trị hợp lệ đầu tiên.
+    
+    Args:
+        series: Series cần xử lý
+        fill_value: Giá trị để điền (nếu None, sử dụng giá trị hợp lệ đầu tiên)
+    
+    Returns:
+        Series đã xử lý
+    """
+    result = series.copy()
+    first_valid_index = result.first_valid_index()
+    
+    if first_valid_index is not None:
+        # Lấy giá trị đầu tiên hợp lệ nếu không cung cấp fill_value
+        value_to_fill = fill_value if fill_value is not None else result.loc[first_valid_index]
+        # Điền tất cả NaN ở đầu với giá trị này
+        mask = result.index < first_valid_index
+        result.loc[mask] = value_to_fill
+    
+    return result

@@ -18,6 +18,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 
 from config.logging_config import setup_logger
 from data_processors.feature_engineering.technical_indicators.utils import validate_price_data, true_range
+from data_processors.utils.preprocessing import fill_nan_values, handle_leading_nans
 
 # Logger
 logger = setup_logger("volatility_features")
@@ -61,16 +62,7 @@ def calculate_volatility_features(
         returns = result_df[price_column].pct_change()
     
     # Điền giá trị NaN đầu tiên cho returns
-    if fill_method == 'bfill' or fill_method == 'backfill':
-        returns = returns.fillna(method='bfill')
-    elif fill_method == 'ffill' or fill_method == 'forward':
-        returns = returns.fillna(method='ffill')
-    elif fill_method == 'mean':
-        returns = returns.fillna(returns.mean())
-    elif fill_method == 'median':
-        returns = returns.fillna(returns.median())
-    elif fill_method == 'zero':
-        returns = returns.fillna(0)
+    returns = fill_nan_values(returns, method=fill_method)
     
     for window in windows:
         try:
@@ -78,16 +70,7 @@ def calculate_volatility_features(
             volatility = returns.rolling(window=window).std()
             
             # Xử lý NaN trong volatility
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                volatility = volatility.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                volatility = volatility.fillna(method='ffill')
-            elif fill_method == 'mean':
-                volatility = volatility.fillna(volatility.mean())
-            elif fill_method == 'median':
-                volatility = volatility.fillna(volatility.median())
-            elif fill_method == 'zero':
-                volatility = volatility.fillna(0)
+            volatility = fill_nan_values(volatility, method=fill_method)
             
             # Chuẩn hóa theo năm nếu cần
             if annualize:
@@ -100,16 +83,7 @@ def calculate_volatility_features(
             long_term_volatility = returns.rolling(window=max(window*5, 50)).std()
             
             # Xử lý NaN trong long_term_volatility
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                long_term_volatility = long_term_volatility.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                long_term_volatility = long_term_volatility.fillna(method='ffill')
-            elif fill_method == 'mean':
-                long_term_volatility = long_term_volatility.fillna(long_term_volatility.mean())
-            elif fill_method == 'median':
-                long_term_volatility = long_term_volatility.fillna(long_term_volatility.median())
-            elif fill_method == 'zero':
-                long_term_volatility = long_term_volatility.fillna(0)
+            long_term_volatility = fill_nan_values(long_term_volatility, method=fill_method)
             
             # Tránh chia cho 0
             long_term_volatility_non_zero = long_term_volatility.replace(0, np.nan)
@@ -121,16 +95,7 @@ def calculate_volatility_features(
             normalized_volatility = volatility / long_term_volatility_non_zero
             
             # Xử lý NaN trong normalized_volatility
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                normalized_volatility = normalized_volatility.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                normalized_volatility = normalized_volatility.fillna(method='ffill')
-            elif fill_method == 'mean':
-                normalized_volatility = normalized_volatility.fillna(normalized_volatility.mean())
-            elif fill_method == 'median':
-                normalized_volatility = normalized_volatility.fillna(normalized_volatility.median())
-            elif fill_method == 'zero':
-                normalized_volatility = normalized_volatility.fillna(0)
+            normalized_volatility = fill_nan_values(normalized_volatility, method=fill_method)
             
             result_df[f"{prefix}normalized_volatility_{window}"] = normalized_volatility
             
@@ -138,16 +103,7 @@ def calculate_volatility_features(
             volatility_change = volatility / volatility.shift(window//2)
             
             # Xử lý NaN trong volatility_change
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                volatility_change = volatility_change.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                volatility_change = volatility_change.fillna(method='ffill')
-            elif fill_method == 'mean':
-                volatility_change = volatility_change.fillna(volatility_change.mean())
-            elif fill_method == 'median':
-                volatility_change = volatility_change.fillna(volatility_change.median())
-            elif fill_method == 'zero':
-                volatility_change = volatility_change.fillna(0)
+            volatility_change = fill_nan_values(volatility_change, method=fill_method)
             
             result_df[f"{prefix}volatility_change_{window}"] = volatility_change
             
@@ -156,21 +112,8 @@ def calculate_volatility_features(
             vol_std = volatility.rolling(window=window*3).std()
             
             # Xử lý NaN trong vol_mean và vol_std
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                vol_mean = vol_mean.fillna(method='bfill')
-                vol_std = vol_std.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                vol_mean = vol_mean.fillna(method='ffill')
-                vol_std = vol_std.fillna(method='ffill')
-            elif fill_method == 'mean':
-                vol_mean = vol_mean.fillna(vol_mean.mean())
-                vol_std = vol_std.fillna(vol_std.mean())
-            elif fill_method == 'median':
-                vol_mean = vol_mean.fillna(vol_mean.median())
-                vol_std = vol_std.fillna(vol_std.median())
-            elif fill_method == 'zero':
-                vol_mean = vol_mean.fillna(0)
-                vol_std = vol_std.fillna(0)
+            vol_mean = fill_nan_values(vol_mean, method=fill_method)
+            vol_std = fill_nan_values(vol_std, method=fill_method)
             
             # Tránh chia cho 0
             vol_std_non_zero = vol_std.replace(0, np.nan)
@@ -182,16 +125,7 @@ def calculate_volatility_features(
             volatility_zscore = (volatility - vol_mean) / vol_std_non_zero
             
             # Xử lý NaN trong volatility_zscore
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                volatility_zscore = volatility_zscore.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                volatility_zscore = volatility_zscore.fillna(method='ffill')
-            elif fill_method == 'mean':
-                volatility_zscore = volatility_zscore.fillna(volatility_zscore.mean())
-            elif fill_method == 'median':
-                volatility_zscore = volatility_zscore.fillna(volatility_zscore.median())
-            elif fill_method == 'zero':
-                volatility_zscore = volatility_zscore.fillna(0)
+            volatility_zscore = fill_nan_values(volatility_zscore, method=fill_method)
             
             result_df[f"{prefix}volatility_zscore_{window}"] = volatility_zscore
             
@@ -199,16 +133,7 @@ def calculate_volatility_features(
             volatility_rank = volatility.rolling(window=window*3).rank(pct=True)
             
             # Xử lý NaN trong volatility_rank
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                volatility_rank = volatility_rank.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                volatility_rank = volatility_rank.fillna(method='ffill')
-            elif fill_method == 'mean':
-                volatility_rank = volatility_rank.fillna(volatility_rank.mean())
-            elif fill_method == 'median':
-                volatility_rank = volatility_rank.fillna(volatility_rank.median())
-            elif fill_method == 'zero':
-                volatility_rank = volatility_rank.fillna(0)
+            volatility_rank = fill_nan_values(volatility_rank, method=fill_method)
             
             result_df[f"{prefix}volatility_rank_{window}"] = volatility_rank
             
@@ -221,16 +146,7 @@ def calculate_volatility_features(
                 ))
                 
                 # Xử lý NaN trong parkinson_vol
-                if fill_method == 'bfill' or fill_method == 'backfill':
-                    parkinson_vol = parkinson_vol.fillna(method='bfill')
-                elif fill_method == 'ffill' or fill_method == 'forward':
-                    parkinson_vol = parkinson_vol.fillna(method='ffill')
-                elif fill_method == 'mean':
-                    parkinson_vol = parkinson_vol.fillna(parkinson_vol.mean())
-                elif fill_method == 'median':
-                    parkinson_vol = parkinson_vol.fillna(parkinson_vol.median())
-                elif fill_method == 'zero':
-                    parkinson_vol = parkinson_vol.fillna(0)
+                parkinson_vol = fill_nan_values(parkinson_vol, method=fill_method)
                 
                 if annualize:
                     parkinson_vol = parkinson_vol * np.sqrt(trading_periods)
@@ -256,21 +172,8 @@ def calculate_volatility_features(
             downside_vol = returns_neg.rolling(window=window).std()
             
             # Xử lý NaN trong upside_vol và downside_vol
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                upside_vol = upside_vol.fillna(method='bfill')
-                downside_vol = downside_vol.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                upside_vol = upside_vol.fillna(method='ffill')
-                downside_vol = downside_vol.fillna(method='ffill')
-            elif fill_method == 'mean':
-                upside_vol = upside_vol.fillna(upside_vol.mean())
-                downside_vol = downside_vol.fillna(downside_vol.mean())
-            elif fill_method == 'median':
-                upside_vol = upside_vol.fillna(upside_vol.median())
-                downside_vol = downside_vol.fillna(downside_vol.median())
-            elif fill_method == 'zero':
-                upside_vol = upside_vol.fillna(0)
-                downside_vol = downside_vol.fillna(0)
+            upside_vol = fill_nan_values(upside_vol, method=fill_method)
+            downside_vol = fill_nan_values(downside_vol, method=fill_method)
             
             if annualize:
                 upside_vol = upside_vol * np.sqrt(trading_periods)
@@ -289,16 +192,7 @@ def calculate_volatility_features(
             volatility_ratio = upside_vol / downside_vol_non_zero
             
             # Xử lý NaN trong volatility_ratio
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                volatility_ratio = volatility_ratio.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                volatility_ratio = volatility_ratio.fillna(method='ffill')
-            elif fill_method == 'mean':
-                volatility_ratio = volatility_ratio.fillna(volatility_ratio.mean())
-            elif fill_method == 'median':
-                volatility_ratio = volatility_ratio.fillna(volatility_ratio.median())
-            elif fill_method == 'zero':
-                volatility_ratio = volatility_ratio.fillna(0)
+            volatility_ratio = fill_nan_values(volatility_ratio, method=fill_method)
             
             result_df[f"{prefix}volatility_ratio_{window}"] = volatility_ratio
         
@@ -308,16 +202,7 @@ def calculate_volatility_features(
             realized_vol = np.sqrt(squared_returns.rolling(window=window).sum() / window)
             
             # Xử lý NaN trong realized_vol
-            if fill_method == 'bfill' or fill_method == 'backfill':
-                realized_vol = realized_vol.fillna(method='bfill')
-            elif fill_method == 'ffill' or fill_method == 'forward':
-                realized_vol = realized_vol.fillna(method='ffill')
-            elif fill_method == 'mean':
-                realized_vol = realized_vol.fillna(realized_vol.mean())
-            elif fill_method == 'median':
-                realized_vol = realized_vol.fillna(realized_vol.median())
-            elif fill_method == 'zero':
-                realized_vol = realized_vol.fillna(0)
+            realized_vol = fill_nan_values(realized_vol, method=fill_method)
             
             if annualize:
                 realized_vol = realized_vol * np.sqrt(trading_periods)
@@ -365,44 +250,15 @@ def calculate_relative_volatility(
             # Tính ATR
             atr = tr.rolling(window=window).mean()
             
-            # LƯU Ý: THÊM XỬ LÝ NAN Ở ĐÂY
             # Điền giá trị NaN bằng phương pháp được chỉ định
-            if fill_method == 'backfill' or fill_method == 'bfill':
-                atr = atr.fillna(method='bfill')
-            elif fill_method == 'forward' or fill_method == 'ffill':
-                atr = atr.fillna(method='ffill')
-            elif fill_method == 'mean':
-                # Nếu tất cả là NaN, dùng 0 thay vì mean
-                mean_val = atr.mean()
-                atr = atr.fillna(0 if pd.isna(mean_val) else mean_val)
-            elif fill_method == 'median':
-                median_val = atr.median()
-                atr = atr.fillna(0 if pd.isna(median_val) else median_val)
-            elif fill_method == 'zero':
-                atr = atr.fillna(0)
-            else:
-                # Mặc định dùng backfill
-                atr = atr.fillna(method='bfill')
+            atr = fill_nan_values(atr, method=fill_method)
             
             # Chuẩn hóa ATR theo giá hiện tại (ATR %)
             price_non_zero = result_df[price_column].replace(0, np.nan)
             atr_percent = (atr / price_non_zero) * 100
             
             # Xử lý NaN trong atr_percent tương tự
-            if fill_method in ['backfill', 'bfill']:
-                atr_percent = atr_percent.fillna(method='bfill')
-            elif fill_method in ['forward', 'ffill']:
-                atr_percent = atr_percent.fillna(method='ffill')
-            elif fill_method == 'mean':
-                mean_val = atr_percent.mean()
-                atr_percent = atr_percent.fillna(0 if pd.isna(mean_val) else mean_val)
-            elif fill_method == 'median':
-                median_val = atr_percent.median()
-                atr_percent = atr_percent.fillna(0 if pd.isna(median_val) else median_val)
-            elif fill_method == 'zero':
-                atr_percent = atr_percent.fillna(0)
-            else:
-                atr_percent = atr_percent.fillna(method='bfill')
+            atr_percent = fill_nan_values(atr_percent, method=fill_method)
             
             result_df[f"{prefix}atr_{window}"] = atr
             result_df[f"{prefix}atr_pct_{window}"] = atr_percent
@@ -412,20 +268,7 @@ def calculate_relative_volatility(
                 atr_long = tr.rolling(window=reference_window).mean()
                 
                 # Xử lý NaN trong atr_long
-                if fill_method in ['backfill', 'bfill']:
-                    atr_long = atr_long.fillna(method='bfill')
-                elif fill_method in ['forward', 'ffill']:
-                    atr_long = atr_long.fillna(method='ffill')
-                elif fill_method == 'mean':
-                    mean_val = atr_long.mean()
-                    atr_long = atr_long.fillna(0 if pd.isna(mean_val) else mean_val)
-                elif fill_method == 'median':
-                    median_val = atr_long.median()
-                    atr_long = atr_long.fillna(0 if pd.isna(median_val) else median_val)
-                elif fill_method == 'zero':
-                    atr_long = atr_long.fillna(0)
-                else:
-                    atr_long = atr_long.fillna(method='bfill')
+                atr_long = fill_nan_values(atr_long, method=fill_method)
                 
                 atr_long_non_zero = atr_long.replace(0, np.nan)
                 # Thêm giá trị nhỏ để tránh chia cho 0
@@ -434,20 +277,7 @@ def calculate_relative_volatility(
                 atr_relative = atr / atr_long_non_zero
                 
                 # Xử lý NaN trong atr_relative
-                if fill_method in ['backfill', 'bfill']:
-                    atr_relative = atr_relative.fillna(method='bfill')
-                elif fill_method in ['forward', 'ffill']:
-                    atr_relative = atr_relative.fillna(method='ffill')
-                elif fill_method == 'mean':
-                    mean_val = atr_relative.mean()
-                    atr_relative = atr_relative.fillna(1 if pd.isna(mean_val) else mean_val)
-                elif fill_method == 'median':
-                    median_val = atr_relative.median()
-                    atr_relative = atr_relative.fillna(1 if pd.isna(median_val) else median_val)
-                elif fill_method == 'zero':
-                    atr_relative = atr_relative.fillna(0)
-                else:
-                    atr_relative = atr_relative.fillna(method='bfill')
+                atr_relative = fill_nan_values(atr_relative, method=fill_method)
                 
                 result_df[f"{prefix}relative_atr_{window}"] = atr_relative
                 
@@ -455,20 +285,7 @@ def calculate_relative_volatility(
                 atr_rank = atr.rolling(window=reference_window).rank(pct=True)
                 
                 # Xử lý NaN trong atr_rank
-                if fill_method in ['backfill', 'bfill']:
-                    atr_rank = atr_rank.fillna(method='bfill')
-                elif fill_method in ['forward', 'ffill']:
-                    atr_rank = atr_rank.fillna(method='ffill')
-                elif fill_method == 'mean':
-                    mean_val = atr_rank.mean()
-                    atr_rank = atr_rank.fillna(0.5 if pd.isna(mean_val) else mean_val)
-                elif fill_method == 'median':
-                    median_val = atr_rank.median()
-                    atr_rank = atr_rank.fillna(0.5 if pd.isna(median_val) else median_val)
-                elif fill_method == 'zero':
-                    atr_rank = atr_rank.fillna(0)
-                else:
-                    atr_rank = atr_rank.fillna(method='bfill')
+                atr_rank = fill_nan_values(atr_rank, method=fill_method)
                 
                 result_df[f"{prefix}atr_rank_{window}"] = atr_rank
             

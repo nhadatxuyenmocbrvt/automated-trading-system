@@ -25,6 +25,7 @@ from config.utils.validators import is_valid_timeframe, is_valid_trading_pair, v
 
 from data_processors.data_pipeline import DataPipeline
 from data_processors.feature_engineering.feature_generator import FeatureGenerator
+from data_processors.utils.preprocessing import fill_nan_values, handle_leading_nans
 
 # Thiết lập logger
 logger = get_logger("process_commands")

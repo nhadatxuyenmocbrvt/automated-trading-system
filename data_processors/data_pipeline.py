@@ -30,6 +30,7 @@ from config.constants import Timeframe, Exchange
 from data_processors.cleaners.data_cleaner import DataCleaner
 from data_processors.cleaners.outlier_detector import OutlierDetector, OutlierDetectionMethod
 from data_processors.cleaners.missing_data_handler import MissingDataHandler, MissingValueMethod
+from data_processors.utils.preprocessing import fill_nan_values, handle_leading_nans
 
 # Import module tạo đặc trưng
 from data_processors.feature_engineering.feature_generator import FeatureGenerator
@@ -822,6 +823,7 @@ class DataPipeline:
         except Exception as e:
             self.logger.warning(f"Không thể chuyển đổi cột {value_column} sang kiểu số: {str(e)}")
         
+        from data_processors.utils.preprocessing import handle_extreme_values, min_max_scale
         # 4. Xử lý giá trị ngoại lệ (outliers)
         if pd.api.types.is_numeric_dtype(df[value_column]):
             # Tính Q1, Q3 và IQR
@@ -843,21 +845,6 @@ class DataPipeline:
                 df.loc[df[value_column] < lower_bound, value_column] = lower_bound
                 df.loc[df[value_column] > upper_bound, value_column] = upper_bound
                 self.logger.info(f"Đã xử lý giá trị ngoại lệ bằng phương pháp winsorize")
-        
-        # 5. Xử lý giá trị thiếu (NaN)
-        missing_values = df[value_column].isna().sum()
-        if missing_values > 0:
-            self.logger.info(f"Phát hiện {missing_values} giá trị thiếu trong cột {value_column}")
-            
-            # Interpolate (nội suy) các giá trị thiếu
-            df[value_column] = df[value_column].interpolate(method='time')
-            
-            # Nếu còn giá trị NaN ở đầu hoặc cuối, sử dụng forward/backward fill
-            df[value_column] = df[value_column].fillna(method='ffill').fillna(method='bfill')
-            
-            remaining_na = df[value_column].isna().sum()
-            if remaining_na > 0:
-                self.logger.warning(f"Vẫn còn {remaining_na} giá trị thiếu sau khi xử lý")
         
         # 6. Chuẩn hóa giá trị nếu cần
         if pd.api.types.is_numeric_dtype(df[value_column]):
@@ -1007,100 +994,8 @@ class DataPipeline:
                     )
                     self.logger.info(f"Đã xử lý giá trị NaN ở đầu cho {symbol} bằng phương pháp {leading_nan_method}")
 
-
                 if aggressive_nan_handling:
-                    nan_count_before = df.isna().sum().sum()
-                    
-                    if nan_count_before > 0:
-                        self.logger.info(f"Còn {nan_count_before} giá trị NaN sau khi xử lý ban đầu cho {symbol}, tiến hành xử lý triệt để")
-                        
-                        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-                        
-                        if fill_method == 'ffill+bfill':
-                            # Kết hợp forward fill và backward fill
-                            df[numeric_cols] = df[numeric_cols].fillna(method='ffill').fillna(method='bfill')
-                        elif fill_method == 'interpolate':
-                            # Sử dụng nội suy tuyến tính và sau đó ffill/bfill cho các giá trị còn thiếu
-                            df[numeric_cols] = df[numeric_cols].interpolate(method='linear', limit_direction='both').fillna(method='ffill').fillna(method='bfill')
-                        elif fill_method == 'mean':
-                            # Sử dụng giá trị trung bình của cột
-                            for col in numeric_cols:
-                                df[col] = df[col].fillna(df[col].mean())
-                        
-                        # Nếu vẫn còn NaN (ít xảy ra) nhưng cần đảm bảo không còn NaN nào
-                        if fill_all_nan and df[numeric_cols].isna().sum().sum() > 0:
-                            # Sử dụng zero hoặc một giá trị hợp lý cho cột tương ứng
-                            for col in numeric_cols:
-                                if df[col].isna().sum() > 0:
-                                    # Với giá, sử dụng giá đóng cửa gần nhất
-                                    if col in ['open', 'high', 'low', 'close']:
-                                        if 'close' in df.columns and not df['close'].isna().all():
-                                            last_valid = df['close'].dropna().iloc[-1]
-                                            df[col] = df[col].fillna(last_valid)
-                                        else:
-                                            # Nếu không có giá đóng cửa, sử dụng trung bình
-                                            col_mean = df[col].mean()
-                                            if np.isnan(col_mean):  # Nếu trung bình là NaN
-                                                col_mean = 0.0
-                                            df[col] = df[col].fillna(col_mean)
-                                    # Với volume, sử dụng 0
-                                    elif col == 'volume':
-                                        df[col] = df[col].fillna(0)
-                                    # Với các cột khác, sử dụng trung bình
-                                    else:
-                                        col_mean = df[col].mean()
-                                        if np.isnan(col_mean):  # Nếu trung bình là NaN
-                                            col_mean = 0.0
-                                        df[col] = df[col].fillna(col_mean)
-                        
-                        # Áp dụng MissingDataHandler để xử lý triệt để NaN
-                        df = self.missing_data_handler.handle_missing_values(
-                            df,
-                            columns=df.columns
-                        )
-
-                        # Kiểm tra lại số lượng NaN sau khi xử lý
-                        nan_count_after = df.isna().sum().sum()
-                        self.logger.info(f"Đã xử lý {nan_count_before - nan_count_after} giá trị NaN cho {symbol}, còn lại {nan_count_after} giá trị NaN")
-                        
-                        nan_columns = df.columns[df.isna().any()].tolist()
-                        if len(nan_columns) > 0:
-                            self.logger.warning(f"Dữ liệu {symbol} có cảnh báo: {len(nan_columns)} cột chứa giá trị NaN: {nan_columns}")
-
-                        # Kiểm tra và xử lý triệt để các giá trị NaN còn lại
-                        nan_columns = df.columns[df.isna().any()].tolist()
-                        if nan_columns:
-                            self.logger.warning(f"Vẫn còn {len(nan_columns)} cột chứa NaN sau khi xử lý: {nan_columns}")
-                            
-                            # Liệt kê số lượng NaN trong mỗi cột
-                            nan_counts = df[nan_columns].isna().sum()
-                            self.logger.warning(f"Số lượng NaN trong mỗi cột: {nan_counts}")
-                            
-                            # Xử lý NaN cho tất cả cột
-                            for col in nan_columns:
-                                # Chọn phương pháp phù hợp tùy theo loại cột
-                                if 'rank' in col or 'percentile' in col:
-                                    # Với cột xếp hạng, thường nên sử dụng backfill
-                                    df[col] = df[col].fillna(method='bfill').fillna(0)
-                                elif 'atr' in col or 'volatility' in col:
-                                    # Với cột biến động, có thể sử dụng giá trị trung vị
-                                    median_val = df[col].median()
-                                    if pd.isna(median_val):  # Nếu median là NaN
-                                        df[col] = df[col].fillna(0)
-                                    else:
-                                        df[col] = df[col].fillna(median_val)
-                                else:
-                                    # Xử lý các cột khác
-                                    df[col] = df[col].fillna(method='bfill').fillna(method='ffill').fillna(0)
-                            
-                            # Kiểm tra lại sau khi xử lý
-                            remaining_nan = df.isna().sum().sum()
-                            if remaining_nan > 0:
-                                self.logger.warning(f"Vẫn còn {remaining_nan} giá trị NaN sau khi xử lý. Điền tất cả bằng 0.")
-                                df = df.fillna(0)  # Điền tất cả NaN còn lại bằng 0
-                            else:
-                                self.logger.info("Đã xử lý thành công tất cả giá trị NaN.")                        
-                
+                    from data_processors.utils.preprocessing import clean_technical_features
                 # Xác định loại dữ liệu và làm sạch
                 if all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
                     # Làm sạch dữ liệu OHLCV
@@ -2423,24 +2318,14 @@ class DataPipeline:
                     "save_format": "parquet"
                 }},                
                 {"name": "load_data", "enabled": input_files is not None},
-                {"name": "clean_data", "enabled": True, "params": {
-                    "handle_leading_nan": True,
-                    "leading_nan_method": "backfill",
-                    "min_periods": 5,
-                    "handle_extreme_volume": True,
-                    "configs": {
-                        "ohlcv": {
-                            "handle_gaps": True,
-                            "handle_negative_values": True,
-                            "verify_high_low": True,
-                            "verify_open_close": True,
-                            "handle_technical_indicators": True,
-                            "generate_labels": True,
-                            "label_window": 10,
-                            "label_threshold": 0.01,
-                            "outlier_threshold": 3.0
-                        }
-                    }
+                {"name": "clean_technical_features", "enabled": True, "params": {
+                    "fix_outliers": True,
+                    "outlier_method": "zscore",
+                    "outlier_threshold": 3.0,
+                    "normalize_indicators": True,
+                    "standardize_indicators": True,
+                    "add_trend_strength": True,
+                    "add_volatility_zscore": True
                 }},
                 {"name": "clean_and_standardize_indicators", "enabled": True, "params": {
                     "fix_outliers": True,

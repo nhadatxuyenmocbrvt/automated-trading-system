@@ -9,6 +9,9 @@ import numpy as np
 import logging
 from typing import Union, List, Dict, Tuple, Optional, Any
 
+# Import hàm tiện ích xử lý NaN
+from data_processors.utils.preprocessing import fill_nan_values, handle_leading_nans
+
 # Import các hàm tiện ích
 from data_processors.feature_engineering.technical_indicators.utils import (
     prepare_price_data, validate_price_data, true_range,
@@ -87,16 +90,9 @@ def average_true_range(
         result_df[atr_col_name] = atr
         
         # Xử lý NaN ở đầu dữ liệu nếu cần
-        if handle_leading_nan and atr.isna().any():
-            # Tìm vị trí giá trị đầu tiên không phải NaN
-            first_valid_index = atr.first_valid_index()
-            if first_valid_index is not None:
-                # Lấy giá trị đầu tiên hợp lệ
-                first_valid_value = atr.loc[first_valid_index]
-                # Điền tất cả NaN ở đầu với giá trị này
-                mask = atr.index < first_valid_index
-                result_df.loc[mask, atr_col_name] = first_valid_value
-                logger.info(f"Đã điền {sum(mask)} giá trị NaN ở đầu ATR")
+        if handle_leading_nan:
+            result_df[atr_col_name] = handle_leading_nans(result_df[atr_col_name])
+            logger.info(f"Đã xử lý các giá trị NaN ở đầu cho {atr_col_name}")
         
         # Tính ATR chia cho giá (chuẩn hóa)
         if normalize_by_price:
@@ -115,24 +111,18 @@ def average_true_range(
             
             # Xử lý giá trị NaN ở đầu dữ liệu cho các cột chuẩn hóa
             if handle_leading_nan:
-                for col in [atr_pct_col, atr_norm_col]:
-                    first_valid_index = result_df[col].first_valid_index()
-                    if first_valid_index is not None:
-                        first_valid_value = result_df.loc[first_valid_index, col]
-                        mask = result_df.index < first_valid_index
-                        result_df.loc[mask, col] = first_valid_value
+                result_df[atr_pct_col] = handle_leading_nans(result_df[atr_pct_col])
+                result_df[atr_norm_col] = handle_leading_nans(result_df[atr_norm_col])
+                logger.info(f"Đã xử lý các giá trị NaN ở đầu cho {atr_pct_col} và {atr_norm_col}")
         
         # Thêm volatility_rank dựa trên ATR
         volatility_rank_col = f"{prefix}volatility_rank"
         result_df[volatility_rank_col] = result_df[atr_col_name].rank(pct=True) * 100
         
         # Xử lý NaN trong volatility_rank
-        if handle_leading_nan and result_df[volatility_rank_col].isna().any():
-            first_valid_index = result_df[volatility_rank_col].first_valid_index()
-            if first_valid_index is not None:
-                first_valid_value = result_df.loc[first_valid_index, volatility_rank_col]
-                mask = result_df.index < first_valid_index
-                result_df.loc[mask, volatility_rank_col] = first_valid_value
+        if handle_leading_nan:
+            result_df[volatility_rank_col] = handle_leading_nans(result_df[volatility_rank_col])
+            logger.info(f"Đã xử lý các giá trị NaN ở đầu cho {volatility_rank_col}")
         
         # Ghi log các cột mới đã tạo
         new_cols = [col for col in result_df.columns if col not in df.columns]
@@ -161,7 +151,8 @@ def bollinger_bands(
     column: str = 'close',
     window: int = 20,
     std_dev: float = 2.0,
-    prefix: str = ''
+    prefix: str = '',
+    handle_leading_nan: bool = True
 ) -> pd.DataFrame:
     """
     Tính Bollinger Bands.
@@ -172,6 +163,7 @@ def bollinger_bands(
         window: Kích thước cửa sổ
         std_dev: Số độ lệch chuẩn cho các băng trên và dưới
         prefix: Tiền tố cho tên cột kết quả
+        handle_leading_nan: Nếu True, điền giá trị NaN ở đầu
         
     Returns:
         DataFrame với các cột mới chứa Middle Band, Upper Band, Lower Band, 
@@ -206,29 +198,42 @@ def bollinger_bands(
         lower_band = middle_band - (std_dev * std)
         
         # Gán các giá trị vào DataFrame với tên cột rõ ràng
-        result_df[f"{prefix}bb_middle_{window}"] = middle_band
-        result_df[f"{prefix}bb_upper_{window}"] = upper_band
-        result_df[f"{prefix}bb_lower_{window}"] = lower_band
+        middle_band_col = f"{prefix}bb_middle_{window}"
+        upper_band_col = f"{prefix}bb_upper_{window}"
+        lower_band_col = f"{prefix}bb_lower_{window}"
+        
+        result_df[middle_band_col] = middle_band
+        result_df[upper_band_col] = upper_band
+        result_df[lower_band_col] = lower_band
+        
+        # Xử lý NaN ở đầu nếu cần
+        if handle_leading_nan:
+            result_df[middle_band_col] = handle_leading_nans(result_df[middle_band_col])
+            result_df[upper_band_col] = handle_leading_nans(result_df[upper_band_col])
+            result_df[lower_band_col] = handle_leading_nans(result_df[lower_band_col])
         
         # Tính Bollinger Bandwidth = (Upper Band - Lower Band) / Middle Band
         # Tránh chia cho 0 bằng cách thêm giá trị rất nhỏ
         bandwidth = (upper_band - lower_band) / (middle_band + 1e-10)
-        result_df[f"{prefix}bb_bandwidth_{window}"] = bandwidth
+        bandwidth_col = f"{prefix}bb_bandwidth_{window}"
+        result_df[bandwidth_col] = bandwidth
+        
+        if handle_leading_nan:
+            result_df[bandwidth_col] = handle_leading_nans(result_df[bandwidth_col])
         
         # Tính %B = (Price - Lower Band) / (Upper Band - Lower Band)
         # Tránh chia cho 0 bằng cách thêm giá trị rất nhỏ
         band_diff = upper_band - lower_band + 1e-10
         percent_b = (result_df[column] - lower_band) / band_diff
-        result_df[f"{prefix}bb_percent_b_{window}"] = percent_b
+        percent_b_col = f"{prefix}bb_percent_b_{window}"
+        result_df[percent_b_col] = percent_b
+        
+        if handle_leading_nan:
+            result_df[percent_b_col] = handle_leading_nans(result_df[percent_b_col])
         
         # Ghi log các cột mới đã tạo
         new_cols = [col for col in result_df.columns if col not in df.columns]
         logger.info(f"Bollinger Bands: Đã tạo {len(new_cols)} cột mới: {new_cols}")
-        
-        # Đảm bảo luôn có cột mới được tạo
-        if not new_cols:
-            result_df[f"{prefix}bb_bandwidth_{window}"] = np.nan
-            logger.warning(f"Không có cột mới nào được tạo, đã thêm cột mặc định {prefix}bb_bandwidth_{window}")
         
         return result_df
     
@@ -255,7 +260,8 @@ def bollinger_bandwidth(
     column: str = 'close',
     window: int = 20,
     std_dev: float = 2.0,
-    prefix: str = ''
+    prefix: str = '',
+    handle_leading_nan: bool = True
 ) -> pd.DataFrame:
     """
     Tính Bollinger Bandwidth - đo lường độ rộng của dải Bollinger Bands.
@@ -266,6 +272,7 @@ def bollinger_bandwidth(
         window: Kích thước cửa sổ
         std_dev: Số độ lệch chuẩn cho các băng trên và dưới
         prefix: Tiền tố cho tên cột kết quả
+        handle_leading_nan: Nếu True, điền giá trị NaN ở đầu
         
     Returns:
         DataFrame với cột mới chứa Bollinger Bandwidth
@@ -301,13 +308,31 @@ def bollinger_bandwidth(
         bandwidth_col = f"{prefix}bb_bandwidth_{window}"
         result_df[bandwidth_col] = bandwidth
         
+        if handle_leading_nan:
+            result_df[bandwidth_col] = handle_leading_nans(result_df[bandwidth_col])
+        
         # Thêm cột chỉ báo biến động tăng/giảm
         bandwidth_delta = bandwidth - bandwidth.shift(1)
-        result_df[f"{prefix}bb_bandwidth_delta_{window}"] = bandwidth_delta
+        bandwidth_delta_col = f"{prefix}bb_bandwidth_delta_{window}"
+        result_df[bandwidth_delta_col] = bandwidth_delta
+        
+        if handle_leading_nan:
+            result_df[bandwidth_delta_col] = handle_leading_nans(result_df[bandwidth_delta_col])
         
         # Thêm cột chỉ báo biến động tương đối
-        bandwidth_pct = (bandwidth - bandwidth.rolling(window=window).mean()) / bandwidth.rolling(window=window).std()
-        result_df[f"{prefix}bb_bandwidth_pct_{window}"] = bandwidth_pct
+        bandwidth_rolling = bandwidth.rolling(window=window)
+        bandwidth_mean = bandwidth_rolling.mean()
+        bandwidth_std = bandwidth_rolling.std()
+        
+        # Tránh chia cho 0
+        bandwidth_std_non_zero = bandwidth_std.replace(0, np.nan).fillna(1e-10)
+        
+        bandwidth_pct = (bandwidth - bandwidth_mean) / bandwidth_std_non_zero
+        bandwidth_pct_col = f"{prefix}bb_bandwidth_pct_{window}"
+        result_df[bandwidth_pct_col] = bandwidth_pct
+        
+        if handle_leading_nan:
+            result_df[bandwidth_pct_col] = handle_leading_nans(result_df[bandwidth_pct_col])
         
         # Ghi log các cột mới đã tạo
         new_cols = [col for col in result_df.columns if col not in df.columns]
@@ -332,7 +357,8 @@ def keltner_channel(
     window: int = 20,
     atr_window: int = 10,
     atr_multiplier: float = 2.0,
-    prefix: str = ''
+    prefix: str = '',
+    handle_leading_nan: bool = True
 ) -> pd.DataFrame:
     """
     Tính Keltner Channel.
@@ -343,6 +369,7 @@ def keltner_channel(
         atr_window: Kích thước cửa sổ cho ATR
         atr_multiplier: Hệ số nhân cho ATR
         prefix: Tiền tố cho tên cột kết quả
+        handle_leading_nan: Nếu True, điền giá trị NaN ở đầu
         
     Returns:
         DataFrame với các cột mới chứa giá trị middle line, upper channel, lower channel
@@ -371,18 +398,33 @@ def keltner_channel(
     position = (result_df['close'] - lower_channel) / (upper_channel - lower_channel)
     
     # Đặt tên các cột kết quả
-    result_df[f"{prefix}kc_middle_{window}"] = middle_line
-    result_df[f"{prefix}kc_upper_{window}"] = upper_channel
-    result_df[f"{prefix}kc_lower_{window}"] = lower_channel
-    result_df[f"{prefix}kc_width_{window}"] = channel_width
-    result_df[f"{prefix}kc_position_{window}"] = position
+    middle_line_col = f"{prefix}kc_middle_{window}"
+    upper_channel_col = f"{prefix}kc_upper_{window}"
+    lower_channel_col = f"{prefix}kc_lower_{window}"
+    channel_width_col = f"{prefix}kc_width_{window}"
+    position_col = f"{prefix}kc_position_{window}"
+    
+    result_df[middle_line_col] = middle_line
+    result_df[upper_channel_col] = upper_channel
+    result_df[lower_channel_col] = lower_channel
+    result_df[channel_width_col] = channel_width
+    result_df[position_col] = position
+    
+    # Xử lý NaN ở đầu nếu cần
+    if handle_leading_nan:
+        result_df[middle_line_col] = handle_leading_nans(result_df[middle_line_col])
+        result_df[upper_channel_col] = handle_leading_nans(result_df[upper_channel_col])
+        result_df[lower_channel_col] = handle_leading_nans(result_df[lower_channel_col])
+        result_df[channel_width_col] = handle_leading_nans(result_df[channel_width_col])
+        result_df[position_col] = handle_leading_nans(result_df[position_col])
     
     return result_df
 
 def donchian_channel(
     df: pd.DataFrame,
     window: int = 20,
-    prefix: str = ''
+    prefix: str = '',
+    handle_leading_nan: bool = True
 ) -> pd.DataFrame:
     """
     Tính Donchian Channel.
@@ -391,6 +433,7 @@ def donchian_channel(
         df: DataFrame chứa dữ liệu giá
         window: Kích thước cửa sổ
         prefix: Tiền tố cho tên cột kết quả
+        handle_leading_nan: Nếu True, điền giá trị NaN ở đầu
         
     Returns:
         DataFrame với các cột mới chứa giá trị upper bound, lower bound, middle line
@@ -412,13 +455,29 @@ def donchian_channel(
     # Tính position in channel nếu có giá đóng cửa
     if 'close' in result_df.columns:
         position = (result_df['close'] - lower_bound) / (upper_bound - lower_bound)
-        result_df[f"{prefix}dc_position_{window}"] = position
+        position_col = f"{prefix}dc_position_{window}"
+        result_df[position_col] = position
+        
+        if handle_leading_nan:
+            result_df[position_col] = handle_leading_nans(result_df[position_col])
     
     # Đặt tên các cột kết quả
-    result_df[f"{prefix}dc_upper_{window}"] = upper_bound
-    result_df[f"{prefix}dc_lower_{window}"] = lower_bound
-    result_df[f"{prefix}dc_middle_{window}"] = middle_line
-    result_df[f"{prefix}dc_width_{window}"] = channel_width
+    upper_bound_col = f"{prefix}dc_upper_{window}"
+    lower_bound_col = f"{prefix}dc_lower_{window}"
+    middle_line_col = f"{prefix}dc_middle_{window}"
+    channel_width_col = f"{prefix}dc_width_{window}"
+    
+    result_df[upper_bound_col] = upper_bound
+    result_df[lower_bound_col] = lower_bound
+    result_df[middle_line_col] = middle_line
+    result_df[channel_width_col] = channel_width
+    
+    # Xử lý NaN ở đầu nếu cần
+    if handle_leading_nan:
+        result_df[upper_bound_col] = handle_leading_nans(result_df[upper_bound_col])
+        result_df[lower_bound_col] = handle_leading_nans(result_df[lower_bound_col])
+        result_df[middle_line_col] = handle_leading_nans(result_df[middle_line_col])
+        result_df[channel_width_col] = handle_leading_nans(result_df[channel_width_col])
     
     return result_df
 
@@ -496,7 +555,8 @@ def standard_deviation(
     column: str = 'close',
     window: int = 20,
     trading_periods: int = 252,
-    prefix: str = ''
+    prefix: str = '',
+    handle_leading_nan: bool = True
 ) -> pd.DataFrame:
     """
     Tính Standard Deviation và Annualized Volatility.
@@ -507,6 +567,7 @@ def standard_deviation(
         window: Kích thước cửa sổ
         trading_periods: Số phiên giao dịch trong năm (252 cho ngày, 52 cho tuần, 12 cho tháng)
         prefix: Tiền tố cho tên cột kết quả
+        handle_leading_nan: Nếu True, điền giá trị NaN ở đầu
         
     Returns:
         DataFrame với các cột mới chứa độ lệch chuẩn và biến động hàng năm
@@ -526,8 +587,16 @@ def standard_deviation(
     annualized_vol = stddev * np.sqrt(trading_periods)
     
     # Đặt tên các cột kết quả
-    result_df[f"{prefix}stddev_{window}"] = stddev
-    result_df[f"{prefix}annvol_{window}"] = annualized_vol
+    stddev_col = f"{prefix}stddev_{window}"
+    annvol_col = f"{prefix}annvol_{window}"
+    
+    result_df[stddev_col] = stddev
+    result_df[annvol_col] = annualized_vol
+    
+    # Xử lý NaN ở đầu nếu cần
+    if handle_leading_nan:
+        result_df[stddev_col] = handle_leading_nans(result_df[stddev_col])
+        result_df[annvol_col] = handle_leading_nans(result_df[annvol_col])
     
     return result_df
 
@@ -536,7 +605,8 @@ def historical_volatility(
     column: str = 'close',
     window: int = 20,
     trading_periods: int = 252,
-    prefix: str = ''
+    prefix: str = '',
+    handle_leading_nan: bool = True
 ) -> pd.DataFrame:
     """
     Tính Historical Volatility.
@@ -547,6 +617,7 @@ def historical_volatility(
         window: Kích thước cửa sổ
         trading_periods: Số phiên giao dịch trong năm (252 cho ngày, 52 cho tuần, 12 cho tháng)
         prefix: Tiền tố cho tên cột kết quả
+        handle_leading_nan: Nếu True, điền giá trị NaN ở đầu
         
     Returns:
         DataFrame với cột mới chứa Historical Volatility
@@ -566,10 +637,16 @@ def historical_volatility(
     hist_vol = rolling_std * np.sqrt(trading_periods)
     
     # Đặt tên cột kết quả
-    result_df[f"{prefix}hvol_{window}"] = hist_vol
+    hvol_col = f"{prefix}hvol_{window}"
+    hvol_pct_col = f"{prefix}hvol_pct_{window}"
     
-    # Thêm cả phiên bản phần trăm
-    result_df[f"{prefix}hvol_pct_{window}"] = hist_vol * 100
+    result_df[hvol_col] = hist_vol
+    result_df[hvol_pct_col] = hist_vol * 100
+    
+    # Xử lý NaN ở đầu nếu cần
+    if handle_leading_nan:
+        result_df[hvol_col] = handle_leading_nans(result_df[hvol_col])
+        result_df[hvol_pct_col] = handle_leading_nans(result_df[hvol_pct_col])
     
     return result_df
 
@@ -578,7 +655,8 @@ def volatility_ratio(
     column: str = 'close',
     short_window: int = 5,
     long_window: int = 20,
-    prefix: str = ''
+    prefix: str = '',
+    handle_leading_nan: bool = True
 ) -> pd.DataFrame:
     """
     Tính Volatility Ratio (tỷ lệ biến động ngắn hạn so với dài hạn).
@@ -589,6 +667,7 @@ def volatility_ratio(
         short_window: Kích thước cửa sổ ngắn
         long_window: Kích thước cửa sổ dài
         prefix: Tiền tố cho tên cột kết quả
+        handle_leading_nan: Nếu True, điền giá trị NaN ở đầu
         
     Returns:
         DataFrame với cột mới chứa Volatility Ratio
@@ -605,10 +684,18 @@ def volatility_ratio(
     short_vol = returns.rolling(window=short_window).std()
     long_vol = returns.rolling(window=long_window).std()
     
+    # Tránh chia cho 0
+    long_vol_non_zero = long_vol.replace(0, np.nan).fillna(1e-10)
+    
     # Tính Volatility Ratio = short_vol / long_vol
-    vol_ratio = short_vol / long_vol
+    vol_ratio = short_vol / long_vol_non_zero
     
     # Đặt tên cột kết quả
-    result_df[f"{prefix}vol_ratio_{short_window}_{long_window}"] = vol_ratio
+    vol_ratio_col = f"{prefix}vol_ratio_{short_window}_{long_window}"
+    result_df[vol_ratio_col] = vol_ratio
+    
+    # Xử lý NaN ở đầu nếu cần
+    if handle_leading_nan:
+        result_df[vol_ratio_col] = handle_leading_nans(result_df[vol_ratio_col])
     
     return result_df
