@@ -169,8 +169,10 @@ class DataPipeline:
         missing_data_handler_kwargs = cleaning_config.get("missing_data_handler_kwargs", {})
         self.missing_data_handler = MissingDataHandler(
             method=cleaning_config.get("missing_value_method", MissingValueMethod.INTERPOLATE),
-            **missing_data_handler_kwargs
+            aggressive_cleaning=cleaning_config.get("aggressive_nan_handling", True),
+            ensure_no_nan=cleaning_config.get("fill_all_nan", True)
         )
+
 
         # Khởi tạo DataCleaner
         self.data_cleaner = DataCleaner(
@@ -894,9 +896,9 @@ class DataPipeline:
         handle_extreme_volume: bool = True,
         preserve_timestamp: bool = True,
         # Đổi giá trị mặc định 
-        aggressive_nan_handling: bool = True,  # Thay đổi từ False sang True
-        fill_all_nan: bool = True,             # Thay đổi từ False sang True
-        fill_method: str = 'interpolate'       # Thay đổi từ 'ffill+bfill' sang 'interpolate'
+        aggressive_nan_handling: bool = True,
+        fill_all_nan: bool = True, 
+        fill_method: str = 'interpolate'
     ) -> Dict[str, pd.DataFrame]:
         """
         Làm sạch dữ liệu.
@@ -1005,6 +1007,7 @@ class DataPipeline:
                     )
                     self.logger.info(f"Đã xử lý giá trị NaN ở đầu cho {symbol} bằng phương pháp {leading_nan_method}")
 
+
                 if aggressive_nan_handling:
                     nan_count_before = df.isna().sum().sum()
                     
@@ -1050,10 +1053,54 @@ class DataPipeline:
                                             col_mean = 0.0
                                         df[col] = df[col].fillna(col_mean)
                         
+                        # Áp dụng MissingDataHandler để xử lý triệt để NaN
+                        df = self.missing_data_handler.handle_missing_values(
+                            df,
+                            columns=df.columns
+                        )
+
                         # Kiểm tra lại số lượng NaN sau khi xử lý
                         nan_count_after = df.isna().sum().sum()
                         self.logger.info(f"Đã xử lý {nan_count_before - nan_count_after} giá trị NaN cho {symbol}, còn lại {nan_count_after} giá trị NaN")
+                        
+                        nan_columns = df.columns[df.isna().any()].tolist()
+                        if len(nan_columns) > 0:
+                            self.logger.warning(f"Dữ liệu {symbol} có cảnh báo: {len(nan_columns)} cột chứa giá trị NaN: {nan_columns}")
 
+                        # Kiểm tra và xử lý triệt để các giá trị NaN còn lại
+                        nan_columns = df.columns[df.isna().any()].tolist()
+                        if nan_columns:
+                            self.logger.warning(f"Vẫn còn {len(nan_columns)} cột chứa NaN sau khi xử lý: {nan_columns}")
+                            
+                            # Liệt kê số lượng NaN trong mỗi cột
+                            nan_counts = df[nan_columns].isna().sum()
+                            self.logger.warning(f"Số lượng NaN trong mỗi cột: {nan_counts}")
+                            
+                            # Xử lý NaN cho tất cả cột
+                            for col in nan_columns:
+                                # Chọn phương pháp phù hợp tùy theo loại cột
+                                if 'rank' in col or 'percentile' in col:
+                                    # Với cột xếp hạng, thường nên sử dụng backfill
+                                    df[col] = df[col].fillna(method='bfill').fillna(0)
+                                elif 'atr' in col or 'volatility' in col:
+                                    # Với cột biến động, có thể sử dụng giá trị trung vị
+                                    median_val = df[col].median()
+                                    if pd.isna(median_val):  # Nếu median là NaN
+                                        df[col] = df[col].fillna(0)
+                                    else:
+                                        df[col] = df[col].fillna(median_val)
+                                else:
+                                    # Xử lý các cột khác
+                                    df[col] = df[col].fillna(method='bfill').fillna(method='ffill').fillna(0)
+                            
+                            # Kiểm tra lại sau khi xử lý
+                            remaining_nan = df.isna().sum().sum()
+                            if remaining_nan > 0:
+                                self.logger.warning(f"Vẫn còn {remaining_nan} giá trị NaN sau khi xử lý. Điền tất cả bằng 0.")
+                                df = df.fillna(0)  # Điền tất cả NaN còn lại bằng 0
+                            else:
+                                self.logger.info("Đã xử lý thành công tất cả giá trị NaN.")                        
+                
                 # Xác định loại dữ liệu và làm sạch
                 if all(col in df.columns for col in ['open', 'high', 'low', 'close', 'volume']) and clean_ohlcv:
                     # Làm sạch dữ liệu OHLCV
@@ -1998,6 +2045,10 @@ class DataPipeline:
                 missing_columns = missing_values[missing_values > 0].to_dict()
                 
                 if missing_columns:
+                    null_columns = df.columns[df.isna().any()].tolist()
+                    self.logger.warning(f"Các cột chứa NaN: {null_columns}")
+                    self.logger.warning(f"Số lượng NaN trong mỗi cột: {df[null_columns].isna().sum()}")
+
                     report["warnings"].append(f"có {len(missing_columns)} cột chứa giá trị NaN")
                     report["missing_values"] = missing_columns
                 

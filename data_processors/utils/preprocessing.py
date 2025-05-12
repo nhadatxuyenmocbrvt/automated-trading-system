@@ -1291,6 +1291,7 @@ def add_volatility_zscore(
     close_col: str = 'close',
     atr_period: int = 14,
     zscore_window: int = 50,
+    fill_na: bool = True,  # Thêm tham số mới
     **kwargs
 ) -> pd.DataFrame:
     """
@@ -1303,6 +1304,7 @@ def add_volatility_zscore(
         close_col: Tên cột giá đóng cửa
         atr_period: Kích thước cửa sổ cho ATR
         zscore_window: Kích thước cửa sổ cho việc tính Z-score
+        fill_na: Điền giá trị NaN hay không
         **kwargs: Tham số bổ sung
     
     Returns:
@@ -1364,13 +1366,28 @@ def add_volatility_zscore(
         ranks = x.rank(pct=True)
         return ranks.iloc[-1] if not ranks.empty else np.nan
     
-    volatility_rank = result_df[atr_col].rolling(window=zscore_window, min_periods=1).apply(
+    # Tạo biến mới trước khi sử dụng
+    volatility_rank_series = result_df[atr_col].rolling(window=zscore_window, min_periods=1).apply(
         rolling_rank, 
         raw=False  # Cần False để xử lý Series
     )
     
     # Đặt tên cột kết quả
-    result_df["volatility_rank"] = volatility_rank
+    result_df["volatility_rank"] = volatility_rank_series
+    
+    # THÊM ĐOẠN NÀY: Xử lý giá trị NaN trong các chỉ báo biến động
+    if fill_na:
+        for col in [atr_col, atr_pct_col, "volatility_zscore", "volatility_rank"]:
+            if col in result_df.columns and result_df[col].isna().any():
+                # Đếm số lượng NaN ở đầu
+                na_count = result_df[col].isna().sum()
+                
+                # Lấy giá trị đầu tiên không phải NaN
+                first_valid = result_df[col].dropna().iloc[0] if not result_df[col].dropna().empty else 0
+                
+                # Điền giá trị NaN ở đầu
+                result_df.loc[result_df.index[:na_count], col] = first_valid
+                logger.debug(f"Đã điền {na_count} giá trị NaN trong cột {col}")
     
     return result_df
 

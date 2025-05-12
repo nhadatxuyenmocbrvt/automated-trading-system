@@ -1,0 +1,10 @@
+{
+    "timestamp": "20250512_014217",
+    "saved_symbols": 1,
+    "total_symbols": 1,
+    "output_dir": "data\\processed",
+    "file_format": "parquet",
+    "consistency_summary": {
+        "BTC/USDT": "warning"
+    }
+}

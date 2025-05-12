@@ -31,7 +31,9 @@ class MissingDataHandler:
         fill_value: Optional[Union[int, float, str]] = None,
         fallback_strategy: List[str] = None,
         auto_detect_time_series: bool = True,
-        handle_categorical: bool = True
+        handle_categorical: bool = True,
+        aggressive_cleaning: bool = True,
+        ensure_no_nan: bool = True
     ):
         """
         Khởi tạo missing data handler.
@@ -47,9 +49,11 @@ class MissingDataHandler:
             auto_detect_time_series: Tự động phát hiện và xử lý dữ liệu chuỗi thời gian
             handle_categorical: Tự động xử lý dữ liệu categorical khi áp dụng các phương pháp numeric
         """
-        self.logger = setup_logger("missing_data_handler")
-        
+        self.logger = logging.getLogger("MissingDataHandler")
         self.method = method
+        self.fallback_strategy = fallback_strategy or ['interpolate', 'ffill', 'bfill', 'mean']
+        self.aggressive_cleaning = aggressive_cleaning  # ✅ Đã thêm
+        self.ensure_no_nan = ensure_no_nan              # ✅ Đã thêm
         self.knn_neighbors = knn_neighbors
         self.max_iter = max_iter
         self.fill_value = fill_value
@@ -334,12 +338,33 @@ class MissingDataHandler:
             cols_to_drop = missing_ratio[missing_ratio > threshold].index.tolist()
             if cols_to_drop:
                 self.logger.warning(f"Loại bỏ {len(cols_to_drop)} cột có quá nhiều giá trị thiếu: {cols_to_drop}")
-                for col in cols_to_drop:
-                    columns.remove(col)
+                result_df.drop(columns=cols_to_drop, inplace=True)
+                columns = [col for col in columns if col not in cols_to_drop]
         
         # Nếu không còn cột nào để xử lý
         if not columns:
             self.logger.warning("Không có cột nào để xử lý sau khi áp dụng ngưỡng")
+            return result_df
+
+        # Xử lý giá trị NaN cho từng cột còn lại
+        for col in columns:
+            if result_df[col].isna().sum() > 0:
+                self.logger.info(f"Xử lý NaN cho cột {col}")
+                
+                # Áp dụng phương pháp xử lý NaN triệt để
+                result_df[col] = result_df[col].interpolate(method='linear', limit_direction='both').fillna(method='ffill').fillna(method='bfill')
+                result_df[col] = result_df[col].fillna(result_df[col].mean())
+                
+                # Đảm bảo không còn NaN nếu self.ensure_no_nan=True
+                if self.ensure_no_nan and result_df[col].isna().sum() > 0:
+                    self.logger.warning(f"Vẫn còn {result_df[col].isna().sum()} giá trị NaN trong cột {col}. Đang thay bằng 0.")
+                    result_df[col] = result_df[col].fillna(0)  # Thay bằng giá trị mặc định là 0
+        
+        # Đếm lại số NaN sau xử lý
+        remaining_nans = result_df.isna().sum().sum()
+        if remaining_nans > 0:
+            self.logger.warning(f"Sau khi xử lý vẫn còn {remaining_nans} giá trị NaN trong DataFrame.")
+        
             return result_df
         
         # Xử lý NaN ở đầu dữ liệu nếu cần
