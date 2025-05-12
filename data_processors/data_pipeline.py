@@ -986,12 +986,15 @@ class DataPipeline:
                     timestamp_col = df['timestamp'].copy()
 
                 if handle_leading_nan:
-                    df = self.missing_data_handler.handle_leading_nan(
-                        df,
-                        columns=None,
-                        method=leading_nan_method,
-                        min_periods=min_periods
-                    )
+                    # Sử dụng trực tiếp từ preprocessing.py
+                    from data_processors.utils.preprocessing import handle_leading_nans
+                    
+                    # Xử lý các cột số
+                    numeric_cols = df.select_dtypes(include=['number']).columns
+                    for col in numeric_cols:
+                        if df[col].isna().any():
+                            df[col] = handle_leading_nans(df[col])
+                    
                     self.logger.info(f"Đã xử lý giá trị NaN ở đầu cho {symbol} bằng phương pháp {leading_nan_method}")
 
                 if aggressive_nan_handling:
