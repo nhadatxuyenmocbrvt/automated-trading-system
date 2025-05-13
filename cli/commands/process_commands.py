@@ -769,7 +769,7 @@ def setup_process_parser(subparsers):
     
     # Parser cho lệnh pipeline
     pipeline_parser = process_subparsers.add_parser('pipeline', help='Chạy toàn bộ pipeline xử lý dữ liệu')
-    pipeline_parser.add_argument("--is-futures", action="store_true", default=True, help="Sử dụng dữ liệu futures thay vì spot")
+    pipeline_parser.add_argument("--futures", action="store_true", default=True, help="Sử dụng dữ liệu futures thay vì spot")
     pipeline_parser.add_argument("--input-dir", "-i", type=str, help="Thư mục chứa dữ liệu đầu vào")
     pipeline_parser.add_argument("--symbols", "-s", nargs='+', help="Danh sách cặp giao dịch cần xử lý")
     pipeline_parser.add_argument("--timeframes", "-tf", nargs='+', default=['1h'], help="Khung thời gian cần xử lý")
@@ -1135,6 +1135,9 @@ def handle_process_command(args, system):
                         ))
                         
                         if collected_data:
+                            loaded_data = collected_data
+                            data_type = 'ohlcv'
+                            preserve_timestamp = args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
                             # Làm sạch và xử lý dữ liệu thu thập được
                             cleaned_data = pipeline.clean_data(
                                 loaded_data,
@@ -1146,7 +1149,7 @@ def handle_process_command(args, system):
                                 fill_all_nan=args.fill_all_nan if hasattr(args, 'fill_all_nan') else True,
                                 fill_method=args.fill_method if hasattr(args, 'fill_method') else 'interpolate'
                             )
-                            
+                            processed_data = cleaned_data
                             # Tạo đặc trưng
                             processed_data = pipeline.generate_features(
                                 processed_data,

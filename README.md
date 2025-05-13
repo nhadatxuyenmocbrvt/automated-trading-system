@@ -353,8 +353,8 @@ python main.py process pipeline --input-dir data/processed --symbols BTC/USDT --
 python main.py process --market-data data/features/BTC_USDT.parquet --sentiment-dir data/sentiment --merge-sentiment --sentiment-method last_value --sentiment-window 1D
 
 # 5. CHẠY TOÀN BỘ PIPELINE XỬ LÝ DỮ LIỆU
-python main.py process pipeline --symbols BTC/USDT ETH/USDT BNB/USDT XRP/USDT --timeframes 1h --start-date 2022-01-10 --end-date 2025-01-01 --futures --include-sentiment --all-indicators  --output-dir data/features
-python main.py process pipeline --symbols BTC/USDT ETH/USDT BNB/USDT XRP/USDT --timeframes 1h --start-date 2022-01-10 --end-date 2025-01-01 --include-sentiment --all-indicators --output-dir data/features
+python main.py process pipeline --symbols BTC/USDT ETH/USDT BNB/USDT XRP/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2025-01-01 --futures --include-sentiment --all-indicators  --output-dir data/features
+python main.py process pipeline --symbols BTC/USDT ETH/USDT BNB/USDT XRP/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2025-01-01 --include-sentiment --all-indicators --output-dir data/features
 
 python main.py process pipeline --exchange binance --symbols BTC/USDT,ETH/USDT --timeframe 1h --start-time "2025-02-01" --end-time "2025-03-15" --output-dir data/processed --format parquet --include-sentiment --all-indicators --clean-indicators --remove-redundant --create-targets
 # Chạy toàn bộ pipeline từ đầu đến cuối
