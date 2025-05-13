@@ -1121,6 +1121,8 @@ def handle_process_command(args, system):
                         # Xác định exchange_id (mặc định là binance)
                         exchange_id = args.exchange_id if hasattr(args, 'exchange_id') else "binance"
                         
+                        is_futures = args.is_futures if hasattr(args, 'is_futures') else True
+
                         # Thu thập dữ liệu
                         collected_data = asyncio.run(pipeline.collect_data(
                             exchange_id=exchange_id,

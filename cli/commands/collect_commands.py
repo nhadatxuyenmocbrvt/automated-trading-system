@@ -1542,6 +1542,7 @@ def setup_collect_parser(subparsers):
     historical_parser.add_argument(
         '--futures',
         action='store_true',
+        default=True,
         help='Sử dụng thị trường futures'
     )
     
@@ -1614,6 +1615,7 @@ def setup_collect_parser(subparsers):
     realtime_parser.add_argument(
         '--futures',
         action='store_true',
+        default=True,
         help='Sử dụng thị trường futures'
     )
     
@@ -1672,6 +1674,7 @@ def setup_collect_parser(subparsers):
     orderbook_parser.add_argument(
         '--futures',
         action='store_true',
+        default=True,
         help='Sử dụng thị trường futures'
     )
     
@@ -1812,7 +1815,7 @@ def handle_collect_command(args, system):
     timeframes = timeframes_str.split(',')
     start_date = args.start_date if hasattr(args, 'start_date') else None
     end_date = args.end_date if hasattr(args, 'end_date') else None
-    is_futures = args.futures if hasattr(args, 'futures') else False
+    is_futures = args.futures if hasattr(args, 'futures') else True
     output_dir = Path(args.output_dir) if hasattr(args, 'output_dir') and args.output_dir else None
     save_format = args.save_format if hasattr(args, 'save_format') else 'parquet'
     force_update = args.force_update if hasattr(args, 'force_update') else False

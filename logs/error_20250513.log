@@ -1,3 +1,0 @@
-2025-05-13 04:06:45,563 - trading_system.process_commands - ERROR - [process_commands.py:1115] - Không tìm thấy file dữ liệu phù hợp trong data\processed
-2025-05-13 04:10:32,989 - trading_system.process_commands - ERROR - [process_commands.py:1115] - Không tìm thấy file dữ liệu phù hợp trong data\processed
-2025-05-13 04:14:15,460 - trading_system.process_commands - ERROR - [process_commands.py:835] - Không tìm thấy file dữ liệu phù hợp trong data\sentiment
