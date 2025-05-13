@@ -419,6 +419,7 @@ class DataPipeline:
                 
                 attempt = 0
                 delay = retry_delay
+                days_diff = 0  # Định nghĩa biến days_diff ở đây
                 
                 while attempt < max_retries:
                     try:
@@ -435,24 +436,48 @@ class DataPipeline:
                         
                         historical_collector = self.collectors["historical"]
                         
-                        # Thu thập OHLCV
-                        fetch_method = historical_collector.exchange_connector.fetch_ohlcv
-                        if inspect.iscoroutinefunction(fetch_method):
-                            # Nếu là coroutine function, sử dụng await
-                            ohlcv_data = await fetch_method(
+                        # Kiểm tra khoảng thời gian thu thập
+                        time_range_large = False
+                        if start_time and end_time:
+                            days_diff = (end_time - start_time).days
+                            if days_diff > 30:  # Nếu khoảng thời gian lớn hơn 30 ngày
+                                time_range_large = True
+                        
+                        # Sử dụng fetch_historical_klines nếu khoảng thời gian lớn và là Binance
+                        if time_range_large and 'binance' in exchange_id.lower() and hasattr(historical_collector.exchange_connector, 'fetch_historical_klines'):
+                            self.logger.info(f"Khoảng thời gian lớn ({days_diff} ngày), sử dụng fetch_historical_klines cho {symbol}")
+                            
+                            # Chuyển đổi thời gian sang định dạng timestamp (milliseconds)
+                            since_ms = int(start_time.timestamp() * 1000) if isinstance(start_time, datetime) else start_time
+                            until_ms = int(end_time.timestamp() * 1000) if isinstance(end_time, datetime) else end_time
+                            
+                            # Thu thập dữ liệu với phân trang
+                            ohlcv_data = await historical_collector.exchange_connector.fetch_historical_klines(
                                 symbol=symbol,
-                                timeframe=timeframe,
-                                since=int(start_time.timestamp() * 1000) if isinstance(start_time, datetime) else start_time,
-                                limit=None
+                                interval=timeframe,
+                                start_time=since_ms,
+                                end_time=until_ms,
+                                limit=1000  # Binance cho phép tối đa 1000 candles mỗi request
                             )
                         else:
-                            # Nếu không phải coroutine function, gọi trực tiếp
-                            ohlcv_data = fetch_method(
-                                symbol=symbol,
-                                timeframe=timeframe,
-                                since=int(start_time.timestamp() * 1000) if isinstance(start_time, datetime) else start_time,
-                                limit=None
-                            )
+                            # Thu thập OHLCV như cũ nếu khoảng thời gian nhỏ
+                            fetch_method = historical_collector.exchange_connector.fetch_ohlcv
+                            if inspect.iscoroutinefunction(fetch_method):
+                                # Nếu là coroutine function, sử dụng await
+                                ohlcv_data = await fetch_method(
+                                    symbol=symbol,
+                                    timeframe=timeframe,
+                                    since=int(start_time.timestamp() * 1000) if isinstance(start_time, datetime) else start_time,
+                                    limit=None
+                                )
+                            else:
+                                # Nếu không phải coroutine function, gọi trực tiếp
+                                ohlcv_data = fetch_method(
+                                    symbol=symbol,
+                                    timeframe=timeframe,
+                                    since=int(start_time.timestamp() * 1000) if isinstance(start_time, datetime) else start_time,
+                                    limit=None
+                                )
                         
                         if not ohlcv_data:
                             self.logger.warning(f"Không có dữ liệu OHLCV cho {symbol}")
@@ -479,7 +504,7 @@ class DataPipeline:
                                         f"từ {df['timestamp'].min()} đến {df['timestamp'].max()}")
                         
                         return symbol, df
-                    
+                        
                     except Exception as e:
                         attempt += 1
                         error_msg = str(e)
