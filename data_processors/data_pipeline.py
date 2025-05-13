@@ -1704,6 +1704,20 @@ class DataPipeline:
                     # Trung bình động của tâm lý
                     for window_size in [5, 10, 20]:
                         merged_result[f'sentiment_ma_{window_size}'] = merged_result['sentiment_value'].rolling(window=window_size).mean()
+
+                    # Xử lý NaN trong các cột tâm lý phái sinh
+                    sentiment_cols = [col for col in merged_result.columns if col.startswith('sentiment_')]
+                    for col in sentiment_cols:
+                        if merged_result[col].isna().any():
+                            # Sử dụng forward fill và backward fill
+                            nan_count_before = merged_result[col].isna().sum()
+                            merged_result[col] = merged_result[col].fillna(method='ffill').fillna(method='bfill')
+                            
+                            # Nếu vẫn còn NaN, điền 0
+                            if merged_result[col].isna().any():
+                                merged_result[col] = merged_result[col].fillna(0)
+                            
+                            self.logger.info(f"Đã xử lý {nan_count_before} giá trị NaN trong cột {col} cho {symbol}")
                 else:
                     self.logger.warning(f"Không tìm thấy ngày chung giữa dữ liệu thị trường và tâm lý cho {symbol}")
                 
@@ -1946,8 +1960,40 @@ class DataPipeline:
         """
         results = {}
         
+        # Import hàm clean_sentiment_features
+        from data_processors.utils.preprocessing import clean_sentiment_features
+
         for symbol, df in data.items():
             self.logger.info(f"Kiểm tra tính nhất quán của dữ liệu cho {symbol}")
+            
+            # Làm sạch dữ liệu tâm lý trước khi kiểm tra
+            df_clean = df.copy()
+            if any('sentiment_' in col for col in df_clean.columns):
+                try:
+                    sentiment_cols = [col for col in df_clean.columns if 'sentiment_' in col]
+                    if sentiment_cols:
+                        # Tạo chức năng clean_sentiment_features nếu chưa tồn tại
+                        for col in sentiment_cols:
+                            if df_clean[col].isna().any():
+                                # Điền forward fill trước
+                                df_clean[col] = df_clean[col].fillna(method='ffill')
+                                
+                                # Sau đó, điền backward fill
+                                if df_clean[col].isna().any():
+                                    df_clean[col] = df_clean[col].fillna(method='bfill')
+                                
+                                # Cuối cùng, điền bằng trung bình nếu vẫn còn NaN
+                                if df_clean[col].isna().any():
+                                    col_mean = df_clean[col].mean()
+                                    df_clean[col] = df_clean[col].fillna(col_mean if not pd.isna(col_mean) else 0)
+                        
+                        self.logger.info(f"Đã làm sạch các cột tâm lý cho {symbol} trước khi kiểm tra tính nhất quán")
+                        
+                        # Cập nhật lại data với dữ liệu đã làm sạch
+                        data[symbol] = df_clean
+                        df = df_clean
+                except Exception as e:
+                    self.logger.error(f"Lỗi khi làm sạch dữ liệu tâm lý: {str(e)}")
             
             report = {
                 "rows": len(df),

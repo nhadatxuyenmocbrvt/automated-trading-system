@@ -1728,3 +1728,54 @@ def handle_trailing_nans(series, fill_value=None, method='ffill'):
                 result = result.fillna(0)
     
     return result
+
+def clean_sentiment_features(
+    df: pd.DataFrame,
+    sentiment_prefix: str = 'sentiment_',
+    method: str = 'ffill+bfill'
+) -> pd.DataFrame:
+    """
+    Làm sạch các đặc trưng tâm lý trong DataFrame.
+    
+    Args:
+        df: DataFrame cần xử lý
+        sentiment_prefix: Tiền tố của các cột tâm lý
+        method: Phương pháp xử lý ('ffill+bfill', 'ffill+mean', 'mean')
+        
+    Returns:
+        DataFrame đã làm sạch
+    """
+    result = df.copy()
+    sentiment_cols = [col for col in result.columns if sentiment_prefix in col]
+    
+    for col in sentiment_cols:
+        if result[col].isna().any():
+            nan_count = result[col].isna().sum()
+            
+            if method == 'ffill+bfill':
+                # Forward fill trước
+                result[col] = result[col].fillna(method='ffill')
+                # Backward fill sau
+                if result[col].isna().any():
+                    result[col] = result[col].fillna(method='bfill')
+                    
+            elif method == 'ffill+mean':
+                # Forward fill trước
+                result[col] = result[col].fillna(method='ffill')
+                # Điền mean sau
+                if result[col].isna().any():
+                    mean_val = result[col].mean()
+                    result[col] = result[col].fillna(mean_val if not pd.isna(mean_val) else 0)
+                    
+            elif method == 'mean':
+                # Điền mean trực tiếp
+                mean_val = result[col].mean()
+                result[col] = result[col].fillna(mean_val if not pd.isna(mean_val) else 0)
+            
+            # Điền 0 cho bất kỳ NaN còn lại
+            if result[col].isna().any():
+                result[col] = result[col].fillna(0)
+                
+            logger.debug(f"Đã xử lý {nan_count} giá trị NaN trong cột {col}")
+    
+    return result

@@ -336,7 +336,7 @@ python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT
 # 2. LÀM SẠCH DỮ LIỆU
 python main.py process clean --data-type ohlcv --input-dir data/collected --symbols BTC/USDT --output-dir data/processed
 # Làm sạch dữ liệu tâm lý cho symbol cụ thể
-python main.py process clean --data-type all --input-dir data/collected --symbols BTC_sentiment --output-dir data/processed
+python main.py process clean --data-type all --input-dir data/collected --symbols BTC_sentiment --output-dir data/sentiment
 # Làm sạch dữ liệu tâm lý cho tất cả file
 python main.py process clean --data-type all --input-dir data/sentiment --output-dir data/cleaned/sentiment
 
@@ -353,6 +353,9 @@ python main.py process pipeline --input-dir data/processed --symbols BTC/USDT --
 python main.py process --market-data data/features/BTC_USDT.parquet --sentiment-dir data/sentiment --merge-sentiment --sentiment-method last_value --sentiment-window 1D
 
 # 5. CHẠY TOÀN BỘ PIPELINE XỬ LÝ DỮ LIỆU
+python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2025-02-10 --end-date 2025-05-10 --include-sentiment --all-indicators  --output-dir data/marge
+
+python main.py process pipeline --exchange binance --symbols BTC/USDT,ETH/USDT --timeframe 1h --start-time "2025-02-01" --end-time "2025-03-15" --output-dir data/processed --format parquet --include-sentiment --all-indicators --clean-indicators --remove-redundant --create-targets
 # Chạy toàn bộ pipeline từ đầu đến cuối
 python main.py process --data-path data/collected --run-pipeline --output-dir data/features
 python main.py process pipeline --symbols BTC/USDT --output-dir data/features 
@@ -432,7 +435,7 @@ python main.py collect historical --exchange binance --symbols XRP/USDT --timefr
 python main.py process pipeline --symbols ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30
 python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2024-01-01 --end-date 2024-12-30
 python main.py process pipeline --symbols BTC/USDT, ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30
-python main.py process pipeline --symbols BTC/USDT, ETH/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --include-sentiment
+python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --include-sentiment
 # Chạy toàn bộ pipeline xử lý dữ liệu & 
 python main.py process pipeline --input-dir data/collected --symbols BTC/USDT --timeframes 1h --output-dir data/processed --all-indicators
 ```

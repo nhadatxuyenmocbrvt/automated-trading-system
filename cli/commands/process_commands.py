@@ -25,7 +25,7 @@ from config.utils.validators import is_valid_timeframe, is_valid_trading_pair, v
 
 from data_processors.data_pipeline import DataPipeline
 from data_processors.feature_engineering.feature_generator import FeatureGenerator
-from data_processors.utils.preprocessing import fill_nan_values, handle_leading_nans
+from data_processors.utils.preprocessing import fill_nan_values, handle_leading_nans, clean_sentiment_features
 
 # Thiết lập logger
 logger = get_logger("process_commands")
@@ -1285,10 +1285,21 @@ def handle_process_command(args, system):
                                     else:
                                         logger.warning("Không thể tìm thấy cột tâm lý sau khi kết hợp")
                                     
+                                    # Làm sạch các đặc trưng tâm lý, xử lý NaN
+                                    for symbol in processed_data:
+                                        if any('sentiment_' in col for col in processed_data[symbol].columns):
+                                            processed_data[symbol] = clean_sentiment_features(
+                                                processed_data[symbol],
+                                                sentiment_prefix='sentiment_',
+                                                method='ffill+bfill'
+                                            )
+                                            logger.info(f"Đã làm sạch các đặc trưng tâm lý cho {symbol}")
+
                                 except Exception as e:
                                     logger.error(f"Lỗi khi tải và xử lý file tâm lý {newest_file}: {str(e)}")
                             else:
                                 logger.warning(f"Không tìm thấy file tâm lý nào trong {sentiment_dir_path}")
+
                         except Exception as e:
                             logger.error(f"Lỗi khi kết hợp dữ liệu tâm lý: {str(e)}", exc_info=True)
 
