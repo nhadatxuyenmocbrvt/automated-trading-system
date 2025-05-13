@@ -769,6 +769,7 @@ def setup_process_parser(subparsers):
     
     # Parser cho lệnh pipeline
     pipeline_parser = process_subparsers.add_parser('pipeline', help='Chạy toàn bộ pipeline xử lý dữ liệu')
+    pipeline_parser.add_argument("--is-futures", action="store_true", default=True, help="Sử dụng dữ liệu futures thay vì spot")
     pipeline_parser.add_argument("--input-dir", "-i", type=str, help="Thư mục chứa dữ liệu đầu vào")
     pipeline_parser.add_argument("--symbols", "-s", nargs='+', help="Danh sách cặp giao dịch cần xử lý")
     pipeline_parser.add_argument("--timeframes", "-tf", nargs='+', default=['1h'], help="Khung thời gian cần xử lý")
@@ -1127,6 +1128,7 @@ def handle_process_command(args, system):
                             timeframe=args.timeframes[0] if hasattr(args, 'timeframes') and args.timeframes else "1h",
                             start_time=start_datetime,
                             end_time=end_datetime,
+                            is_futures=is_futures,
                             preserve_timestamp=args.preserve_timestamp if hasattr(args, 'preserve_timestamp') else True
                         ))
                         

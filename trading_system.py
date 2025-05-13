@@ -230,7 +230,7 @@ class AutomatedTradingSystem:
         days: Optional[int] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        futures: bool = False,
+        futures: bool = True,
         output_dir: Optional[Union[str, Path]] = None
     ) -> Dict[str, Path]:
         """

@@ -1338,6 +1338,8 @@ def setup_collect_parser(subparsers):
         help='Tên sàn giao dịch (binance, bybit, ...)'
     )
     
+
+
     collect_parser.add_argument(
         '--symbols',
         type=str,
@@ -1365,6 +1367,7 @@ def setup_collect_parser(subparsers):
     collect_parser.add_argument(
         '--futures',
         action='store_true',
+        default=True,  # Thay đổi từ store_true thành store_true và default=True
         help='Thu thập dữ liệu futures thay vì spot'
     )
     

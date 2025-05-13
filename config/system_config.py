@@ -74,6 +74,7 @@ TRADING_CONFIG = {
     "order_types": ["market", "limit", "stop_loss", "take_profit"],
     "default_order_type": "limit",
     "max_open_positions": int(os.getenv("MAX_OPEN_POSITIONS", "5")),
+    "default_market_type": "futures",
 }
 
 # Cấu hình cho các agent
