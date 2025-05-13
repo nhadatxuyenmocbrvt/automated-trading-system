@@ -1,4 +1,0 @@
-2025-05-13 21:18:37,399 - trading_system.trading_system - ERROR - [data_pipeline.py:518] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho ETH/USDT
-2025-05-13 21:18:46,955 - trading_system.trading_system - ERROR - [data_pipeline.py:518] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BNB/USDT
-2025-05-13 21:18:56,257 - trading_system.trading_system - ERROR - [data_pipeline.py:518] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho BTC/USDT
-2025-05-13 21:19:05,530 - trading_system.trading_system - ERROR - [data_pipeline.py:518] - Đã thử 3 lần nhưng không thể thu thập dữ liệu cho SOL/USDT

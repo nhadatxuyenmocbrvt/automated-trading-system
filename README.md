@@ -330,7 +330,7 @@ python main.py collect historical --exchange binance --symbols BTC/USDT --timefr
 # Thu thập dữ liệu BTC/USDT trên thị trường futures
 python main.py collect historical --exchange binance --symbols BTC/USDT --timeframe 1h --start-date 2024-12-10 --end-date 2025-05-10 --futures --force-update
 # Thu thập nhiều cặp tiền 
-python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2025-01-01 --futures
+python main.py collect historical --exchange binance --symbols BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT --timeframe 1h --start-date 2022-01-01 --end-date 2025-01-01 --futures --collect-sentiment-for-all
 
 # 2. LÀM SẠCH DỮ LIỆU
 python main.py process clean --data-type ohlcv --input-dir data/collected --symbols BTC/USDT --output-dir data/processed

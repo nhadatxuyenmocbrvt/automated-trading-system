@@ -451,8 +451,8 @@ class DataPipeline:
                             since_ms = int(start_time.timestamp() * 1000) if isinstance(start_time, datetime) else start_time
                             until_ms = int(end_time.timestamp() * 1000) if isinstance(end_time, datetime) else end_time
                             
-                            # Thu thập dữ liệu với phân trang
-                            ohlcv_data = await historical_collector.exchange_connector.fetch_historical_klines(
+                            # Thu thập dữ liệu với phân trang KHÔNG SỬ DỤNG AWAIT vì không phải coroutine
+                            ohlcv_data = historical_collector.exchange_connector.fetch_historical_klines(
                                 symbol=symbol,
                                 interval=timeframe,
                                 start_time=since_ms,
@@ -529,11 +529,16 @@ class DataPipeline:
         
         # Thu thập dữ liệu tâm lý nếu cần
         if include_sentiment and self.collectors.get("sentiment") is not None:
-            sentiment_results = await self._collect_sentiment_data(symbols, start_time, end_time)
-            
-            if sentiment_results:
-                # Thêm dữ liệu tâm lý vào kết quả
-                results.update(sentiment_results)
+            for symbol in symbols:
+                # Trích xuất asset từ symbol (VD: BTC/USDT -> BTC)
+                asset = symbol.split('/')[0] if '/' in symbol else symbol
+                self.logger.info(f"Thu thập dữ liệu tâm lý cho asset {asset}")
+                
+                sentiment_data = await self._collect_sentiment_data([symbol], start_time, end_time)
+                
+                if sentiment_data:
+                    # Thêm dữ liệu tâm lý vào kết quả
+                    results.update(sentiment_data)
         
         # Cập nhật trạng thái dữ liệu
         self.data_state = {
@@ -571,69 +576,46 @@ class DataPipeline:
             if not symbols:
                 return {}
             
-            # Lấy asset từ symbol đầu tiên (VD: "BTC/USDT" -> "BTC")
-            asset = symbols[0].split('/')[0] if '/' in symbols[0] else symbols[0]
-            
-            self.logger.info(f"Thu thập dữ liệu tâm lý cho asset {asset}")
-            
-            # SỬA CHỮA: Thay vì thu thập từ Fear & Greed Index, thu thập từ Binance
-            from cli.commands.collect_commands import CollectCommands
-            
-            # Khởi tạo CollectCommands
-            cmd = CollectCommands()
-            
-            # Thu thập dữ liệu tâm lý từ Binance
-            self.logger.info(f"Thu thập dữ liệu tâm lý từ Binance cho {asset}")
-            
-            # Chuyển datetime sang string format YYYY-MM-DD cho start_date và end_date
-            start_date = start_time.strftime("%Y-%m-%d") if start_time else None
-            end_date = end_time.strftime("%Y-%m-%d") if end_time else None
-            
-            # Thu thập dữ liệu tâm lý từ Binance
-            binance_sentiment = await cmd.collect_binance_sentiment(
-                exchange_id="binance",
-                symbols=[symbol for symbol in symbols if asset in symbol],
-                start_date=start_date,
-                end_date=end_date,
-                output_dir=self.data_dir / "sentiment" / "binance",
-                save_format='parquet'
-            )
-            
-            if binance_sentiment and any(binance_sentiment.values()):
-                # Tạo DataFrame từ kết quả
-                for symbol, file_path in binance_sentiment.items():
-                    try:
-                        # Đọc file parquet đã lưu
-                        sentiment_df = pd.read_parquet(file_path)
-                        sentiment_key = f"{asset}_sentiment"
-                        sentiment_results[sentiment_key] = sentiment_df
-                        self.logger.info(f"Đã thu thập {len(sentiment_df)} dòng dữ liệu tâm lý từ Binance cho {asset}")
-                    except Exception as e:
-                        self.logger.error(f"Lỗi khi đọc file dữ liệu tâm lý: {str(e)}")
-            else:
-                self.logger.warning(f"Không thể thu thập dữ liệu tâm lý từ Binance cho {asset}")
+            # Thu thập cho mỗi symbol
+            for symbol in symbols:
+                # Lấy asset từ symbol (VD: "BTC/USDT" -> "BTC")
+                asset = symbol.split('/')[0] if '/' in symbol else symbol
                 
-                # Vẫn thử thu thập từ các nguồn khác nếu có (giữ lại code cũ)
-                sentiment_collector = self.collectors.get("sentiment")
-                if sentiment_collector is not None:
-                    try:
-                        sentiment_data = await sentiment_collector.collect_from_all_sources(asset=asset)
-                        
-                        if any(sentiment_data.values()):
-                            self.logger.info(f"Đã thu thập dữ liệu tâm lý từ các nguồn khác cho {asset}")
-                            # Xử lý dữ liệu như code hiện tại
-                            all_sentiment = []
-                            for source_name, source_data in sentiment_data.items():
-                                if source_data:
-                                    self.logger.info(f"Đã thu thập {len(source_data)} mục dữ liệu tâm lý từ nguồn {source_name}")
-                                    all_sentiment.extend(source_data)
-                            
-                            if all_sentiment:
-                                sentiment_df = sentiment_collector.convert_to_dataframe(all_sentiment)
-                                sentiment_key = f"{asset}_sentiment"
-                                sentiment_results[sentiment_key] = sentiment_df
-                    except Exception as e:
-                        self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý từ các nguồn khác: {str(e)}")
+                self.logger.info(f"Thu thập dữ liệu tâm lý cho asset {asset}")
+                
+                # Thu thập dữ liệu tâm lý từ Binance
+                from cli.commands.collect_commands import CollectCommands
+                
+                # Khởi tạo CollectCommands
+                cmd = CollectCommands()
+                
+                # Chuyển datetime sang string format YYYY-MM-DD cho start_date và end_date
+                start_date = start_time.strftime("%Y-%m-%d") if start_time else None
+                end_date = end_time.strftime("%Y-%m-%d") if end_time else None
+                
+                # Thu thập dữ liệu tâm lý từ Binance
+                binance_sentiment = await cmd.collect_binance_sentiment(
+                    exchange_id="binance",
+                    symbols=[symbol],  # Chỉ một symbol tại một thời điểm
+                    start_date=start_date,
+                    end_date=end_date,
+                    output_dir=self.data_dir / "sentiment" / "binance",
+                    save_format='parquet'
+                )
+                
+                if binance_sentiment and any(binance_sentiment.values()):
+                    # Tạo DataFrame từ kết quả
+                    for s, file_path in binance_sentiment.items():
+                        try:
+                            # Đọc file parquet đã lưu
+                            sentiment_df = pd.read_parquet(file_path)
+                            sentiment_key = f"{asset}_sentiment"
+                            sentiment_results[sentiment_key] = sentiment_df
+                            self.logger.info(f"Đã thu thập {len(sentiment_df)} dòng dữ liệu tâm lý từ Binance cho {asset}")
+                        except Exception as e:
+                            self.logger.error(f"Lỗi khi đọc file dữ liệu tâm lý: {str(e)}")
+                else:
+                    self.logger.warning(f"Không thể thu thập dữ liệu tâm lý từ Binance cho {asset}")
         
         except Exception as e:
             self.logger.error(f"Lỗi khi thu thập dữ liệu tâm lý: {str(e)}")
