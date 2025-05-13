@@ -1,0 +1,17 @@
+{
+    "timestamp": "20250513_220828",
+    "saved_symbols": 8,
+    "total_symbols": 8,
+    "output_dir": "data\\features",
+    "file_format": "parquet",
+    "consistency_summary": {
+        "BTC_sentiment": "passed",
+        "ETH_sentiment": "passed",
+        "BNB_sentiment": "passed",
+        "XRP_sentiment": "passed",
+        "XRP/USDT": "warning",
+        "BNB/USDT": "warning",
+        "BTC/USDT": "warning",
+        "ETH/USDT": "warning"
+    }
+}
