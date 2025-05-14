@@ -1,5 +1,5 @@
 {
-    "symbol": "XRP/USDT",
+    "symbol": "BNB/USDT",
     "rows": 26305,
     "columns": [
         "timestamp",
@@ -11,8 +11,9 @@
         "atr_14",
         "atr_pct_14",
         "volatility_zscore",
-        "volatility_rank",
         "atr_14_std",
+        "label",
+        "future_return_pct",
         "open",
         "high",
         "low",
@@ -22,15 +23,15 @@
         "indicators_fixed",
         "volume_extreme"
     ],
-    "saved_at": "2025-05-13T22:08:28.965198",
+    "saved_at": "2025-05-14T15:19:39.905934",
     "file_format": "parquet",
-    "file_path": "data\\features\\xrp_usdt_20250513_220828.parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\features\\bnb_usdt_20250514_151939.parquet",
     "consistency_report": {
         "rows": 26305,
-        "columns": 19,
+        "columns": 20,
         "issues": [
-            "có 15957 candle với high < low",
-            "có giá trị âm trong cột OHLC: {'open': 17760, 'high': 17820, 'low': 17740, 'close': 17763}"
+            "có 17254 candle với high < low",
+            "có giá trị âm trong cột OHLC: {'open': 16306, 'high': 16296, 'low': 16330, 'close': 16305}"
         ],
         "warnings": [],
         "overall_status": "warning"

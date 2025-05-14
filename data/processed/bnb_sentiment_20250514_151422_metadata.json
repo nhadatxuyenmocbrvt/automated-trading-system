@@ -14,9 +14,9 @@
         "source",
         "sentiment_value_normalized"
     ],
-    "saved_at": "2025-05-13T22:08:28.876227",
+    "saved_at": "2025-05-14T15:14:22.570791",
     "file_format": "parquet",
-    "file_path": "data\\features\\bnb_sentiment_20250513_220828.parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\bnb_sentiment_20250514_151422.parquet",
     "consistency_report": {
         "rows": 26298,
         "columns": 11,

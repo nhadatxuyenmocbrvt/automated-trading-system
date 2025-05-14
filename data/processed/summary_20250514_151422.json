@@ -1,8 +1,8 @@
 {
-    "timestamp": "20250514_133302",
+    "timestamp": "20250514_151422",
     "saved_symbols": 1,
     "total_symbols": 1,
-    "output_dir": "data\\features",
+    "output_dir": "E:\\AI_AGENT\\automated-trading-system\\data\\processed",
     "file_format": "parquet",
     "consistency_summary": {
         "BNB_sentiment": "passed"

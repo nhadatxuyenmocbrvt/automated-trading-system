@@ -1,10 +1,10 @@
-2025-05-14 15:04:48,375 - trading_system.module_manager - DEBUG - [trading_system.py:60] - Các module agent khả dụng
-2025-05-14 15:04:48,376 - trading_system.module_manager - DEBUG - [trading_system.py:70] - Các module môi trường khả dụng
-2025-05-14 15:04:48,379 - trading_system.module_manager - DEBUG - [trading_system.py:80] - Các module thu thập dữ liệu khả dụng
-2025-05-14 15:04:48,414 - trading_system.cli_parser - INFO - [main.py:206] - Đã cập nhật mức độ log: INFO
-2025-05-14 15:04:48,415 - trading_system.module_manager - INFO - [trading_system.py:139] - ==== Trạng thái khả dụng của module ====
-2025-05-14 15:04:48,416 - trading_system.module_manager - INFO - [trading_system.py:140] - Agents: Khả dụng
-2025-05-14 15:04:48,419 - trading_system.module_manager - INFO - [trading_system.py:141] - Environments: Khả dụng
-2025-05-14 15:04:48,420 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
-2025-05-14 15:04:48,421 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
-2025-05-14 15:04:48,422 - trading_system.cli_parser - INFO - [main.py:258] - Sử dụng thư mục đầu ra: data\merged
+2025-05-14 15:20:49,215 - trading_system.module_manager - DEBUG - [trading_system.py:60] - Các module agent khả dụng
+2025-05-14 15:20:49,215 - trading_system.module_manager - DEBUG - [trading_system.py:70] - Các module môi trường khả dụng
+2025-05-14 15:20:49,218 - trading_system.module_manager - DEBUG - [trading_system.py:80] - Các module thu thập dữ liệu khả dụng
+2025-05-14 15:20:49,256 - trading_system.cli_parser - INFO - [main.py:206] - Đã cập nhật mức độ log: INFO
+2025-05-14 15:20:49,257 - trading_system.module_manager - INFO - [trading_system.py:139] - ==== Trạng thái khả dụng của module ====
+2025-05-14 15:20:49,259 - trading_system.module_manager - INFO - [trading_system.py:140] - Agents: Khả dụng
+2025-05-14 15:20:49,261 - trading_system.module_manager - INFO - [trading_system.py:141] - Environments: Khả dụng
+2025-05-14 15:20:49,261 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
+2025-05-14 15:20:49,263 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-14 15:20:49,264 - trading_system.cli_parser - INFO - [main.py:258] - Sử dụng thư mục đầu ra: data\merged
