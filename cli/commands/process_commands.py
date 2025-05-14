@@ -394,7 +394,8 @@ def run_pipeline(input_dir, symbols, timeframes, start_date, end_date, output_di
                 handle_leading_nan=True,
                 leading_nan_method="backfill",
                 aggressive_nan_handling=True,
-                fill_all_nan=True                
+                fill_all_nan=True,
+                include_sentiment=include_sentiment         
             ))
             
             if not result_data:

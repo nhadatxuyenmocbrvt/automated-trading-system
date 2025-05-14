@@ -1,0 +1,33 @@
+{
+    "symbol": "BTC_sentiment",
+    "rows": 26298,
+    "columns": [
+        "timestamp",
+        "funding_rate",
+        "funding_sentiment",
+        "rsi_sentiment",
+        "bb_sentiment",
+        "sentiment_score",
+        "sentiment_label",
+        "sentiment_value",
+        "symbol",
+        "source",
+        "sentiment_value_normalized"
+    ],
+    "saved_at": "2025-05-14T07:19:50.872651",
+    "file_format": "parquet",
+    "file_path": "data\\features\\btc_sentiment_20250514_071950.parquet",
+    "consistency_report": {
+        "rows": 26298,
+        "columns": 11,
+        "issues": [],
+        "warnings": [],
+        "sentiment_stats": {
+            "missing_values": 0,
+            "coverage_percentage": 100.0
+        },
+        "overall_status": "passed"
+    },
+    "start_date": "2022-01-01T00:00:00",
+    "end_date": "2024-12-31T17:00:00"
+}

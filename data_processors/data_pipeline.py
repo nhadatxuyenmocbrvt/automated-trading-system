@@ -2383,7 +2383,8 @@ class DataPipeline:
         save_results: bool = True,
         is_futures: bool = False,
         preserve_timestamp: bool = True,
-        sentiment_dir: Optional[Union[str, Path]] = None
+        sentiment_dir: Optional[Union[str, Path]] = None,
+        include_sentiment: bool = None
     ) -> Dict[str, pd.DataFrame]:
         """
         Chạy pipeline xử lý dữ liệu đầy đủ.
@@ -2416,6 +2417,13 @@ class DataPipeline:
                 self.logger.warning("Bạn có thể tạo dữ liệu tâm lý bằng lệnh:")
                 self.logger.warning("python main.py collect fear_greed --output-dir data/sentiment")        
         
+        # Cập nhật cấu hình nếu có tham số include_sentiment
+        if include_sentiment is not None:
+            if "collectors" not in self.config:
+                self.config["collectors"] = {}
+            self.config["collectors"]["include_sentiment"] = include_sentiment
+            self.logger.info(f"Đã cập nhật cấu hình: include_sentiment={include_sentiment}")
+
         # Lấy pipeline nếu đã đăng ký
         pipeline_steps = []
         if pipeline_name and pipeline_name in self.registered_pipelines:

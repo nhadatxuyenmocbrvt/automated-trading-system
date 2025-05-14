@@ -1,0 +1,40 @@
+{
+    "symbol": "XRP/USDT",
+    "rows": 26305,
+    "columns": [
+        "timestamp",
+        "volume_log",
+        "volume_extreme_log",
+        "ema_89",
+        "trend_strength",
+        "trend_acceleration",
+        "atr_14",
+        "atr_pct_14",
+        "volatility_zscore",
+        "volatility_rank",
+        "atr_14_std",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "symbol",
+        "indicators_fixed",
+        "volume_extreme"
+    ],
+    "saved_at": "2025-05-14T07:19:51.147345",
+    "file_format": "parquet",
+    "file_path": "data\\features\\xrp_usdt_20250514_071950.parquet",
+    "consistency_report": {
+        "rows": 26305,
+        "columns": 19,
+        "issues": [
+            "có 15957 candle với high < low",
+            "có giá trị âm trong cột OHLC: {'open': 17760, 'high': 17820, 'low': 17740, 'close': 17763}"
+        ],
+        "warnings": [],
+        "overall_status": "warning"
+    },
+    "start_date": "2021-12-31T17:00:00",
+    "end_date": "2024-12-31T17:00:00"
+}
