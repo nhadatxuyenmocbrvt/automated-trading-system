@@ -1,0 +1,17 @@
+{
+    "timestamp": "20250514_120356",
+    "saved_symbols": 8,
+    "total_symbols": 8,
+    "output_dir": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\futures\\1h",
+    "file_format": "parquet",
+    "consistency_summary": {
+        "ETH/USDT": "passed",
+        "BTC/USDT": "passed",
+        "BNB/USDT": "passed",
+        "SOL/USDT": "passed",
+        "BTC_sentiment": "passed",
+        "ETH_sentiment": "passed",
+        "SOL_sentiment": "passed",
+        "BNB_sentiment": "passed"
+    }
+}
