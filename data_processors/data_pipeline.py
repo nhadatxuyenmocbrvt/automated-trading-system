@@ -2122,10 +2122,13 @@ class DataPipeline:
                 results[symbol] = report
                 
                 # Log kết quả kiểm tra
-                if report["overall_status"] == "failed":
+                if report["overall_status"] == "warning":
+                    if report["warnings"]:
+                        self.logger.warning(f"Dữ liệu {symbol} có cảnh báo: {', '.join(report['warnings'])}")
+                    else:
+                        self.logger.warning(f"Dữ liệu {symbol} có cảnh báo tiềm ẩn (không có chi tiết)")
+                elif report["overall_status"] == "failed":     # <-- SỬA: Kiểm tra trạng thái "failed" thay vì "warning"
                     self.logger.error(f"Dữ liệu {symbol} có vấn đề nghiêm trọng: {', '.join(report['issues'])}")
-                elif report["overall_status"] == "warning":
-                    self.logger.warning(f"Dữ liệu {symbol} có cảnh báo: {', '.join(report['warnings'])}")
                 else:
                     self.logger.info(f"Dữ liệu {symbol} đạt yêu cầu nhất quán")
                 
