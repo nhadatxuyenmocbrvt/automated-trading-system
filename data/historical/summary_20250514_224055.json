@@ -1,0 +1,13 @@
+{
+    "timestamp": "20250514_224055",
+    "saved_symbols": 4,
+    "total_symbols": 4,
+    "output_dir": "data\\historical",
+    "file_format": "parquet",
+    "consistency_summary": {
+        "BTC/USDT": "warning",
+        "ETH/USDT": "warning",
+        "SOL/USDT": "warning",
+        "BNB/USDT": "warning"
+    }
+}

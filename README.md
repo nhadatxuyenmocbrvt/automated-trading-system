@@ -341,12 +341,11 @@ python main.py process clean --data-type all --input-dir data/sentiment
 python main.py process features --data-type ohlcv --input-dir data/processed --symbols BNB/USDT --all-indicators 
 python main.py process features --data-type ohlcv --input-dir data/processed --symbols BNB/USDT --output-dir data/features --all-indicators --fill-all-nan
 
-# 4. KẾT HỢP DỮ LIỆU TÂM LÝ VỚI DỮ LIỆU THỊ TRƯỜNG
-python main.py process merge-sentiment --input-dir data/features --sentiment-dir data/processed --symbols BNB/USDT --output-dir data/merged
+# 4. CHẠY TOÀN BỘ PIPELINE XỬ LÝ DỮ LIỆU
+python main.py process pipeline --symbols BTC/USDT ETH/USDT SOL/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2025-01-01 --futures --include-sentiment --all-indicators  --output-dir data/merged
 
-# 5. CHẠY TOÀN BỘ PIPELINE XỬ LÝ DỮ LIỆU
-python main.py process pipeline --symbols BNB/USDT --timeframes 1h --start-date 2022-01-01 --end-date 2025-01-01 --futures --include-sentiment --all-indicators  --output-dir data/merged
-
+# 5. KẾT HỢP DỮ LIỆU TÂM LÝ VỚI DỮ LIỆU THỊ TRƯỜNG
+python main.py process merge-sentiment --input-dir data/merged --sentiment-dir data/merged --symbols BTC/USDT ETH/USDT SOL/USDT BNB/USDT --output-dir data/historical
 
 python main.py process pipeline --input-dir data/processed/BTC --include-sentiment --sentiment-dir data/processed --output-dir data/merged
 
@@ -446,6 +445,8 @@ python main.py process pipeline --symbols BTC/USDT, ETH/USDT --timeframes 1h --s
 python main.py process pipeline --symbols BTC/USDT --timeframes 1h --start-date 2021-01-01 --end-date 2024-12-30 --include-sentiment
 # Chạy toàn bộ pipeline xử lý dữ liệu & 
 python main.py process pipeline --input-dir data/collected --symbols BTC/USDT --timeframes 1h --output-dir data/processed --all-indicators
+
+
 ```
 
 ## 3. Chạy backtest (chưa triển khai đầy đủ)
