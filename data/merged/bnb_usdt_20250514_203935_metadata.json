@@ -12,8 +12,6 @@
         "atr_pct_14",
         "volatility_zscore",
         "atr_14_std",
-        "label",
-        "future_return_pct",
         "open",
         "high",
         "low",
@@ -23,12 +21,12 @@
         "indicators_fixed",
         "volume_extreme"
     ],
-    "saved_at": "2025-05-14T15:19:39.905934",
+    "saved_at": "2025-05-14T20:39:35.529033",
     "file_format": "parquet",
-    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\features\\bnb_usdt_20250514_151939.parquet",
+    "file_path": "data\\merged\\bnb_usdt_20250514_203935.parquet",
     "consistency_report": {
         "rows": 26305,
-        "columns": 20,
+        "columns": 18,
         "issues": [
             "có 17254 candle với high < low",
             "có giá trị âm trong cột OHLC: {'open': 16306, 'high': 16296, 'low': 16330, 'close': 16305}"

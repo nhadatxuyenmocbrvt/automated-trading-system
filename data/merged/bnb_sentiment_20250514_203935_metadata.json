@@ -1,5 +1,5 @@
 {
-    "symbol": "SOL_sentiment",
+    "symbol": "BNB_sentiment",
     "rows": 26298,
     "columns": [
         "timestamp",
@@ -11,14 +11,15 @@
         "sentiment_label",
         "sentiment_value",
         "symbol",
-        "source"
+        "source",
+        "sentiment_value_normalized"
     ],
-    "saved_at": "2025-05-14T12:03:56.412086",
+    "saved_at": "2025-05-14T20:39:35.482021",
     "file_format": "parquet",
-    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\collected\\binance\\futures\\1h\\sol_sentiment_20250514_120356.parquet",
+    "file_path": "data\\merged\\bnb_sentiment_20250514_203935.parquet",
     "consistency_report": {
         "rows": 26298,
-        "columns": 10,
+        "columns": 11,
         "issues": [],
         "warnings": [],
         "sentiment_stats": {
