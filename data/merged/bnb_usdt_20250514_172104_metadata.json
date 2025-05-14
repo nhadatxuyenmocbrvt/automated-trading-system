@@ -1,0 +1,53 @@
+{
+    "symbol": "BNB/USDT",
+    "rows": 26305,
+    "columns": [
+        "timestamp",
+        "volume_log",
+        "volume_extreme_log",
+        "ema_89",
+        "trend_strength",
+        "trend_acceleration",
+        "atr_14",
+        "atr_pct_14",
+        "volatility_zscore",
+        "atr_14_std",
+        "label",
+        "future_return_pct",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "symbol",
+        "indicators_fixed",
+        "volume_extreme",
+        "sentiment_value",
+        "sentiment_lag_1",
+        "sentiment_lag_3",
+        "sentiment_lag_5",
+        "sentiment_change",
+        "sentiment_ma_5",
+        "sentiment_ma_10",
+        "sentiment_ma_20"
+    ],
+    "saved_at": "2025-05-14T17:21:04.274417",
+    "file_format": "parquet",
+    "file_path": "data\\merged\\bnb_usdt_20250514_172104.parquet",
+    "consistency_report": {
+        "rows": 26305,
+        "columns": 28,
+        "issues": [
+            "có 17254 candle với high < low",
+            "có giá trị âm trong cột OHLC: {'open': 16306, 'high': 16296, 'low': 16330, 'close': 16305}"
+        ],
+        "warnings": [],
+        "sentiment_stats": {
+            "missing_values": 0,
+            "coverage_percentage": 100.0
+        },
+        "overall_status": "warning"
+    },
+    "start_date": "2021-12-31T17:00:00",
+    "end_date": "2024-12-31T17:00:00"
+}

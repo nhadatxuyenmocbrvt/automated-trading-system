@@ -8,3 +8,63 @@
 2025-05-14 17:13:00,493 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
 2025-05-14 17:13:00,494 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
 2025-05-14 17:13:00,494 - trading_system.cli_parser - INFO - [main.py:258] - Sử dụng thư mục đầu ra: data\merged
+2025-05-14 17:21:03,870 - trading_system.module_manager - DEBUG - [trading_system.py:60] - Các module agent khả dụng
+2025-05-14 17:21:03,870 - trading_system.module_manager - DEBUG - [trading_system.py:70] - Các module môi trường khả dụng
+2025-05-14 17:21:03,873 - trading_system.module_manager - DEBUG - [trading_system.py:80] - Các module thu thập dữ liệu khả dụng
+2025-05-14 17:21:03,907 - trading_system.cli_parser - INFO - [main.py:206] - Đã cập nhật mức độ log: INFO
+2025-05-14 17:21:03,908 - trading_system.module_manager - INFO - [trading_system.py:139] - ==== Trạng thái khả dụng của module ====
+2025-05-14 17:21:03,910 - trading_system.module_manager - INFO - [trading_system.py:140] - Agents: Khả dụng
+2025-05-14 17:21:03,911 - trading_system.module_manager - INFO - [trading_system.py:141] - Environments: Khả dụng
+2025-05-14 17:21:03,913 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
+2025-05-14 17:21:03,914 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-14 17:21:03,915 - trading_system.cli_parser - INFO - [main.py:258] - Sử dụng thư mục đầu ra: data\merged
+2025-05-14 17:21:03,917 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-14 17:21:03,917 - trading_system.process_commands - INFO - [feature_generator.py:160] - Đã khởi tạo FeatureGenerator
+2025-05-14 17:21:03,919 - trading_system.process_commands - INFO - [feature_generator.py:519] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
+2025-05-14 17:21:03,920 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-05-14 17:21:03,921 - trading_system.process_commands - INFO - [data_pipeline.py:223] - Đã khởi tạo các collector dữ liệu cho binance
+2025-05-14 17:21:03,922 - trading_system.process_commands - INFO - [data_pipeline.py:111] - Đã khởi tạo DataPipeline
+2025-05-14 17:21:03,924 - trading_system.process_commands - INFO - [process_commands.py:870] - Đang tìm kiếm dữ liệu trong thư mục: data\features
+2025-05-14 17:21:03,925 - trading_system.process_commands - INFO - [process_commands.py:877] - Tìm thấy tổng cộng 1 file dữ liệu
+2025-05-14 17:21:03,926 - trading_system.process_commands - INFO - [process_commands.py:891] - Tìm thấy file cho BNB/USDT: data\features\bnb_usdt_20250514_151939.parquet
+2025-05-14 17:21:03,927 - trading_system.process_commands - INFO - [process_commands.py:1581] - Đang tải dữ liệu thị trường từ data\features\bnb_usdt_20250514_151939.parquet cho BNB/USDT...
+2025-05-14 17:21:04,039 - trading_system.process_commands - INFO - [data_pipeline.py:769] - Timestamp cho BNB/USDT: dtype=datetime64[ns], min=2021-12-31 17:00:00, max=2024-12-31 17:00:00
+2025-05-14 17:21:04,040 - trading_system.process_commands - INFO - [data_pipeline.py:773] - Đã tải 26305 dòng dữ liệu từ data\features\bnb_usdt_20250514_151939.parquet cho BNB/USDT
+2025-05-14 17:21:04,044 - trading_system.process_commands - INFO - [process_commands.py:1620] - Tìm thấy file tâm lý cho BNB/USDT: data\processed\bnb_sentiment_20250514_151422.parquet
+2025-05-14 17:21:04,046 - trading_system.process_commands - INFO - [process_commands.py:1652] - Đang tải dữ liệu tâm lý từ data\processed\bnb_sentiment_20250514_151422.parquet cho BNB/USDT...
+2025-05-14 17:21:04,071 - trading_system.process_commands - INFO - [process_commands.py:1677] - Đang kết hợp dữ liệu thị trường và tâm lý cho BNB/USDT...
+2025-05-14 17:21:04,072 - trading_system.process_commands - INFO - [data_pipeline.py:1444] - Sử dụng DataFrame tâm lý được cung cấp trực tiếp
+2025-05-14 17:21:04,075 - trading_system.process_commands - INFO - [data_pipeline.py:795] - Bắt đầu làm sạch dữ liệu tâm lý: 26298 dòng
+2025-05-14 17:21:04,080 - trading_system.process_commands - INFO - [data_pipeline.py:868] - Đã chuẩn hóa giá trị tâm lý về khoảng [0, 1] trong cột sentiment_value_normalized
+2025-05-14 17:21:04,084 - trading_system.process_commands - INFO - [data_pipeline.py:874] - Hoàn thành làm sạch dữ liệu tâm lý: 26298 dòng
+2025-05-14 17:21:04,085 - trading_system.process_commands - INFO - [data_pipeline.py:1499] - Tìm kiếm dữ liệu tâm lý từ thư mục: data\processed
+2025-05-14 17:21:04,086 - trading_system.process_commands - INFO - [data_pipeline.py:1355] - Tìm kiếm dữ liệu tâm lý cho BNB trong data\processed
+2025-05-14 17:21:04,087 - trading_system.process_commands - INFO - [data_pipeline.py:1401] - Tìm thấy 3 file tâm lý cho BNB, sử dụng file mới nhất: data\processed\bnb_sentiment_20250514_151422.parquet
+2025-05-14 17:21:04,088 - trading_system.process_commands - INFO - [data_pipeline.py:1512] - Sử dụng file tâm lý: data\processed\bnb_sentiment_20250514_151422.parquet
+2025-05-14 17:21:04,103 - trading_system.process_commands - INFO - [data_pipeline.py:795] - Bắt đầu làm sạch dữ liệu tâm lý: 26298 dòng
+2025-05-14 17:21:04,107 - trading_system.process_commands - INFO - [data_pipeline.py:868] - Đã chuẩn hóa giá trị tâm lý về khoảng [0, 1] trong cột sentiment_value_normalized
+2025-05-14 17:21:04,111 - trading_system.process_commands - INFO - [data_pipeline.py:874] - Hoàn thành làm sạch dữ liệu tâm lý: 26298 dòng
+2025-05-14 17:21:04,112 - trading_system.process_commands - INFO - [data_pipeline.py:1528] - Đã đọc 26298 dòng dữ liệu tâm lý cho BNB/USDT
+2025-05-14 17:21:04,113 - trading_system.process_commands - INFO - [data_pipeline.py:1571] - Timestamp cho BNB/USDT: datetime64[ns], min=2021-12-31 17:00:00, max=2024-12-31 17:00:00
+2025-05-14 17:21:04,115 - trading_system.process_commands - INFO - [data_pipeline.py:1587] - Sử dụng dữ liệu tâm lý riêng cho BNB/USDT
+2025-05-14 17:21:04,116 - trading_system.process_commands - INFO - [data_pipeline.py:1628] - Sử dụng cột sentiment_value cho giá trị tâm lý của BNB/USDT
+2025-05-14 17:21:04,118 - trading_system.process_commands - INFO - [data_pipeline.py:1641] - Timestamp tâm lý cho BNB/USDT: datetime64[ns], min=2022-01-01 00:00:00, max=2024-12-31 17:00:00
+2025-05-14 17:21:04,135 - trading_system.process_commands - INFO - [data_pipeline.py:1690] - Tìm thấy 1096 ngày chung giữa dữ liệu thị trường và tâm lý
+2025-05-14 17:21:04,159 - trading_system.process_commands - INFO - [data_pipeline.py:1701] - Số giá trị tâm lý hợp lệ: 26305/26305 (100.00%)
+2025-05-14 17:21:04,168 - trading_system.process_commands - INFO - [data_pipeline.py:1727] - Đã xử lý 1 giá trị NaN trong cột sentiment_lag_1 cho BNB/USDT
+2025-05-14 17:21:04,170 - trading_system.process_commands - INFO - [data_pipeline.py:1727] - Đã xử lý 3 giá trị NaN trong cột sentiment_lag_3 cho BNB/USDT
+2025-05-14 17:21:04,174 - trading_system.process_commands - INFO - [data_pipeline.py:1727] - Đã xử lý 5 giá trị NaN trong cột sentiment_lag_5 cho BNB/USDT
+2025-05-14 17:21:04,176 - trading_system.process_commands - INFO - [data_pipeline.py:1727] - Đã xử lý 1 giá trị NaN trong cột sentiment_change cho BNB/USDT
+2025-05-14 17:21:04,177 - trading_system.process_commands - INFO - [data_pipeline.py:1727] - Đã xử lý 4 giá trị NaN trong cột sentiment_ma_5 cho BNB/USDT
+2025-05-14 17:21:04,179 - trading_system.process_commands - INFO - [data_pipeline.py:1727] - Đã xử lý 9 giá trị NaN trong cột sentiment_ma_10 cho BNB/USDT
+2025-05-14 17:21:04,180 - trading_system.process_commands - INFO - [data_pipeline.py:1727] - Đã xử lý 19 giá trị NaN trong cột sentiment_ma_20 cho BNB/USDT
+2025-05-14 17:21:04,188 - trading_system.process_commands - INFO - [data_pipeline.py:1735] - Đã kết hợp dữ liệu tâm lý vào dữ liệu thị trường cho BNB/USDT
+2025-05-14 17:21:04,194 - trading_system.process_commands - INFO - [process_commands.py:1695] - Đã kết hợp thành công dữ liệu tâm lý cho BNB/USDT
+2025-05-14 17:21:04,195 - trading_system.process_commands - INFO - [data_pipeline.py:1974] - Kiểm tra tính nhất quán của dữ liệu cho BNB/USDT
+2025-05-14 17:21:04,200 - trading_system.process_commands - INFO - [data_pipeline.py:1997] - Đã làm sạch các cột tâm lý cho BNB/USDT trước khi kiểm tra tính nhất quán
+2025-05-14 17:21:04,207 - trading_system.process_commands - WARNING - [data_pipeline.py:2128] - Dữ liệu BNB/USDT có cảnh báo: 
+2025-05-14 17:21:04,208 - trading_system.process_commands - INFO - [data_pipeline.py:2194] - Bắt đầu lưu 1 DataFrame vào data\merged
+2025-05-14 17:21:04,210 - trading_system.process_commands - INFO - [data_pipeline.py:2218] - Đang lưu BNB/USDT vào data\merged\bnb_usdt_20250514_172104.parquet
+2025-05-14 17:21:04,273 - trading_system.process_commands - INFO - [data_pipeline.py:2227] - Đã lưu Parquet cho BNB/USDT
+2025-05-14 17:21:04,275 - trading_system.process_commands - INFO - [data_pipeline.py:2256] - Đã lưu metadata cho BNB/USDT
+2025-05-14 17:21:04,276 - trading_system.process_commands - INFO - [data_pipeline.py:2283] - Đã lưu tổng cộng 1/1 file dữ liệu

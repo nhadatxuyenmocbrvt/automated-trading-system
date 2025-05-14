@@ -1539,196 +1539,196 @@ def handle_process_command(args, system):
                 logger.error(f"Lỗi khi chạy pipeline xử lý dữ liệu: {str(e)}", exc_info=True)
                 return 1
     
-    elif args.process_command == 'merge-sentiment':
-        try:
-            # Thiết lập mức độ chi tiết
-            log_level = _get_log_level(args.verbose if hasattr(args, 'verbose') else 0)
-            
-            # Tạo data pipeline
-            pipeline = DataPipeline(logger=logger)
-            
-            # Chuẩn bị thư mục đầu vào/ra
-            default_input = "features" if not (hasattr(args, 'input_dir') and args.input_dir) else None
-            input_dir_path, output_dir_path = _prepare_directories(
-                args.input_dir if hasattr(args, 'input_dir') else None,
-                args.output_dir if hasattr(args, 'output_dir') else None,
-                default_input_subdir=default_input
-            )
-            
-            # Xác định thư mục dữ liệu tâm lý
-            if hasattr(args, 'sentiment_dir') and args.sentiment_dir:
-                sentiment_dir_path = Path(args.sentiment_dir)
-            else:
-                sentiment_dir_path = DEFAULT_DATA_DIR / "processed"
-            
-            if not sentiment_dir_path.exists():
-                logger.error(f"Thư mục dữ liệu tâm lý không tồn tại: {sentiment_dir_path}")
-                return 1
-            
-            # Lấy danh sách symbols
-            symbols = args.symbols if hasattr(args, 'symbols') else None
-            
-            # Tìm các file dữ liệu thị trường
-            data_paths = _find_data_files(input_dir_path, symbols, [''], logger)
-            
-            if not data_paths:
-                logger.error(f"Không tìm thấy file dữ liệu thị trường phù hợp trong {input_dir_path}")
-                return 1
-            
-            # Tải dữ liệu thị trường
-            market_data = {}
-            for symbol, path in data_paths.items():
-                logger.info(f"Đang tải dữ liệu thị trường từ {path} cho {symbol}...")
-                symbol_data = pipeline.load_data(
-                    file_paths=path,
-                    file_format=path.suffix[1:] if path.suffix else 'csv'
+        elif args.process_command == 'merge-sentiment':
+            try:
+                # Thiết lập mức độ chi tiết
+                log_level = _get_log_level(args.verbose if hasattr(args, 'verbose') else 0)
+                
+                # Tạo data pipeline
+                pipeline = DataPipeline(logger=logger)
+                
+                # Chuẩn bị thư mục đầu vào/ra
+                default_input = "features" if not (hasattr(args, 'input_dir') and args.input_dir) else None
+                input_dir_path, output_dir_path = _prepare_directories(
+                    args.input_dir if hasattr(args, 'input_dir') else None,
+                    args.output_dir if hasattr(args, 'output_dir') else None,
+                    default_input_subdir=default_input
                 )
                 
-                if symbol_data:
-                    if symbol in symbol_data:
-                        market_data[symbol] = symbol_data[symbol]
-                    else:
-                        # Lấy symbol đầu tiên nếu không tìm thấy
-                        first_symbol = next(iter(symbol_data.keys()))
-                        market_data[symbol] = symbol_data[first_symbol]
-                        logger.warning(f"Không tìm thấy dữ liệu cho {symbol}, sử dụng {first_symbol} thay thế")
+                # Xác định thư mục dữ liệu tâm lý
+                if hasattr(args, 'sentiment_dir') and args.sentiment_dir:
+                    sentiment_dir_path = Path(args.sentiment_dir)
                 else:
-                    logger.warning(f"Không thể tải dữ liệu cho {symbol}")
-            
-            if not market_data:
-                logger.error("Không có dữ liệu thị trường nào được tải thành công")
-                return 1
-            
-            # Tìm các file dữ liệu tâm lý
-            sentiment_files = {}
-            for symbol in market_data.keys():
-                base_asset = symbol.split('/')[0] if '/' in symbol else symbol
+                    sentiment_dir_path = DEFAULT_DATA_DIR / "processed"
                 
-                # Tìm file tâm lý cho symbol này
-                pattern = f"*{base_asset.lower()}*sentiment*.parquet"
-                specific_files = list(sentiment_dir_path.glob(pattern))
+                if not sentiment_dir_path.exists():
+                    logger.error(f"Thư mục dữ liệu tâm lý không tồn tại: {sentiment_dir_path}")
+                    return 1
                 
-                if not specific_files:
-                    # Thử tìm với định dạng csv
-                    pattern = f"*{base_asset.lower()}*sentiment*.csv"
+                # Lấy danh sách symbols
+                symbols = args.symbols if hasattr(args, 'symbols') else None
+                
+                # Tìm các file dữ liệu thị trường
+                data_paths = _find_data_files(input_dir_path, symbols, [''], logger)
+                
+                if not data_paths:
+                    logger.error(f"Không tìm thấy file dữ liệu thị trường phù hợp trong {input_dir_path}")
+                    return 1
+                
+                # Tải dữ liệu thị trường
+                market_data = {}
+                for symbol, path in data_paths.items():
+                    logger.info(f"Đang tải dữ liệu thị trường từ {path} cho {symbol}...")
+                    symbol_data = pipeline.load_data(
+                        file_paths=path,
+                        file_format=path.suffix[1:] if path.suffix else 'csv'
+                    )
+                    
+                    if symbol_data:
+                        if symbol in symbol_data:
+                            market_data[symbol] = symbol_data[symbol]
+                        else:
+                            # Lấy symbol đầu tiên nếu không tìm thấy
+                            first_symbol = next(iter(symbol_data.keys()))
+                            market_data[symbol] = symbol_data[first_symbol]
+                            logger.warning(f"Không tìm thấy dữ liệu cho {symbol}, sử dụng {first_symbol} thay thế")
+                    else:
+                        logger.warning(f"Không thể tải dữ liệu cho {symbol}")
+                
+                if not market_data:
+                    logger.error("Không có dữ liệu thị trường nào được tải thành công")
+                    return 1
+                
+                # Tìm các file dữ liệu tâm lý
+                sentiment_files = {}
+                for symbol in market_data.keys():
+                    base_asset = symbol.split('/')[0] if '/' in symbol else symbol
+                    
+                    # Tìm file tâm lý cho symbol này
+                    pattern = f"*{base_asset.lower()}*sentiment*.parquet"
                     specific_files = list(sentiment_dir_path.glob(pattern))
                     
-                if specific_files:
-                    # Lấy file mới nhất
-                    newest_file = max(specific_files, key=lambda x: x.stat().st_mtime)
-                    sentiment_files[symbol] = newest_file
-                    logger.info(f"Tìm thấy file tâm lý cho {symbol}: {newest_file}")
-                else:
-                    logger.warning(f"Không tìm thấy file tâm lý riêng cho {symbol}, sẽ tìm file tâm lý chung")
-            
-            # Nếu không tìm thấy file tâm lý riêng cho từng cặp, tìm file chung
-            if not sentiment_files:
-                common_patterns = ["*sentiment*.parquet", "*sentiment*.csv"]
-                for pattern in common_patterns:
-                    files = list(sentiment_dir_path.glob(pattern))
-                    if files:
-                        newest_file = max(files, key=lambda x: x.stat().st_mtime)
-                        # Sử dụng file này cho tất cả các symbol
-                        for symbol in market_data.keys():
-                            sentiment_files[symbol] = newest_file
-                        logger.info(f"Sử dụng file tâm lý chung cho tất cả cặp tiền: {newest_file}")
-                        break
-            
-            # Nếu vẫn không tìm thấy file tâm lý
-            if not sentiment_files:
-                logger.error(f"Không tìm thấy file dữ liệu tâm lý nào trong {sentiment_dir_path}")
-                return 1
-            
-            # Xác định method và window
-            method = args.method if hasattr(args, 'method') else 'last_value'
-            window = args.window if hasattr(args, 'window') else '1D'
-            
-            # Tải dữ liệu tâm lý và kết hợp với dữ liệu thị trường
-            merged_data = {}
-            for symbol, sentiment_file in sentiment_files.items():
-                if symbol not in market_data:
-                    continue
-                
-                logger.info(f"Đang tải dữ liệu tâm lý từ {sentiment_file} cho {symbol}...")
-                
-                # Tải dữ liệu tâm lý
-                if sentiment_file.suffix.lower() == '.csv':
-                    sentiment_df = pd.read_csv(sentiment_file)
-                elif sentiment_file.suffix.lower() == '.parquet':
-                    sentiment_df = pd.read_parquet(sentiment_file)
-                else:
-                    logger.warning(f"Định dạng file không được hỗ trợ: {sentiment_file.suffix}")
-                    continue
-                
-                # Đảm bảo cột timestamp có định dạng datetime
-                if 'timestamp' in sentiment_df.columns:
-                    if pd.api.types.is_numeric_dtype(sentiment_df['timestamp']):
-                        sentiment_df['timestamp'] = pd.to_datetime(sentiment_df['timestamp'], unit='ms')
+                    if not specific_files:
+                        # Thử tìm với định dạng csv
+                        pattern = f"*{base_asset.lower()}*sentiment*.csv"
+                        specific_files = list(sentiment_dir_path.glob(pattern))
+                        
+                    if specific_files:
+                        # Lấy file mới nhất
+                        newest_file = max(specific_files, key=lambda x: x.stat().st_mtime)
+                        sentiment_files[symbol] = newest_file
+                        logger.info(f"Tìm thấy file tâm lý cho {symbol}: {newest_file}")
                     else:
-                        sentiment_df['timestamp'] = pd.to_datetime(sentiment_df['timestamp'])
-                else:
-                    logger.warning(f"Dữ liệu tâm lý không có cột timestamp trong file {sentiment_file}")
-                    continue
+                        logger.warning(f"Không tìm thấy file tâm lý riêng cho {symbol}, sẽ tìm file tâm lý chung")
                 
-                # Tạo dict tạm thời chỉ với dữ liệu cho symbol hiện tại
-                temp_data = {symbol: market_data[symbol]}
+                # Nếu không tìm thấy file tâm lý riêng cho từng cặp, tìm file chung
+                if not sentiment_files:
+                    common_patterns = ["*sentiment*.parquet", "*sentiment*.csv"]
+                    for pattern in common_patterns:
+                        files = list(sentiment_dir_path.glob(pattern))
+                        if files:
+                            newest_file = max(files, key=lambda x: x.stat().st_mtime)
+                            # Sử dụng file này cho tất cả các symbol
+                            for symbol in market_data.keys():
+                                sentiment_files[symbol] = newest_file
+                            logger.info(f"Sử dụng file tâm lý chung cho tất cả cặp tiền: {newest_file}")
+                            break
                 
-                # Kết hợp dữ liệu
-                logger.info(f"Đang kết hợp dữ liệu thị trường và tâm lý cho {symbol}...")
-                merged_symbol_data = pipeline.merge_sentiment_data(
-                    temp_data,
-                    sentiment_data=sentiment_df,
-                    sentiment_dir=str(sentiment_dir_path),
-                    method=method,
-                    window=window
+                # Nếu vẫn không tìm thấy file tâm lý
+                if not sentiment_files:
+                    logger.error(f"Không tìm thấy file dữ liệu tâm lý nào trong {sentiment_dir_path}")
+                    return 1
+                
+                # Xác định method và window
+                method = args.method if hasattr(args, 'method') else 'last_value'
+                window = args.window if hasattr(args, 'window') else '1D'
+                
+                # Tải dữ liệu tâm lý và kết hợp với dữ liệu thị trường
+                merged_data = {}
+                for symbol, sentiment_file in sentiment_files.items():
+                    if symbol not in market_data:
+                        continue
+                    
+                    logger.info(f"Đang tải dữ liệu tâm lý từ {sentiment_file} cho {symbol}...")
+                    
+                    # Tải dữ liệu tâm lý
+                    if sentiment_file.suffix.lower() == '.csv':
+                        sentiment_df = pd.read_csv(sentiment_file)
+                    elif sentiment_file.suffix.lower() == '.parquet':
+                        sentiment_df = pd.read_parquet(sentiment_file)
+                    else:
+                        logger.warning(f"Định dạng file không được hỗ trợ: {sentiment_file.suffix}")
+                        continue
+                    
+                    # Đảm bảo cột timestamp có định dạng datetime
+                    if 'timestamp' in sentiment_df.columns:
+                        if pd.api.types.is_numeric_dtype(sentiment_df['timestamp']):
+                            sentiment_df['timestamp'] = pd.to_datetime(sentiment_df['timestamp'], unit='ms')
+                        else:
+                            sentiment_df['timestamp'] = pd.to_datetime(sentiment_df['timestamp'])
+                    else:
+                        logger.warning(f"Dữ liệu tâm lý không có cột timestamp trong file {sentiment_file}")
+                        continue
+                    
+                    # Tạo dict tạm thời chỉ với dữ liệu cho symbol hiện tại
+                    temp_data = {symbol: market_data[symbol]}
+                    
+                    # Kết hợp dữ liệu
+                    logger.info(f"Đang kết hợp dữ liệu thị trường và tâm lý cho {symbol}...")
+                    merged_symbol_data = pipeline.merge_sentiment_data(
+                        temp_data,
+                        sentiment_data=sentiment_df,
+                        sentiment_dir=str(sentiment_dir_path),
+                        method=method,
+                        window=window
+                    )
+                    
+                    if merged_symbol_data and symbol in merged_symbol_data:
+                        # Làm sạch các đặc trưng tâm lý
+                        if any('sentiment_' in col for col in merged_symbol_data[symbol].columns):
+                            merged_symbol_data[symbol] = clean_sentiment_features(
+                                merged_symbol_data[symbol],
+                                sentiment_prefix='sentiment_',
+                                method='ffill+bfill'
+                            )
+                        merged_data[symbol] = merged_symbol_data[symbol]
+                        logger.info(f"Đã kết hợp thành công dữ liệu tâm lý cho {symbol}")
+                    else:
+                        logger.warning(f"Không thể kết hợp dữ liệu tâm lý cho {symbol}")
+                
+                if not merged_data:
+                    logger.error("Không có dữ liệu nào được kết hợp thành công")
+                    return 1
+                
+                # Lưu dữ liệu đã kết hợp
+                saved_paths = pipeline.save_data(
+                    merged_data,
+                    output_dir=output_dir_path,
+                    file_format='parquet',
+                    include_metadata=True
                 )
                 
-                if merged_symbol_data and symbol in merged_symbol_data:
-                    # Làm sạch các đặc trưng tâm lý
-                    if any('sentiment_' in col for col in merged_symbol_data[symbol].columns):
-                        merged_symbol_data[symbol] = clean_sentiment_features(
-                            merged_symbol_data[symbol],
-                            sentiment_prefix='sentiment_',
-                            method='ffill+bfill'
-                        )
-                    merged_data[symbol] = merged_symbol_data[symbol]
-                    logger.info(f"Đã kết hợp thành công dữ liệu tâm lý cho {symbol}")
+                # Hiển thị kết quả
+                if saved_paths:
+                    print("\n" + "="*50)
+                    print(f"Kết quả kết hợp dữ liệu tâm lý cho {len(saved_paths)} cặp tiền:")
+                    for sym, path in saved_paths.items():
+                        sentiment_cols = [col for col in merged_data[sym].columns if 'sentiment' in col.lower()]
+                        print(f"  - {sym}: Thêm {len(sentiment_cols)} cột tâm lý")
+                        if sentiment_cols:
+                            cols_display = sentiment_cols[:5]
+                            print(f"    Các cột tâm lý: {', '.join(cols_display)}" + (f"... và {len(sentiment_cols)-5} cột khác" if len(sentiment_cols) > 5 else ""))
+                        print(f"    Lưu tại: {path}")
+                    print("="*50 + "\n")
+                    
+                    return 0
                 else:
-                    logger.warning(f"Không thể kết hợp dữ liệu tâm lý cho {symbol}")
-            
-            if not merged_data:
-                logger.error("Không có dữ liệu nào được kết hợp thành công")
+                    logger.error("Không có dữ liệu nào được lưu")
+                    return 1
+                    
+            except Exception as e:
+                logger.error(f"Lỗi khi kết hợp dữ liệu tâm lý: {str(e)}", exc_info=True)
                 return 1
-            
-            # Lưu dữ liệu đã kết hợp
-            saved_paths = pipeline.save_data(
-                merged_data,
-                output_dir=output_dir_path,
-                file_format='parquet',
-                include_metadata=True
-            )
-            
-            # Hiển thị kết quả
-            if saved_paths:
-                print("\n" + "="*50)
-                print(f"Kết quả kết hợp dữ liệu tâm lý cho {len(saved_paths)} cặp tiền:")
-                for sym, path in saved_paths.items():
-                    sentiment_cols = [col for col in merged_data[sym].columns if 'sentiment' in col.lower()]
-                    print(f"  - {sym}: Thêm {len(sentiment_cols)} cột tâm lý")
-                    if sentiment_cols:
-                        cols_display = sentiment_cols[:5]
-                        print(f"    Các cột tâm lý: {', '.join(cols_display)}" + (f"... và {len(sentiment_cols)-5} cột khác" if len(sentiment_cols) > 5 else ""))
-                    print(f"    Lưu tại: {path}")
-                print("="*50 + "\n")
-                
-                return 0
-            else:
-                logger.error("Không có dữ liệu nào được lưu")
-                return 1
-                
-        except Exception as e:
-            logger.error(f"Lỗi khi kết hợp dữ liệu tâm lý: {str(e)}", exc_info=True)
-            return 1
 
     # Nếu không có subcommand, hiển thị trợ giúp
     print("Sử dụng: main.py process <lệnh> [các tùy chọn]")
