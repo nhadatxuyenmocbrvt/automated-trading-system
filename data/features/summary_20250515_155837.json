@@ -1,8 +1,8 @@
 {
-    "timestamp": "20250515_133401",
+    "timestamp": "20250515_155837",
     "saved_symbols": 1,
     "total_symbols": 1,
-    "output_dir": "data\\historical",
+    "output_dir": "data\\features",
     "file_format": "parquet",
     "consistency_summary": {
         "BTC/USDT": "warning"

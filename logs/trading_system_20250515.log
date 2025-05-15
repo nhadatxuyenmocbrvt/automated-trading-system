@@ -1,52 +1,37 @@
-2025-05-15 15:36:58,355 - trading_system.module_manager - DEBUG - [trading_system.py:60] - Các module agent khả dụng
-2025-05-15 15:36:58,355 - trading_system.module_manager - DEBUG - [trading_system.py:70] - Các module môi trường khả dụng
-2025-05-15 15:36:58,356 - trading_system.module_manager - DEBUG - [trading_system.py:80] - Các module thu thập dữ liệu khả dụng
-2025-05-15 15:36:58,391 - trading_system.cli_parser - INFO - [main.py:206] - Đã cập nhật mức độ log: INFO
-2025-05-15 15:36:58,392 - trading_system.module_manager - INFO - [trading_system.py:139] - ==== Trạng thái khả dụng của module ====
-2025-05-15 15:36:58,393 - trading_system.module_manager - INFO - [trading_system.py:140] - Agents: Khả dụng
-2025-05-15 15:36:58,393 - trading_system.module_manager - INFO - [trading_system.py:141] - Environments: Khả dụng
-2025-05-15 15:36:58,394 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
-2025-05-15 15:36:58,394 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
-2025-05-15 15:36:58,395 - trading_system.cli_parser - INFO - [main.py:258] - Sử dụng thư mục đầu ra: data\features
-2025-05-15 15:36:58,395 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
-2025-05-15 15:36:58,397 - trading_system.process_commands - INFO - [feature_generator.py:160] - Đã khởi tạo FeatureGenerator
-2025-05-15 15:36:58,398 - trading_system.process_commands - INFO - [feature_generator.py:535] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
-2025-05-15 15:36:58,399 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
-2025-05-15 15:36:58,400 - trading_system.process_commands - INFO - [data_pipeline.py:224] - Đã khởi tạo các collector dữ liệu cho binance
-2025-05-15 15:36:58,405 - trading_system.process_commands - INFO - [data_pipeline.py:112] - Đã khởi tạo DataPipeline
-2025-05-15 15:36:58,408 - trading_system.process_commands - INFO - [process_commands.py:870] - Đang tìm kiếm dữ liệu trong thư mục: data\processed
-2025-05-15 15:36:58,409 - trading_system.process_commands - INFO - [process_commands.py:877] - Tìm thấy tổng cộng 2 file dữ liệu
-2025-05-15 15:36:58,410 - trading_system.process_commands - INFO - [process_commands.py:891] - Tìm thấy file cho BTC/USDT: data\processed\btc_usdt_20250515_135102.parquet
-2025-05-15 15:36:58,509 - trading_system.process_commands - INFO - [data_pipeline.py:770] - Timestamp cho BTC/USDT: dtype=datetime64[ns], min=2021-12-31 17:00:00, max=2024-12-31 17:00:00
-2025-05-15 15:36:58,510 - trading_system.process_commands - INFO - [data_pipeline.py:774] - Đã tải 26305 dòng dữ liệu từ data\processed\btc_usdt_20250515_135102.parquet cho BTC/USDT
-2025-05-15 15:36:58,512 - trading_system.process_commands - INFO - [feature_generator.py:535] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
-2025-05-15 15:36:58,519 - trading_system.clean_technical_features - INFO - [preprocessing.py:1514] - Bắt đầu sửa chữa các giá trị ngoại lệ...
-2025-05-15 15:36:58,519 - trading_system.outlier_detector - INFO - [outlier_detector.py:101] - Đã khởi tạo OutlierDetector với phương pháp zscore
-2025-05-15 15:36:58,526 - trading_system.outlier_detector - WARNING - [outlier_detector.py:1070] - Phát hiện 167 giá trị cực lớn trong cột volume
-2025-05-15 15:36:58,527 - trading_system.clean_technical_features - INFO - [preprocessing.py:1530] - Đã hoàn thành sửa chữa giá trị ngoại lệ
-2025-05-15 15:36:58,530 - trading_system.clean_technical_features - INFO - [preprocessing.py:1534] - Bắt đầu chuẩn hóa các chỉ báo kỹ thuật...
-2025-05-15 15:36:58,540 - trading_system.clean_technical_features - INFO - [preprocessing.py:1539] - Đã hoàn thành chuẩn hóa các chỉ báo
-2025-05-15 15:36:58,541 - trading_system.clean_technical_features - INFO - [preprocessing.py:1543] - Bắt đầu standardize các chỉ báo kỹ thuật...
-2025-05-15 15:36:58,547 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1046] - Chuẩn hóa 8 cột của loại chỉ báo volume bằng phương pháp log
-2025-05-15 15:36:58,557 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1046] - Chuẩn hóa 4 cột của loại chỉ báo atr bằng phương pháp rolling_zscore
-2025-05-15 15:36:58,566 - trading_system.clean_technical_features - INFO - [preprocessing.py:1550] - Đã hoàn thành standardize các chỉ báo
-2025-05-15 15:36:58,566 - trading_system.clean_technical_features - INFO - [preprocessing.py:1554] - Thêm chỉ báo độ mạnh xu hướng...
-2025-05-15 15:36:58,583 - trading_system.clean_technical_features - INFO - [preprocessing.py:1561] - Đã thêm chỉ báo độ mạnh xu hướng
-2025-05-15 15:36:58,584 - trading_system.clean_technical_features - INFO - [preprocessing.py:1565] - Thêm chỉ báo Z-score của biến động...
-2025-05-15 15:37:02,645 - trading_system.clean_technical_features - INFO - [preprocessing.py:1574] - Đã thêm chỉ báo Z-score của biến động
-2025-05-15 15:37:02,646 - trading_system.clean_technical_features - INFO - [preprocessing.py:1578] - Tạo nhãn cho dữ liệu...
-2025-05-15 15:37:02,658 - trading_system.feature_preprocessing - INFO - [preprocessing.py:1449] - Đã xử lý 10 giá trị NaN trong future_returns
-2025-05-15 15:37:02,661 - trading_system.clean_technical_features - INFO - [preprocessing.py:1587] - Đã tạo nhãn cho dữ liệu
-2025-05-15 15:37:02,664 - trading_system.clean_technical_features - INFO - [preprocessing.py:1602] - Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật
-2025-05-15 15:37:02,665 - trading_system.process_commands - INFO - [data_pipeline.py:1362] - Đã làm sạch và chuẩn hóa các chỉ báo kỹ thuật cho BTC/USDT trước khi tạo đặc trưng
-2025-05-15 15:37:02,667 - trading_system.process_commands - INFO - [feature_generator.py:753] - Đã tạo pipeline 'BTC/USDT_pipeline_20250515_153702'
-2025-05-15 15:37:02,745 - trading_system.process_commands - INFO - [feature_generator.py:1144] - Đã loại bỏ 0 đặc trưng có phương sai < 0.001
-2025-05-15 15:37:02,786 - trading_system.process_commands - INFO - [feature_generator.py:1100] - Đã loại bỏ 9 đặc trưng có tương quan > 0.95
-2025-05-15 15:37:02,790 - trading_system.process_commands - INFO - [data_pipeline.py:1415] - Đã tạo đặc trưng cho BTC/USDT: 28 -> 20 cột
-2025-05-15 15:37:02,792 - trading_system.process_commands - INFO - [data_pipeline.py:1978] - Kiểm tra tính nhất quán của dữ liệu cho BTC/USDT
-2025-05-15 15:37:02,808 - trading_system.process_commands - WARNING - [data_pipeline.py:2239] - Dữ liệu BTC/USDT có cảnh báo tiềm ẩn: Có 17221 candle với high < low; Có giá trị âm trong: open(15416), high(15389), low(15440), close(15417)
-2025-05-15 15:37:02,809 - trading_system.process_commands - INFO - [data_pipeline.py:2314] - Bắt đầu lưu 1 DataFrame vào data\features
-2025-05-15 15:37:02,811 - trading_system.process_commands - INFO - [data_pipeline.py:2338] - Đang lưu BTC/USDT vào data\features\btc_usdt_20250515_153702.parquet
-2025-05-15 15:37:02,867 - trading_system.process_commands - INFO - [data_pipeline.py:2347] - Đã lưu Parquet cho BTC/USDT
-2025-05-15 15:37:02,869 - trading_system.process_commands - INFO - [data_pipeline.py:2376] - Đã lưu metadata cho BTC/USDT
-2025-05-15 15:37:02,871 - trading_system.process_commands - INFO - [data_pipeline.py:2403] - Đã lưu tổng cộng 1/1 file dữ liệu
+2025-05-15 17:16:49,085 - trading_system.module_manager - DEBUG - [trading_system.py:60] - Các module agent khả dụng
+2025-05-15 17:16:49,086 - trading_system.module_manager - DEBUG - [trading_system.py:70] - Các module môi trường khả dụng
+2025-05-15 17:16:49,086 - trading_system.module_manager - DEBUG - [trading_system.py:80] - Các module thu thập dữ liệu khả dụng
+2025-05-15 17:16:49,120 - trading_system.cli_parser - INFO - [main.py:206] - Đã cập nhật mức độ log: INFO
+2025-05-15 17:16:49,121 - trading_system.module_manager - INFO - [trading_system.py:139] - ==== Trạng thái khả dụng của module ====
+2025-05-15 17:16:49,121 - trading_system.module_manager - INFO - [trading_system.py:140] - Agents: Khả dụng
+2025-05-15 17:16:49,122 - trading_system.module_manager - INFO - [trading_system.py:141] - Environments: Khả dụng
+2025-05-15 17:16:49,123 - trading_system.module_manager - INFO - [trading_system.py:142] - Data Collectors: Khả dụng
+2025-05-15 17:16:49,124 - trading_system.trading_system - INFO - [trading_system.py:223] - Đã khởi tạo hệ thống giao dịch tự động
+2025-05-15 17:16:49,128 - trading_system.cli_parser - INFO - [main.py:258] - Sử dụng thư mục đầu ra: data\features
+2025-05-15 17:16:49,129 - trading_system.data_cleaner - INFO - [data_cleaner.py:70] - Đã khởi tạo DataCleaner với normalize_method=z-score
+2025-05-15 17:16:49,130 - trading_system.process_commands - INFO - [feature_generator.py:160] - Đã khởi tạo FeatureGenerator
+2025-05-15 17:16:49,132 - trading_system.process_commands - INFO - [feature_generator.py:535] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
+2025-05-15 17:16:49,133 - trading_system.sentiment_collector - INFO - [sentiment_collector.py:1858] - Đã thêm nguồn dữ liệu tâm lý: Fear and Greed Index
+2025-05-15 17:16:49,134 - trading_system.process_commands - INFO - [data_pipeline.py:224] - Đã khởi tạo các collector dữ liệu cho binance
+2025-05-15 17:16:49,135 - trading_system.process_commands - INFO - [data_pipeline.py:112] - Đã khởi tạo DataPipeline
+2025-05-15 17:16:49,136 - trading_system.process_commands - INFO - [process_commands.py:870] - Đang tìm kiếm dữ liệu trong thư mục: data\processed
+2025-05-15 17:16:49,138 - trading_system.process_commands - INFO - [process_commands.py:877] - Tìm thấy tổng cộng 1 file dữ liệu
+2025-05-15 17:16:49,138 - trading_system.process_commands - INFO - [process_commands.py:891] - Tìm thấy file cho BTC/USDT: data\processed\btc_usdt_20250515_155534.parquet
+2025-05-15 17:16:49,259 - trading_system.process_commands - INFO - [data_pipeline.py:770] - Timestamp cho BTC/USDT: dtype=datetime64[ns], min=2021-12-31 17:00:00, max=2024-12-31 17:00:00
+2025-05-15 17:16:49,260 - trading_system.process_commands - INFO - [data_pipeline.py:774] - Đã tải 26305 dòng dữ liệu từ data\processed\btc_usdt_20250515_155534.parquet cho BTC/USDT
+2025-05-15 17:16:49,263 - trading_system.process_commands - INFO - [feature_generator.py:535] - Đã đăng ký tổng cộng 72 đặc trưng mặc định
+2025-05-15 17:16:49,271 - trading_system.process_commands - ERROR - [data_pipeline.py:1382] - Lỗi khi tạo đặc trưng cho BTC/USDT: local variable 'features_df' referenced before assignment
+2025-05-15 17:16:49,273 - trading_system.process_commands - ERROR - [data_pipeline.py:1383] - Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\data_processors\data_pipeline.py", line 1359, in generate_features
+    features_df.insert(0, 'timestamp', timestamp_col)
+UnboundLocalError: local variable 'features_df' referenced before assignment
+
+2025-05-15 17:16:49,274 - trading_system.process_commands - ERROR - [process_commands.py:1217] - Lỗi khi tạo đặc trưng: 'NoneType' object has no attribute 'items'
+Traceback (most recent call last):
+  File "E:\AI_AGENT\automated-trading-system\cli\commands\process_commands.py", line 1198, in handle_process_command
+    saved_paths = pipeline.save_data(
+  File "E:\AI_AGENT\automated-trading-system\data_processors\data_pipeline.py", line 2272, in save_data
+    consistency_reports = self.check_data_consistency(data)
+  File "E:\AI_AGENT\automated-trading-system\data_processors\data_pipeline.py", line 1939, in check_data_consistency
+    for symbol, df in data.items():
+AttributeError: 'NoneType' object has no attribute 'items'
