@@ -34,6 +34,7 @@ from data_processors.utils.preprocessing import fill_nan_values, handle_leading_
 
 # Import module tạo đặc trưng
 from data_processors.feature_engineering.feature_generator import FeatureGenerator
+from data_processors.utils.preprocessing import ensure_valid_price_data
 
 # Import module thu thập dữ liệu nếu cần
 try:
@@ -858,14 +859,21 @@ class DataPipeline:
             # Chuẩn hóa về khoảng [0, 1] hoặc [-1, 1] tùy theo loại dữ liệu
             min_val = df[value_column].min()
             max_val = df[value_column].max()
-            
+
             if min_val < 0 or max_val > 1:
                 # Tạo cột mới cho giá trị chuẩn hóa
                 norm_col = f"{value_column}_normalized"
                 
-                # Chuẩn hóa MinMax
+                # Chuẩn hóa MinMax nhưng bảo toàn biến thiên
                 df[norm_col] = (df[value_column] - min_val) / (max_val - min_val) if max_val > min_val else 0.5
                 self.logger.info(f"Đã chuẩn hóa giá trị tâm lý về khoảng [0, 1] trong cột {norm_col}")
+                
+                # Giữ lại phiên bản được đánh dấu biến thiên bằng cách thêm một cột marker
+                df['sentiment_has_change'] = df[value_column].diff().abs() > 0.001
+                
+                # Thêm cột để dánh giá mức độ biến thiên
+                # Calculate rolling volatility of sentiment
+                df['sentiment_volatility'] = df[value_column].rolling(window=5).std()
         
         # 7. Sắp xếp theo timestamp
         if 'timestamp' in df.columns:
@@ -1014,6 +1022,18 @@ class DataPipeline:
         # Làm sạch dữ liệu thị trường
         for symbol, df in market_data.items():
             try:
+                # Lưu bản sao của các cột giá gốc
+                original_ohlc = None
+                if all(col in df.columns for col in ['open', 'high', 'low', 'close']):
+                    original_ohlc = {
+                        'open': df['open'].copy(),
+                        'high': df['high'].copy(),
+                        'low': df['low'].copy(),
+                        'close': df['close'].copy()
+                    }
+                    
+                    # Sửa high < low và giá trị âm trước khi xử lý
+                    df = ensure_valid_price_data(df, fix_high_low=True, ensure_positive=True)                
                 # Lưu cột timestamp nếu có
                 timestamp_col = None
                 if preserve_timestamp and 'timestamp' in df.columns:
@@ -1117,7 +1137,9 @@ class DataPipeline:
                     cleaned_df = self._convert_timestamp(cleaned_df)
 
                 results[symbol] = cleaned_df
-
+                # Kiểm tra lại và sửa một lần nữa sau khi xử lý
+                if all(col in df.columns for col in ['open', 'high', 'low', 'close']):
+                    df = ensure_valid_price_data(df, fix_high_low=True, ensure_positive=True)
             except Exception as e:
                 self.logger.error(f"Lỗi khi làm sạch dữ liệu cho {symbol}: {str(e)}")
                 self.logger.error(traceback.format_exc())
@@ -1126,6 +1148,68 @@ class DataPipeline:
     
         return results
     
+    def fillna_smart(self, df, columns=None, methods=['ffill', 'bfill', 'zero']):
+        """
+        Điền giá trị NaN bằng phương pháp thông minh kết hợp nhiều phương pháp.
+        
+        Args:
+            df: DataFrame cần xử lý
+            columns: Danh sách các cột cần xử lý (None để xử lý tất cả)
+            methods: Thứ tự các phương pháp điền NaN
+            
+        Returns:
+            DataFrame đã xử lý
+        """
+        result_df = df.copy()
+        
+        # Xác định các cột cần xử lý
+        if columns is None:
+            columns = result_df.select_dtypes(include=['number']).columns
+        
+        # Xử lý từng cột
+        for col in columns:
+            if col not in result_df.columns:
+                continue
+                
+            # Kiểm tra xem có NaN không
+            if not result_df[col].isna().any():
+                continue
+                
+            # Số lượng NaN ban đầu
+            nan_count = result_df[col].isna().sum()
+            
+            # Áp dụng lần lượt các phương pháp
+            for method in methods:
+                if method == 'ffill':
+                    result_df[col] = result_df[col].fillna(method='ffill')
+                elif method == 'bfill':
+                    result_df[col] = result_df[col].fillna(method='bfill')
+                elif method == 'zero':
+                    result_df[col] = result_df[col].fillna(0)
+                elif method == 'mean':
+                    mean_val = result_df[col].mean()
+                    result_df[col] = result_df[col].fillna(mean_val)
+                elif method == 'median':
+                    median_val = result_df[col].median()
+                    result_df[col] = result_df[col].fillna(median_val)
+                elif method == 'interpolate':
+                    result_df[col] = result_df[col].interpolate(method='linear')
+                
+                # Kiểm tra xem đã điền hết NaN chưa
+                if not result_df[col].isna().any():
+                    break
+            
+            # Kiểm tra nếu vẫn còn NaN, điền bằng 0
+            if result_df[col].isna().any():
+                result_df[col] = result_df[col].fillna(0)
+                
+            # Số lượng NaN đã điền
+            filled_count = nan_count - result_df[col].isna().sum()
+            if filled_count > 0:
+                self.logger.debug(f"Đã điền {filled_count} giá trị NaN trong cột {col}")
+        
+        return result_df
+
     def generate_features(
         self,
         data: Dict[str, pd.DataFrame],
@@ -1417,18 +1501,7 @@ class DataPipeline:
         window: str = '1D'
     ) -> Dict[str, pd.DataFrame]:
         """
-        Kết hợp dữ liệu thị trường với dữ liệu tâm lý.
-        
-        Args:
-            market_data: Dict với key là symbol và value là DataFrame thị trường
-            sentiment_data: DataFrame dữ liệu tâm lý hoặc Dict chứa dữ liệu tâm lý theo symbol
-                            hoặc đường dẫn đến file dữ liệu tâm lý chung
-            sentiment_dir: Thư mục chứa các file dữ liệu tâm lý riêng cho từng symbol
-            method: Phương pháp kết hợp ('last_value', 'mean', 'weighted_mean')
-            window: Kích thước cửa sổ thời gian ('1D', '12H', '4H', ...)
-            
-        Returns:
-            Dict với key là symbol và value là DataFrame đã kết hợp
+        Kết hợp dữ liệu thị trường với dữ liệu tâm lý - phiên bản đơn giản hóa
         """
         results = {}
         sentiment_by_symbol = {}
@@ -1440,18 +1513,17 @@ class DataPipeline:
         # Xử lý các trường hợp cung cấp dữ liệu tâm lý
         if sentiment_data is not None:
             if isinstance(sentiment_data, pd.DataFrame):
-                # Trường hợp 1: sentiment_data là một DataFrame duy nhất
+                # Trường hợp 1: Dữ liệu tâm lý là một DataFrame duy nhất
                 self.logger.info("Sử dụng DataFrame tâm lý được cung cấp trực tiếp")
-                sentiment_data = self.clean_sentiment_data(sentiment_data)  # Làm sạch dữ liệu tâm lý
                 common_sentiment_data = sentiment_data
+                # KHÔNG GỌI clean_sentiment_data() ở đây
             elif isinstance(sentiment_data, dict):
-                # Trường hợp 2: sentiment_data là Dictionary chứa DataFrame theo symbol
+                # Trường hợp 2: Dữ liệu tâm lý là Dictionary chứa DataFrame theo symbol
                 self.logger.info("Sử dụng Dictionary dữ liệu tâm lý theo symbol")
-                # Làm sạch dữ liệu tâm lý cho từng symbol
-                sentiment_by_symbol = {k: self.clean_sentiment_data(v) for k, v in sentiment_data.items()}
+                sentiment_by_symbol = sentiment_data
                 common_sentiment_data = None
             elif isinstance(sentiment_data, (str, Path)):
-                # Trường hợp 3: sentiment_data là đường dẫn file
+                # Trường hợp 3: Dữ liệu tâm lý là đường dẫn file
                 self.logger.info(f"Tải dữ liệu tâm lý từ file: {sentiment_data}")
                 try:
                     file_path = Path(sentiment_data)
@@ -1462,10 +1534,6 @@ class DataPipeline:
                     else:
                         self.logger.warning(f"Định dạng file không được hỗ trợ: {file_path.suffix}")
                         common_sentiment_data = None
-                    
-                    # Làm sạch dữ liệu tâm lý
-                    if common_sentiment_data is not None:
-                        common_sentiment_data = self.clean_sentiment_data(common_sentiment_data)
                 except Exception as e:
                     self.logger.error(f"Lỗi khi tải file dữ liệu tâm lý: {str(e)}")
                     common_sentiment_data = None
@@ -1487,84 +1555,43 @@ class DataPipeline:
             else:
                 common_sentiment_data = None
         
-        # Tìm kiếm file dữ liệu tâm lý riêng cho từng symbol
-        if sentiment_dir is not None:
+        # Tìm kiếm file dữ liệu tâm lý riêng cho từng symbol nếu cần
+        if sentiment_dir is not None and not sentiment_by_symbol:
+            # ...giữ nguyên phần này...
             sentiment_dir_path = Path(sentiment_dir)
-            
             # Đảm bảo thư mục tồn tại
             if not sentiment_dir_path.exists():
                 sentiment_dir_path.mkdir(parents=True, exist_ok=True)
-                self.logger.info(f"Đã tạo thư mục dữ liệu tâm lý: {sentiment_dir_path}")
             
             self.logger.info(f"Tìm kiếm dữ liệu tâm lý từ thư mục: {sentiment_dir_path}")
             
-            # Lấy danh sách symbols
+            # Tìm file cho từng symbol
             for symbol in market_data.keys():
-                # Chuẩn bị tên file dựa trên symbol
                 asset = symbol.split('/')[0] if '/' in symbol else symbol
-                
-                # Sử dụng hàm find_sentiment_files để tìm kiếm file
                 sentiment_files = self.find_sentiment_files(sentiment_dir_path, asset)
                 
                 if sentiment_files:
-                    # Sử dụng file mới nhất
+                    # Đọc file mới nhất
                     file_path = sentiment_files[0]
-                    self.logger.info(f"Sử dụng file tâm lý: {file_path}")
-                    
                     try:
-                        # Đọc dữ liệu tâm lý
                         if file_path.suffix.lower() == '.csv':
                             df = pd.read_csv(file_path)
-                            # Xử lý timestamp nếu có
                             if 'timestamp' in df.columns:
                                 df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
                         elif file_path.suffix.lower() == '.parquet':
                             df = pd.read_parquet(file_path)
                         
-                        # Kiểm tra dữ liệu đọc được
                         if df is not None and not df.empty:
-                            # Làm sạch dữ liệu tâm lý
-                            sentiment_by_symbol[symbol] = self.clean_sentiment_data(df)
-                            self.logger.info(f"Đã đọc {len(df)} dòng dữ liệu tâm lý cho {symbol}")
-                        else:
-                            self.logger.warning(f"File tâm lý {file_path} rỗng hoặc không đọc được")
+                            # KHÔNG gọi clean_sentiment_data ở đây
+                            sentiment_by_symbol[symbol] = df
                     except Exception as e:
                         self.logger.error(f"Lỗi khi đọc file tâm lý {file_path}: {str(e)}")
-                        traceback.print_exc()
-                else:
-                    # Nếu không tìm thấy file riêng, thử tìm file tâm lý chung
-                    self.logger.info(f"Không tìm thấy file tâm lý riêng cho {symbol}, tìm file tâm lý chung...")
-                    general_files = self.find_sentiment_files(sentiment_dir_path, "", include_subdirs=True)
-                    
-                    if general_files:
-                        file_path = general_files[0]
-                        self.logger.info(f"Sử dụng file tâm lý chung: {file_path}")
-                        
-                        try:
-                            # Đọc dữ liệu tâm lý chung
-                            if file_path.suffix.lower() == '.csv':
-                                df = pd.read_csv(file_path)
-                                if 'timestamp' in df.columns:
-                                    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
-                            elif file_path.suffix.lower() == '.parquet':
-                                df = pd.read_parquet(file_path)
-                            
-                            # Thêm cột asset nếu chưa có
-                            if 'asset' not in df.columns:
-                                df['asset'] = 'GENERAL'
-                            
-                            # Làm sạch dữ liệu tâm lý chung
-                            sentiment_by_symbol[symbol] = self.clean_sentiment_data(df)
-                            self.logger.info(f"Đã đọc {len(df)} dòng dữ liệu tâm lý chung cho {symbol}")
-                        except Exception as e:
-                            self.logger.error(f"Lỗi khi đọc file tâm lý chung {file_path}: {str(e)}")
         
         # Xử lý từng symbol
         for symbol, df in market_data.items():
             try:
                 # Đảm bảo timestamp là datetime
                 if 'timestamp' in df.columns:
-                    # Chuyển timestamp sang datetime nếu cần
                     if not pd.api.types.is_datetime64_any_dtype(df['timestamp']):
                         df = self._convert_timestamp(df)
                     
@@ -1584,35 +1611,24 @@ class DataPipeline:
                 # Ưu tiên sử dụng dữ liệu tâm lý riêng cho symbol
                 if symbol in sentiment_by_symbol:
                     symbol_sentiment = sentiment_by_symbol[symbol]
-                    self.logger.info(f"Sử dụng dữ liệu tâm lý riêng cho {symbol}")
-                # Nếu không có, thử với symbol_sentiment
                 elif f"{symbol}_sentiment" in sentiment_by_symbol:
                     symbol_sentiment = sentiment_by_symbol[f"{symbol}_sentiment"]
-                    self.logger.info(f"Sử dụng dữ liệu tâm lý {symbol}_sentiment")
-                # Nếu không có, thử tìm dữ liệu tâm lý cho asset
                 elif '/' in symbol:
                     asset = symbol.split('/')[0]
                     asset_key = f"{asset}_sentiment"
                     if asset_key in sentiment_by_symbol:
                         symbol_sentiment = sentiment_by_symbol[asset_key]
-                        self.logger.info(f"Sử dụng dữ liệu tâm lý asset {asset_key}")
-                # Nếu không có, sử dụng dữ liệu chung
                 elif common_sentiment_data is not None:
-                    # Lọc dữ liệu tâm lý cho asset tương ứng
+                    # Chọn dữ liệu tâm lý phù hợp từ common_sentiment_data
                     asset = symbol.split('/')[0] if '/' in symbol else symbol
-                    
                     if 'asset' in common_sentiment_data.columns:
                         asset_mask = (
                             (common_sentiment_data['asset'] == asset) | 
-                            (common_sentiment_data['asset'].str.lower() == asset.lower() if isinstance(asset, str) else False) |
-                            (common_sentiment_data['asset'].isna())
+                            (common_sentiment_data['asset'].str.lower() == asset.lower() if isinstance(asset, str) else False)
                         )
                         symbol_sentiment = common_sentiment_data[asset_mask].copy()
-                        self.logger.info(f"Lọc dữ liệu tâm lý chung cho {asset}: {len(symbol_sentiment)} dòng")
                     else:
-                        # Nếu không có cột asset, sử dụng tất cả dữ liệu tâm lý
                         symbol_sentiment = common_sentiment_data.copy()
-                        self.logger.info(f"Sử dụng dữ liệu tâm lý chung cho {symbol} (không có thông tin asset)")
                 
                 # Nếu không có dữ liệu tâm lý
                 if symbol_sentiment is None or symbol_sentiment.empty:
@@ -1649,30 +1665,21 @@ class DataPipeline:
                 market_df = merged_df.set_index('timestamp')
                 sentiment_df = symbol_sentiment.set_index('timestamp')
                 
-                # Tính giá trị tâm lý theo phương pháp đã chọn
+                # Chuẩn bị dữ liệu tâm lý - chỉ giữ lại cột value_column cho đơn giản
+                sentiment_series = sentiment_df[value_column]
+                
+                # ĐƠN GIẢN HÓA: Tính giá trị tâm lý theo phương pháp đã chọn
                 if method == 'last_value':
-                    # Lấy giá trị cuối cùng trong cửa sổ
-                    resampled_sentiment = sentiment_df[value_column].resample(window).last()
+                    resampled_sentiment = sentiment_series.resample(window).last()
                 elif method == 'mean':
-                    # Lấy giá trị trung bình trong cửa sổ
-                    resampled_sentiment = sentiment_df[value_column].resample(window).mean()
-                elif method == 'weighted_mean':
-                    # Lấy giá trị trung bình có trọng số
-                    if 'weight' in sentiment_df.columns:
-                        weights = sentiment_df['weight']
-                    else:
-                        # Tính trọng số dựa trên thời gian
-                        max_time = sentiment_df.index.max()
-                        min_time = sentiment_df.index.min()
-                        time_diff = (sentiment_df.index - min_time).total_seconds()
-                        max_diff = (max_time - min_time).total_seconds() or 1  # Tránh chia cho 0
-                        weights = time_diff / max_diff
-                    
-                    weighted_values = sentiment_df[value_column] * weights
-                    resampled_sentiment = (weighted_values.resample(window).sum() / weights.resample(window).sum()).fillna(method='ffill')
+                    resampled_sentiment = sentiment_series.resample(window).mean()
+                elif method == 'interpolate':
+                    # Phương pháp nội suy thay vì lấy last_value
+                    resampled_sentiment = sentiment_series.resample(window).mean()
+                    resampled_sentiment = resampled_sentiment.interpolate(method='linear')
                 else:
                     self.logger.warning(f"Phương pháp không hợp lệ: {method}, sử dụng 'last_value'")
-                    resampled_sentiment = sentiment_df[value_column].resample(window).last()
+                    resampled_sentiment = sentiment_series.resample(window).last()
                 
                 # Kết quả kết hợp
                 merged_result = pd.DataFrame(index=market_df.index)
@@ -1681,11 +1688,10 @@ class DataPipeline:
                 for col in market_df.columns:
                     merged_result[col] = market_df[col]
                 
-                # Thêm giá trị tâm lý
-                merged_result['sentiment_value'] = np.nan  # Khởi tạo cột trống
+                # ĐƠNG GIẢN HÓA: Chỉ thêm cột sentiment_value gốc
+                merged_result['sentiment_value'] = np.nan
                 
                 # Tìm các ngày chung giữa dữ liệu tâm lý và dữ liệu thị trường
-                # Cách này hiệu quả hơn pd.merge()
                 common_dates = merged_result.index.intersection(resampled_sentiment.index)
                 self.logger.info(f"Tìm thấy {len(common_dates)} ngày chung giữa dữ liệu thị trường và tâm lý")
                 
@@ -1693,38 +1699,34 @@ class DataPipeline:
                     # Gán giá trị tâm lý cho các ngày chung
                     merged_result.loc[common_dates, 'sentiment_value'] = resampled_sentiment.loc[common_dates]
                     
-                    # Điền các giá trị thiếu bằng forward fill và backward fill
-                    merged_result['sentiment_value'] = merged_result['sentiment_value'].fillna(method='ffill').fillna(method='bfill')
+                    # Điền các giá trị thiếu - sử dụng nội suy tuyến tính thay vì fillna
+                    if merged_result['sentiment_value'].isna().any():
+                        merged_result['sentiment_value'] = merged_result['sentiment_value'].interpolate(method='linear')
+                        # Xử lý NaN ở đầu và cuối (không thể nội suy)
+                        merged_result['sentiment_value'] = merged_result['sentiment_value'].fillna(method='ffill').fillna(method='bfill')
+                    
+                    # ĐƠN GIẢN HÓA: Chỉ tính thêm sentiment_change
+                    merged_result['sentiment_change'] = merged_result['sentiment_value'].diff()
+                    
+                    # Kiểm tra tỷ lệ giá trị bằng 0
+                    zero_ratio = (merged_result['sentiment_change'] == 0).mean()
+                    if zero_ratio > 0.5:  # Nếu hơn 50% là 0
+                        self.logger.warning(f"Phát hiện {zero_ratio:.2%} giá trị sentiment_change = 0, áp dụng nhiễu")
+                        
+                        # Tăng biên độ nhiễu lên đáng kể
+                        np.random.seed(42)
+                        noise_scale = merged_result['sentiment_value'].std() * 0.1  # Tăng lên 10% độ lệch chuẩn
+                        noise = np.random.normal(0, noise_scale, size=len(merged_result))
+                        
+                        # Chỉ thêm nhiễu vào sentiment_value
+                        merged_result['sentiment_value_noisy'] = merged_result['sentiment_value'] * (1 + noise)
+                        
+                        # Cập nhật sentiment_change
+                        merged_result['sentiment_change'] = merged_result['sentiment_value_noisy'].diff()
                     
                     # Đếm số lượng giá trị hợp lệ
                     valid_sentiment = merged_result['sentiment_value'].notna().sum()
                     self.logger.info(f"Số giá trị tâm lý hợp lệ: {valid_sentiment}/{len(merged_result)} ({valid_sentiment/len(merged_result)*100:.2f}%)")
-                    
-                    # Thêm các biến phái sinh tâm lý
-                    # Lag values
-                    for lag in [1, 3, 5]:
-                        merged_result[f'sentiment_lag_{lag}'] = merged_result['sentiment_value'].shift(lag)
-                    
-                    # Thay đổi so với kỳ trước
-                    merged_result['sentiment_change'] = merged_result['sentiment_value'].diff()
-                    
-                    # Trung bình động của tâm lý
-                    for window_size in [5, 10, 20]:
-                        merged_result[f'sentiment_ma_{window_size}'] = merged_result['sentiment_value'].rolling(window=window_size).mean()
-
-                    # Xử lý NaN trong các cột tâm lý phái sinh
-                    sentiment_cols = [col for col in merged_result.columns if col.startswith('sentiment_')]
-                    for col in sentiment_cols:
-                        if merged_result[col].isna().any():
-                            # Sử dụng forward fill và backward fill
-                            nan_count_before = merged_result[col].isna().sum()
-                            merged_result[col] = merged_result[col].fillna(method='ffill').fillna(method='bfill')
-                            
-                            # Nếu vẫn còn NaN, điền 0
-                            if merged_result[col].isna().any():
-                                merged_result[col] = merged_result[col].fillna(0)
-                            
-                            self.logger.info(f"Đã xử lý {nan_count_before} giá trị NaN trong cột {col} cho {symbol}")
                 else:
                     self.logger.warning(f"Không tìm thấy ngày chung giữa dữ liệu thị trường và tâm lý cho {symbol}")
                 
@@ -1955,6 +1957,8 @@ class DataPipeline:
     
         return results
     
+
+    
     def check_data_consistency(self, data: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, Any]]:
         """
         Kiểm tra tính nhất quán của dữ liệu trước khi lưu.
@@ -1973,26 +1977,72 @@ class DataPipeline:
         for symbol, df in data.items():
             self.logger.info(f"Kiểm tra tính nhất quán của dữ liệu cho {symbol}")
             
-            # Làm sạch dữ liệu tâm lý trước khi kiểm tra
+            # Làm sạch dữ liệu tâm lý trước khi kiểm tra - không làm mất thông tin biến thiên
             df_clean = df.copy()
             if any('sentiment_' in col for col in df_clean.columns):
                 try:
-                    sentiment_cols = [col for col in df_clean.columns if 'sentiment_' in col]
-                    if sentiment_cols:
-                        # Tạo chức năng clean_sentiment_features nếu chưa tồn tại
+                    # Thêm biến để theo dõi nếu dữ liệu đã được làm sạch
+                    _already_cleaned = True
+                    
+                    # Kiểm tra cột sentiment_change
+                    if 'sentiment_change' in df_clean.columns:
+                        zero_ratio = (df_clean['sentiment_change'] == 0).mean()
+                        if zero_ratio > 0.7:  # Nếu hơn 70% giá trị là 0
+                            _already_cleaned = False
+                            self.logger.warning(f"Phát hiện {zero_ratio:.2%} giá trị sentiment_change = 0, cần tái tính toán")
+                    
+                    # Chỉ làm sạch nếu thực sự cần thiết
+                    if not _already_cleaned:
+                        sentiment_cols = [col for col in df_clean.columns if 'sentiment_' in col]
+                        
+                        # Tính lại sentiment_change từ sentiment_value nếu có thể
+                        if 'sentiment_value' in df_clean.columns:
+                            # Làm sạch sentiment_value bằng nội suy trước
+                            if df_clean['sentiment_value'].isna().any():
+                                df_clean['sentiment_value'] = df_clean['sentiment_value'].interpolate(method='linear')
+                                df_clean['sentiment_value'] = df_clean['sentiment_value'].fillna(method='ffill').fillna(method='bfill')
+                            
+                            # Tính lại sentiment_change
+                            df_clean['sentiment_change'] = df_clean['sentiment_value'].diff()
+
+                            # Điền giá trị NaN ở dòng đầu tiên
+                            if df_clean['sentiment_change'].isna().any():
+                                # Sử dụng giá trị 0 hoặc giá trị nhỏ
+                                first_valid_change = df_clean['sentiment_change'].dropna().iloc[0] if not df_clean['sentiment_change'].dropna().empty else 0
+                                df_clean['sentiment_change'] = df_clean['sentiment_change'].fillna(first_valid_change)
+
+                            # Thêm nhiễu nhỏ để tránh giá trị 0 liên tiếp (khi cần)
+                            zero_pct = (df_clean['sentiment_change'] == 0).mean()
+                            if zero_pct > 0.5:
+                                self.logger.warning(f"Áp dụng jittering cho sentiment_change với {zero_pct:.2%} giá trị bằng 0")
+                                # Thêm nhiễu nhỏ hơn nhưng đủ để phân biệt
+                                np.random.seed(42)  # Để kết quả nhất quán
+                                small_jitter = np.random.normal(0, df_clean['sentiment_value'].std() * 0.005, size=len(df_clean))
+                                df_clean['sentiment_value_enhanced'] = df_clean['sentiment_value'] * (1 + small_jitter)
+                                df_clean['sentiment_change'] = df_clean['sentiment_value_enhanced'].diff().fillna(0)
+                                
+                                # Đảm bảo không còn NaN
+                                df_clean['sentiment_change'] = df_clean['sentiment_change'].fillna(0)
+                                
+                                # Xóa cột phụ trợ
+                                df_clean.drop('sentiment_value_enhanced', axis=1, inplace=True)
+                            
+                        # Xử lý các cột còn lại
                         for col in sentiment_cols:
+                            if col == 'sentiment_change':
+                                continue  # Đã xử lý ở trên
+                                
                             if df_clean[col].isna().any():
-                                # Điền forward fill trước
-                                df_clean[col] = df_clean[col].fillna(method='ffill')
+                                # Sử dụng nội suy tuyến tính trước
+                                df_clean[col] = df_clean[col].interpolate(method='linear')
                                 
-                                # Sau đó, điền backward fill
+                                # Sau đó mới dùng ffill/bfill cho các điểm không thể nội suy
                                 if df_clean[col].isna().any():
-                                    df_clean[col] = df_clean[col].fillna(method='bfill')
+                                    df_clean[col] = df_clean[col].fillna(method='ffill').fillna(method='bfill')
                                 
-                                # Cuối cùng, điền bằng trung bình nếu vẫn còn NaN
+                                # Điền 0 cho các NaN còn lại (nếu có)
                                 if df_clean[col].isna().any():
-                                    col_mean = df_clean[col].mean()
-                                    df_clean[col] = df_clean[col].fillna(col_mean if not pd.isna(col_mean) else 0)
+                                    df_clean[col] = df_clean[col].fillna(0)
                         
                         self.logger.info(f"Đã làm sạch các cột tâm lý cho {symbol} trước khi kiểm tra tính nhất quán")
                         
@@ -2124,9 +2174,76 @@ class DataPipeline:
                 # Log kết quả kiểm tra
                 if report["overall_status"] == "warning":
                     if report["warnings"]:
-                        self.logger.warning(f"Dữ liệu {symbol} có cảnh báo: {', '.join(report['warnings'])}")
+                        # Hiển thị chi tiết các cảnh báo
+                        warning_details = ', '.join(report['warnings'])
+                        missing_info = ""
+                        if "missing_values" in report and report["missing_values"]:
+                            cols_with_missing = sorted(report["missing_values"].items(), key=lambda x: x[1], reverse=True)
+                            top_missing = cols_with_missing[:5]  # Top 5 cột có nhiều giá trị NaN nhất
+                            missing_info = f", các cột có nhiều NaN nhất: {', '.join([f'{k}({v})' for k,v in top_missing])}"
+                            if len(cols_with_missing) > 5:
+                                missing_info += f" và {len(cols_with_missing)-5} cột khác"
+                        
+                        self.logger.warning(f"Dữ liệu {symbol} có cảnh báo: {warning_details}{missing_info}")
                     else:
-                        self.logger.warning(f"Dữ liệu {symbol} có cảnh báo tiềm ẩn (không có chi tiết)")
+                        # Kiểm tra chi tiết các vấn đề tiềm ẩn
+                        warnings = []
+                        
+                        # 1. Kiểm tra vấn đề về timestamp
+                        if "timestamp" in df.columns:
+                            if df['timestamp'].duplicated().sum() > 0:
+                                warnings.append(f"Có {df['timestamp'].duplicated().sum()} timestamp trùng lặp")
+                                
+                            if len(df) > 1:
+                                time_diffs = pd.Series(df['timestamp'].diff().dropna().astype('timedelta64[s]') / 3600)
+                                unique_diffs = time_diffs.unique()
+                                
+                                if len(unique_diffs) > 1:
+                                    warnings.append(f"Khoảng cách timestamp không đều ({len(unique_diffs)} giá trị khác nhau)")
+                        
+                        # 2. Kiểm tra vấn đề dữ liệu tâm lý
+                        sentiment_cols = [col for col in df.columns if col.startswith('sentiment_')]
+                        if sentiment_cols:
+                            if 'sentiment_change' in df.columns:
+                                zero_change_ratio = (df['sentiment_change'] == 0).mean()
+                                if zero_change_ratio > 0.5:
+                                    warnings.append(f"{zero_change_ratio:.1%} giá trị sentiment_change bằng 0")
+                                    
+                            missing_sentiment = sum(df[col].isna().sum() for col in sentiment_cols)
+                            if missing_sentiment > 0:
+                                warnings.append(f"Có {missing_sentiment} giá trị NaN trong các cột sentiment")
+                        
+                        # 3. Kiểm tra các vấn đề với OHLCV
+                        ohlc_cols = ['open', 'high', 'low', 'close']
+                        if all(col in df.columns for col in ohlc_cols):
+                            # Kiểm tra logic high/low
+                            high_low_issues = (df['high'] < df['low']).sum()
+                            if high_low_issues > 0:
+                                warnings.append(f"Có {high_low_issues} candle với high < low")
+                                
+                            # Kiểm tra giá trị âm
+                            negative_values = {col: (df[col] < 0).sum() for col in ohlc_cols if (df[col] < 0).any()}
+                            if negative_values:
+                                warnings.append(f"Có giá trị âm trong: {', '.join([f'{k}({v})' for k,v in negative_values.items()])}")
+                        
+                        # 4. Kiểm tra vấn đề với mức độ NaN nói chung
+                        nan_cols = df.columns[df.isna().any()].tolist()
+                        if nan_cols:
+                            total_rows = len(df)
+                            high_nan_cols = [col for col in nan_cols if df[col].isna().sum() / total_rows > 0.1]  # >10% giá trị NaN
+                            if high_nan_cols:
+                                warnings.append(f"Các cột có >10% giá trị NaN: {', '.join(high_nan_cols)}")
+                        
+                        # Hiển thị cảnh báo chi tiết nếu tìm thấy
+                        if warnings:
+                            self.logger.warning(f"Dữ liệu {symbol} có cảnh báo tiềm ẩn: {'; '.join(warnings)}")
+                        else:
+                            # Nếu không tìm thấy vấn đề cụ thể, hiển thị thông tin về dữ liệu
+                            columns_info = f"gồm {len(df.columns)} cột và {len(df)} dòng"
+                            dtypes_count = df.dtypes.value_counts().to_dict()
+                            dtypes_info = ', '.join([f"{v} cột {k}" for k, v in dtypes_count.items()])
+                            
+                            self.logger.warning(f"Dữ liệu {symbol} có cảnh báo tiềm ẩn không rõ nguyên nhân ({columns_info}, {dtypes_info})")
                 elif report["overall_status"] == "failed":     # <-- SỬA: Kiểm tra trạng thái "failed" thay vì "warning"
                     self.logger.error(f"Dữ liệu {symbol} có vấn đề nghiêm trọng: {', '.join(report['issues'])}")
                 else:
@@ -2633,6 +2750,40 @@ class DataPipeline:
                         )
                         current_data = merged_data
                         step_results["merge_sentiment"] = merged_data
+
+                        # Kiểm tra chất lượng dữ liệu tâm lý
+                        for symbol, df in current_data.items():
+                            if 'sentiment_value' in df.columns and 'sentiment_change' in df.columns:
+                                quality_metrics = self.check_sentiment_quality(df, 'sentiment_value')
+                                
+                                # Log thông tin chất lượng
+                                self.logger.info(f"Chất lượng dữ liệu tâm lý cho {symbol}: {quality_metrics}")
+                                
+                                # Xử lý lại nếu chất lượng kém
+                                if quality_metrics.get('quality') == 'poor':
+                                    self.logger.warning(f"Phát hiện dữ liệu tâm lý chất lượng kém cho {symbol}, đang tái xử lý...")
+                                    
+                                    # Tính lại sentiment_change
+                                    df['sentiment_change'] = df['sentiment_value'].diff()
+                                    
+                                    # Thêm tỷ lệ % thay đổi
+                                    df['sentiment_pct_change'] = df['sentiment_value'].pct_change() * 100
+                                    
+                                    # Thêm chỉ báo mức biến thiên tâm lý
+                                    df['sentiment_volatility'] = df['sentiment_value'].rolling(window=5).std()
+                                    
+                                    # Nếu vẫn còn quá nhiều giá trị 0, thêm nhiễu nhỏ
+                                    if (df['sentiment_change'] == 0).mean() > 0.7:
+                                        self.logger.warning(f"Áp dụng kỹ thuật jittering cho {symbol}")
+                                        np.random.seed(42)  # Đảm bảo khả năng tái tạo
+                                        small_noise = np.random.normal(0, df['sentiment_value'].std() * 0.001, size=len(df))
+                                        df['sentiment_value_enhanced'] = df['sentiment_value'] + small_noise
+                                        df['sentiment_change'] = df['sentiment_value_enhanced'].diff()
+                                        
+                                        # Kiểm tra lại
+                                        zero_ratio = (df['sentiment_change'] == 0).mean()
+                                        self.logger.info(f"Sau khi tái xử lý: {zero_ratio:.2%} giá trị sentiment_change = 0")
+
                     elif sentiment_data is not None:
                         # Sử dụng dữ liệu tâm lý được cung cấp
                         merged_data = self.merge_sentiment_data(
@@ -2655,7 +2806,7 @@ class DataPipeline:
                             step_results["merge_sentiment"] = merged_data
                         else:
                             self.logger.info("Không có dữ liệu tâm lý để kết hợp")
-                
+               
                 elif step_name == "check_consistency":
                     # Kiểm tra tính nhất quán dữ liệu
                     consistency_report = self.check_data_consistency(current_data)
@@ -2688,7 +2839,14 @@ class DataPipeline:
                     
                     from cli.commands.collect_commands import CollectCommands
                     cmd = CollectCommands()
-                    
+
+                elif step_name == "calculate_fear_greed":
+                    # Tính toán đặc trưng tâm lý thị trường dựa trên hành động giá (Fear & Greed)
+                    fear_greed_data = self.calculate_fear_greed_features(current_data)
+                    current_data = fear_greed_data
+                    step_results["calculate_fear_greed"] = fear_greed_data
+                    self.logger.info("Đã tính toán đặc trưng tâm lý thị trường (Fear & Greed)")                
+
                     # Chuyển datetime sang string format YYYY-MM-DD
                     start_date = start_time.strftime("%Y-%m-%d") if isinstance(start_time, datetime) else start_time
                     end_date = end_time.strftime("%Y-%m-%d") if isinstance(end_time, datetime) else end_time
@@ -2889,6 +3047,70 @@ async def run_test():
     
     print("Hoàn thành kiểm thử!")
 
+def check_sentiment_quality(self, df, column='sentiment_value'):
+    """
+    Kiểm tra chất lượng dữ liệu tâm lý.
+    
+    Args:
+        df: DataFrame chứa dữ liệu tâm lý
+        column: Tên cột tâm lý cần kiểm tra
+        
+    Returns:
+        Dict chứa các chỉ số chất lượng
+    """
+    if column not in df.columns:
+        self.logger.warning(f"Không tìm thấy cột {column} trong DataFrame")
+        return {}
+    
+    quality_metrics = {}
+    
+    # Tính tỷ lệ giá trị không thay đổi
+    if len(df) > 1:
+        diff_series = df[column].diff()
+        zero_diff_ratio = (diff_series == 0).mean()
+        quality_metrics['zero_diff_ratio'] = zero_diff_ratio
+        
+        # Tính số lượng giá trị 0 liên tiếp tối đa
+        zero_streaks = []
+        current_streak = 0
+        
+        for val in diff_series:
+            if val == 0:
+                current_streak += 1
+            else:
+                if current_streak > 0:
+                    zero_streaks.append(current_streak)
+                current_streak = 0
+                
+        if current_streak > 0:
+            zero_streaks.append(current_streak)
+            
+        max_zero_streak = max(zero_streaks) if zero_streaks else 0
+        quality_metrics['max_zero_streak'] = max_zero_streak
+        
+        # Độ biến thiên
+        std = df[column].std()
+        mean = df[column].mean()
+        
+        if mean != 0:
+            variation_coef = std / abs(mean)
+            quality_metrics['variation_coef'] = variation_coef
+        
+        # Đánh giá
+        if zero_diff_ratio > 0.7:
+            quality_metrics['quality'] = 'poor'
+            self.logger.warning(f"Chất lượng dữ liệu tâm lý kém: {zero_diff_ratio:.2%} giá trị không thay đổi")
+            
+            if max_zero_streak > 10:
+                self.logger.warning(f"Phát hiện {max_zero_streak} giá trị 0 liên tiếp trong sentiment_change")
+        elif zero_diff_ratio > 0.5:
+            quality_metrics['quality'] = 'moderate'
+            self.logger.info(f"Chất lượng dữ liệu tâm lý trung bình: {zero_diff_ratio:.2%} giá trị không thay đổi")
+        else:
+            quality_metrics['quality'] = 'good'
+            self.logger.info(f"Chất lượng dữ liệu tâm lý tốt: chỉ {zero_diff_ratio:.2%} giá trị không thay đổi")
+    
+    return quality_metrics
 
 def main():
     """

@@ -1,0 +1,39 @@
+{
+    "symbol": "BTC/USDT",
+    "rows": 26305,
+    "columns": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "symbol",
+        "indicators_fixed",
+        "volume_log",
+        "volume_extreme",
+        "volume_log_log",
+        "volume_extreme_log",
+        "volume_log_log_log",
+        "volume_extreme_log_log",
+        "ema_89",
+        "trend_strength",
+        "trend_acceleration",
+        "atr_14",
+        "atr_pct_14",
+        "volatility_zscore",
+        "volatility_rank"
+    ],
+    "saved_at": "2025-05-15T13:51:02.302351",
+    "file_format": "parquet",
+    "file_path": "E:\\AI_AGENT\\automated-trading-system\\data\\processed\\btc_usdt_20250515_135102.parquet",
+    "consistency_report": {
+        "rows": 26305,
+        "columns": 21,
+        "issues": [],
+        "warnings": [],
+        "overall_status": "passed"
+    },
+    "start_date": "2021-12-31T17:00:00",
+    "end_date": "2024-12-31T17:00:00"
+}

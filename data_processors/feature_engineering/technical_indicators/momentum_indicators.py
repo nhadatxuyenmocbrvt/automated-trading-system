@@ -20,7 +20,7 @@ def relative_strength_index(
     window: int = 14,
     method: str = 'ema',
     normalize: bool = False,
-    prefix: str = ''
+    prefix: str = 'momentum_'
 ) -> pd.DataFrame:
     """
     Tính Relative Strength Index (RSI).
@@ -88,6 +88,7 @@ def relative_strength_index(
         result_name = f"{prefix}rsi_norm_{window}"
     else:
         result_name = f"{prefix}rsi_{window}"
+        result_df[result_name] = rsi
     
     # THÊM DÒNG NÀY: Chuyển đổi rõ ràng thành float
     rsi = rsi.astype(float)
@@ -123,7 +124,7 @@ def stochastic_oscillator(
     d_period: int = 3,
     smooth_k: int = 1,
     normalize: bool = False,
-    prefix: str = ''
+    prefix: str = 'momentum_'
 ) -> pd.DataFrame:
     """
     Tính Stochastic Oscillator.
@@ -187,7 +188,7 @@ def williams_r(
     df: pd.DataFrame,
     window: int = 14,
     normalize: bool = False,
-    prefix: str = ''
+    prefix: str = 'momentum_'
 ) -> pd.DataFrame:
     """
     Tính Williams %R.
@@ -240,7 +241,7 @@ def commodity_channel_index(
     normalize: bool = False,
     normalize_range: bool = False,
     normalization_period: int = None,
-    prefix: str = ''
+    prefix: str = 'momentum_'
 ) -> pd.DataFrame:
     """
     Tính Commodity Channel Index (CCI).
@@ -303,8 +304,8 @@ def commodity_channel_index(
             # Giới hạn vào khoảng [0,1]
             cci_norm = cci_norm.clip(0, 1)
             result_name = f"{prefix}cci_norm_{window}"
+            result_df[result_name] = cci_norm
         
-        result_df[result_name] = cci_norm
     else:
         result_name = f"{prefix}cci_{window}"
         result_df[result_name] = cci
@@ -318,7 +319,7 @@ def rate_of_change(
     percentage: bool = True,
     normalize: bool = False,
     normalize_period: int = None,
-    prefix: str = ''
+    prefix: str = 'momentum_'
 ) -> pd.DataFrame:
     """
     Tính Rate of Change (ROC).
@@ -374,7 +375,7 @@ def money_flow_index(
     df: pd.DataFrame,
     window: int = 14,
     normalize: bool = False,
-    prefix: str = ''
+    prefix: str = 'momentum_'
 ) -> pd.DataFrame:
     """
     Tính Money Flow Index (MFI).
@@ -443,9 +444,7 @@ def money_flow_index(
         result_name = f"{prefix}mfi_norm_{window}"
     else:
         result_name = f"{prefix}mfi_{window}"
-    
-    # Đặt tên cột kết quả
-    result_df[result_name] = mfi
+        result_df[result_name] = mfi
     
     return result_df
 
@@ -457,7 +456,7 @@ def true_strength_index(
     signal_window: int = 7,
     normalize: bool = False,
     normalize_period: int = None,
-    prefix: str = ''
+    prefix: str = 'momentum_'
 ) -> pd.DataFrame:
     """
     Tính True Strength Index (TSI).

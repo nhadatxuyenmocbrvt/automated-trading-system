@@ -178,6 +178,22 @@ class FeatureGenerator:
         if feature_params is None:
             feature_params = {}
         
+        # Thêm đoạn này
+        if 'prefix' not in feature_params or not feature_params['prefix']:
+            if category is not None:
+                feature_params['prefix'] = f"{category}_"
+            else:
+                # Tự động xác định category từ tên hàm
+                func_name = feature_func.__name__
+                if "moving_average" in func_name or "bollinger" in func_name:
+                    feature_params['prefix'] = "trend_"
+                elif "rsi" in func_name or "stochastic" in func_name:
+                    feature_params['prefix'] = "momentum_"
+                elif "volume" in func_name or "obv" in func_name:
+                    feature_params['prefix'] = "volume_"
+                else:
+                    feature_params['prefix'] = "feature_"
+
         if category is None:
             # Tự động phân loại đặc trưng
             if any(keyword in feature_name for keyword in ["sma", "ema", "macd", "bollinger", "supertrend"]):

@@ -20,7 +20,7 @@ def simple_moving_average(
     column: str = 'close',
     window: int = 20,
     min_periods: int = None,
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Tính Simple Moving Average (SMA).
@@ -59,7 +59,7 @@ def exponential_moving_average(
     alpha: float = None,
     adjust: bool = False,  # Mặc định là False để phù hợp với trading
     min_periods: int = None,
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Tính Exponential Moving Average (EMA).
@@ -114,7 +114,7 @@ def bollinger_bands(
     window: int = 20,
     std_dev: float = 2.0,
     min_periods: int = None,
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Tính Bollinger Bands.
@@ -192,7 +192,7 @@ def moving_average_convergence_divergence(
     normalize: bool = False,
     norm_method: str = 'zscore',
     norm_window: int = 100,
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Tính Moving Average Convergence Divergence (MACD).
@@ -276,7 +276,7 @@ def average_directional_index(
     df: pd.DataFrame,
     window: int = 14,
     smooth_period: int = 14,
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Tính Average Directional Index (ADX).
@@ -453,7 +453,7 @@ def parabolic_sar(
     af_start: float = 0.02,
     af_step: float = 0.02,
     af_max: float = 0.2,
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Tính Parabolic SAR (Stop and Reverse).
@@ -576,7 +576,7 @@ def ichimoku_cloud(
     kijun_period: int = 26,
     senkou_b_period: int = 52,
     chikou_period: int = 26,
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Tính Ichimoku Cloud.
@@ -663,7 +663,7 @@ def supertrend(
     period: int = 10,
     multiplier: float = 3.0,
     column: str = 'close',
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Tính chỉ báo SuperTrend.
@@ -736,7 +736,7 @@ def standardize_macd(
     histogram_col: str = 'macd_histogram',
     window: int = 100,
     method: str = 'zscore',
-    prefix: str = ''
+    prefix: str = 'trend_'
 ) -> pd.DataFrame:
     """
     Chuẩn hóa các thành phần của MACD.

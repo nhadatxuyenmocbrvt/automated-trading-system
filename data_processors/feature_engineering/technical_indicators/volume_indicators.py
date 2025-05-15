@@ -17,7 +17,7 @@ def on_balance_volume(
     df: pd.DataFrame,
     close_column: str = 'close',
     volume_column: str = 'volume',
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính On-Balance Volume (OBV).
@@ -54,7 +54,7 @@ def on_balance_volume(
 
 def accumulation_distribution_line(
     df: pd.DataFrame,
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính Accumulation/Distribution Line (A/D Line).
@@ -95,7 +95,7 @@ def accumulation_distribution_line(
 def accumulated_distribution_volume(
     df: pd.DataFrame,
     window: int = 14,
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính Accumulated Distribution Volume (ADV), phiên bản cải tiến của A/D Line
@@ -168,7 +168,7 @@ def accumulated_distribution_volume(
 def chaikin_money_flow(
     df: pd.DataFrame,
     window: int = 20,
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính Chaikin Money Flow (CMF).
@@ -215,7 +215,7 @@ def volume_weighted_average_price(
     df: pd.DataFrame,
     window: int = None,
     anchor: str = 'today',
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính Volume-Weighted Average Price (VWAP).
@@ -327,7 +327,7 @@ def ease_of_movement(
     df: pd.DataFrame,
     window: int = 14,
     divisor: int = 10000,
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính Ease of Movement (EOM).
@@ -383,7 +383,7 @@ def volume_oscillator(
     short_window: int = 5,
     long_window: int = 10,
     percentage: bool = True,
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính Volume Oscillator (VO).
@@ -426,7 +426,7 @@ def volume_oscillator(
 def money_flow_index(
     df: pd.DataFrame,
     window: int = 14,
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính Money Flow Index (MFI).
@@ -481,7 +481,7 @@ def price_volume_trend(
     df: pd.DataFrame,
     close_column: str = 'close',
     volume_column: str = 'volume',
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Tính Price Volume Trend (PVT).
@@ -519,7 +519,7 @@ def log_transform_volume(
     volume_column: str = 'volume',
     log_base: float = 10.0,
     add_constant: float = 1.0,
-    prefix: str = ''
+    prefix: str = 'volume_'
 ) -> pd.DataFrame:
     """
     Áp dụng log transform cho dữ liệu khối lượng để ổn định phân phối.

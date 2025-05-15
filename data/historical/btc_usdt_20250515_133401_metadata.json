@@ -1,0 +1,45 @@
+{
+    "symbol": "BTC/USDT",
+    "rows": 26305,
+    "columns": [
+        "timestamp",
+        "volume_log",
+        "volume_extreme_log",
+        "ema_89",
+        "trend_strength",
+        "trend_acceleration",
+        "atr_14",
+        "atr_pct_14",
+        "volatility_zscore",
+        "atr_14_std",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "symbol",
+        "indicators_fixed",
+        "volume_extreme",
+        "sentiment_value",
+        "sentiment_change"
+    ],
+    "saved_at": "2025-05-15T13:34:01.407980",
+    "file_format": "parquet",
+    "file_path": "data\\historical\\btc_usdt_20250515_133401.parquet",
+    "consistency_report": {
+        "rows": 26305,
+        "columns": 20,
+        "issues": [
+            "có 17221 candle với high < low",
+            "có giá trị âm trong cột OHLC: {'open': 15416, 'high': 15389, 'low': 15440, 'close': 15417}"
+        ],
+        "warnings": [],
+        "sentiment_stats": {
+            "missing_values": 0,
+            "coverage_percentage": 100.0
+        },
+        "overall_status": "warning"
+    },
+    "start_date": "2021-12-31T17:00:00",
+    "end_date": "2024-12-31T17:00:00"
+}

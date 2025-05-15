@@ -456,6 +456,12 @@ def log_transform(
                 logger.warning(f"Bỏ qua cột {col} vì không phải kiểu số")
                 continue
             
+            # Kiểm tra nếu là cột giá gốc thì tạo cột mới thay vì ghi đè
+            if col in ['open', 'high', 'low', 'close', 'volume']:
+                target_col = f"{col}_log"
+            else:
+                target_col = col
+            
             # Lấy dữ liệu không null
             non_null_mask = df[col].notnull()
             
@@ -467,15 +473,12 @@ def log_transform(
             else:
                 adjusted_offset = offset
             
-            # Áp dụng biến đổi logarithm
+            # Áp dụng biến đổi logarithm vào cột mới nếu cần
             if base == np.e:
-                result_df.loc[non_null_mask, col] = np.log(df.loc[non_null_mask, col] + adjusted_offset)
-            elif base == 10:
-                result_df.loc[non_null_mask, col] = np.log10(df.loc[non_null_mask, col] + adjusted_offset)
-            elif base == 2:
-                result_df.loc[non_null_mask, col] = np.log2(df.loc[non_null_mask, col] + adjusted_offset)
-            else:
-                result_df.loc[non_null_mask, col] = np.log(df.loc[non_null_mask, col] + adjusted_offset) / np.log(base)
+                if target_col != col:  # Nếu tạo cột mới
+                    result_df[target_col] = np.log(df.loc[non_null_mask, col] + adjusted_offset)
+                else:  # Nếu ghi đè
+                    result_df.loc[non_null_mask, target_col] = np.log(df.loc[non_null_mask, col] + adjusted_offset)
             
             logger.debug(f"Đã áp dụng biến đổi logarithm (base={base}) cho cột {col}")
             
@@ -844,10 +847,15 @@ def normalize_technical_indicators(
             'atr': {'method': 'zscore'}
         }
     
+    # Danh sách các cột gốc cần bảo vệ, không chuẩn hóa
+    protected_columns = ['open', 'high', 'low', 'close', 'volume', 'timestamp']
+
     # Xử lý từng loại chỉ báo
     for indicator_type, config in indicators_config.items():
         # Tìm các cột chứa tên chỉ báo
-        indicator_cols = [col for col in result_df.columns if indicator_type.lower() in col.lower()]
+        indicator_cols = [col for col in result_df.columns 
+                        if indicator_type.lower() in col.lower()
+                        and col not in protected_columns]
         
         if not indicator_cols:
             continue
@@ -1013,12 +1021,17 @@ def standardize_technical_indicators(
             'atr': {'method': 'rolling_zscore'}
         }
     
+    # Danh sách các cột gốc cần bảo vệ, không tiêu chuẩn hóa
+    protected_columns = ['open', 'high', 'low', 'close', 'volume', 'timestamp']
+
     # Tự động phát hiện các cột cho mỗi loại chỉ báo
     if auto_detect:
         for indicator_type, config in indicators_config.items():
             if 'cols' not in config:
                 # Tìm tất cả các cột có chứa tên chỉ báo
-                indicator_cols = [col for col in result_df.columns if indicator_type.lower() in col.lower()]
+                indicator_cols = [col for col in result_df.columns 
+                                if indicator_type.lower() in col.lower()
+                                and col not in protected_columns]
                 config['cols'] = indicator_cols
     
     # Xử lý từng loại chỉ báo
@@ -1033,6 +1046,11 @@ def standardize_technical_indicators(
         logger.info(f"Chuẩn hóa {len(cols)} cột của loại chỉ báo {indicator_type} bằng phương pháp {method}")
         
         for col in cols:
+            # Bỏ qua nếu là cột được bảo vệ
+            if col in protected_columns:
+                logger.warning(f"Bỏ qua cột {col} vì là cột gốc cần bảo vệ")
+                continue
+
             if col not in result_df.columns:
                 continue
                 
@@ -1474,7 +1492,19 @@ def clean_technical_features(
         }
     
     result_df = df.copy()
-    
+
+    # Lưu các cột giá gốc để khôi phục sau khi xử lý
+    original_price_data = None
+    if all(col in result_df.columns for col in ['open', 'high', 'low', 'close']):
+        original_price_data = {
+            'open': result_df['open'].copy(),
+            'high': result_df['high'].copy(),
+            'low': result_df['low'].copy(),
+            'close': result_df['close'].copy()
+        }
+        if 'volume' in result_df.columns:
+            original_price_data['volume'] = result_df['volume'].copy()
+
     # Bước 1: Sửa chữa các giá trị ngoại lệ
     if config.get('fix_outliers', True):
         from config.logging_config import setup_logger
@@ -1556,6 +1586,19 @@ def clean_technical_features(
         )
         logger.info("Đã tạo nhãn cho dữ liệu")
     
+    # Khôi phục lại các cột giá gốc
+    if original_price_data is not None:
+        for col, data in original_price_data.items():
+            result_df[col] = data
+        
+        # Đảm bảo high >= low sau khi khôi phục
+        result_df['high'] = np.maximum(result_df['high'], result_df['low'])
+        
+        # Đảm bảo không có giá trị âm
+        for col in ['open', 'high', 'low', 'close']:
+            if col in result_df.columns:
+                result_df[col] = np.maximum(0, result_df[col])
+
     logger.info("Đã hoàn thành làm sạch và chuẩn hóa các chỉ báo kỹ thuật")
     return result_df
 
@@ -1779,3 +1822,70 @@ def clean_sentiment_features(
             logger.debug(f"Đã xử lý {nan_count} giá trị NaN trong cột {col}")
     
     return result
+
+def ensure_valid_price_data(
+    df: pd.DataFrame,
+    fix_high_low: bool = True,
+    ensure_positive: bool = True,
+    **kwargs
+) -> pd.DataFrame:
+    """
+    Đảm bảo dữ liệu giá hợp lệ:
+    - high >= low
+    - Không có giá trị âm nếu cần
+    
+    Args:
+        df: DataFrame chứa dữ liệu giá
+        fix_high_low: Sửa các trường hợp high < low
+        ensure_positive: Đảm bảo giá không âm
+        **kwargs: Tham số bổ sung
+    
+    Returns:
+        DataFrame với dữ liệu giá đã được sửa
+    """
+    result_df = df.copy()
+    
+    # Kiểm tra xem có đủ các cột OHLC không
+    if all(col in result_df.columns for col in ['high', 'low']):
+        # Đếm số candle bị lỗi
+        invalid_candles = (result_df['high'] < result_df['low']).sum()
+        
+        if invalid_candles > 0:
+            logger.warning(f"Phát hiện {invalid_candles} candle với high < low")
+            
+            if fix_high_low:
+                # Sửa lỗi bằng cách hoán đổi giá trị high và low
+                mask = result_df['high'] < result_df['low']
+                
+                # Lưu tạm các giá trị
+                temp_high = result_df.loc[mask, 'high'].copy()
+                temp_low = result_df.loc[mask, 'low'].copy()
+                
+                # Hoán đổi
+                result_df.loc[mask, 'high'] = temp_low
+                result_df.loc[mask, 'low'] = temp_high
+                
+                logger.info(f"Đã sửa {invalid_candles} candle bằng cách hoán đổi high và low")
+    
+    # Kiểm tra giá trị âm
+    if ensure_positive:
+        price_cols = [col for col in ['open', 'high', 'low', 'close'] if col in result_df.columns]
+        
+        for col in price_cols:
+            negative_values = (result_df[col] < 0).sum()
+            
+            if negative_values > 0:
+                logger.warning(f"Phát hiện {negative_values} giá trị âm trong cột {col}")
+                
+                # Thay thế bằng giá trị dương nhỏ gần nhất
+                min_positive = result_df[result_df[col] > 0][col].min()
+                
+                if pd.notna(min_positive):
+                    result_df.loc[result_df[col] < 0, col] = min_positive
+                else:
+                    # Nếu không có giá trị dương, đặt bằng 0
+                    result_df.loc[result_df[col] < 0, col] = 0
+                
+                logger.info(f"Đã sửa {negative_values} giá trị âm trong cột {col}")
+    
+    return result_df
